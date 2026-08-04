@@ -26,7 +26,7 @@ export function CampaignWizard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<DiscoveryError | null>(null);
   const [launching, setLaunching] = useState(false);
-  const [launchError, setLaunchError] = useState<LaunchError | null>(null);
+  const [, set] = useState< | null>(null);
 
   const proposals = result?.payload.campaigns ?? [];
   const chosen = proposals[selected];
@@ -255,9 +255,15 @@ export function CampaignWizard() {
           <div><div className="label" style={{ color: "#cce0ff" }}>Fit</div><div className="value">{chosen.fitScore}/100</div></div>
           <div><div className="label" style={{ color: "#cce0ff" }}>Initial sending</div><div className="value">Recipient-local 08:00–18:00</div></div>
         </div>
-        <button className="button section" type="button" onClick={launchCampaign} disabled={launching}>
-          {launching ? "Launching…" : "Launch campaign"} {!launching && <ArrowRight size={16} />}
-        </button>
+        <button
+        className="button secondary website-error-action"
+  type="button"
+  onClick={launchCampaign}
+  disabled={launching}
+  >
+  Try again
+  </button>
+  </div>}
         {launchError && <div className="website-error launch-error" role="alert">
           <div className="website-error-icon"><AlertTriangle size={19} /></div>
           <div className="website-error-copy"><strong>{launchError.title}</strong><p>{launchError.message}</p><span>{launchError.hint}</span></div>
