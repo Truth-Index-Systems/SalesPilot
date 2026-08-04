@@ -3,7 +3,7 @@ import type { CampaignDetail, CampaignSummary } from "./schemas";
 export function presentCampaignStatus(status: CampaignSummary["status"]): string {
   switch (status) {
     case "PREPARING": return "SalesPilot is preparing this campaign";
-    case "READY": return "Ready for company discovery";
+    case "READY": return "Ready for the next stage";
     case "FAILED": return "This campaign needs attention";
     case "ARCHIVED": return "Archived";
     case "DRAFT": return "Draft";
