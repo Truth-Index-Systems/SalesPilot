@@ -264,14 +264,43 @@ export function CampaignWizard() {
   Try again
   </button>
   </div>}
-        {launchError && <div className="website-error launch-error" role="alert">
-          <div className="website-error-icon"><AlertTriangle size={19} /></div>
-          <div className="website-error-copy"><strong>{launchError.title}</strong><p>{launchError.message}</p><span>{launchError.hint}</span></div>
-          <button className="button secondary website-error-action" type="button" onClick={launchCampaign} disabled={launching}>Try again</button>
-        </div>
+        {launchError && (
+  <div className="website-error launch-error" role="alert">
+    <div className="website-error-icon">
+      <AlertTriangle size={19} />
+    </div>
+
+    <div className="website-error-copy">
+      <strong>{launchError.title}</strong>
+      <p>{launchError.message}</p>
+      <span>{launchError.hint}</span>
+    </div>
+
+    <button
+      className="button secondary website-error-action"
+      type="button"
+      onClick={launchCampaign}
+      disabled={launching}
+    >
+      Try again
+    </button>
+  </div>
+)}
+
+<div className="section card">
+  <div className="card-title">Why this campaign</div>
+
+  <div className="grid cols-3 section">
+    {chosen.why.slice(0, 3).map((reason, index) => (
+      <div key={reason}>
+        <strong>{index + 1}. Evidence-backed fit</strong>
+        <p className="card-subtitle">{reason}</p>
       </div>
-      <div className="section card"><div className="card-title">Why this campaign</div><div className="grid cols-3 section">{chosen.why.slice(0, 3).map((reason, index) => <div key={reason}><strong>{index + 1}. Evidence-backed fit</strong><p className="card-subtitle">{reason}</p></div>)}</div></div>
-    </div>}
+    ))}
+  </div>
+</div>
+
+</div>}
 
     <div className="section" style={{ display: "flex", justifyContent: "space-between" }}>
       <button className="button ghost" onClick={back} disabled={step === 0 || loading || launching}>Back</button>
