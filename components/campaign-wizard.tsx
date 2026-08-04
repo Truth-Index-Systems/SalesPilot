@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -67,6 +67,28 @@ export function CampaignWizard() {
   const [error, setError] = useState<DiscoveryError | null>(null);
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState<LaunchError | null>(null);
+
+  useEffect(() => {
+    const rawDraft = sessionStorage.getItem("salespilot:campaign-draft:v1");
+    if (!rawDraft) return;
+    try {
+      const draft = JSON.parse(rawDraft) as {
+        result?: AiEnvelope<BusinessDnaPayload>;
+        selectedProposalId?: string;
+        websiteUrl?: string;
+      };
+      if (!draft.result || !draft.selectedProposalId) return;
+      const proposalIndex = draft.result.payload.campaigns.findIndex(
+        proposal => proposal.id === draft.selectedProposalId,
+      );
+      setResult(draft.result);
+      setSelected(proposalIndex >= 0 ? proposalIndex : 0);
+      setUrl(draft.websiteUrl ?? draft.result.payload.company.website);
+      setStep(3);
+    } catch {
+      sessionStorage.removeItem("salespilot:campaign-draft:v1");
+    }
+  }, []);
 
   const proposals = result?.payload.campaigns ?? [];
   const chosen = proposals[selected];
@@ -219,6 +241,10 @@ export function CampaignWizard() {
       const data = (await response.json()) as LaunchResponse;
 
       if (!data.ok) {
+        if (response.status === 401 || data.error.code === "SIGN_IN_REQUIRED") {
+          router.push(`/sign-in?next=${encodeURIComponent("/campaigns/new")}`);
+          return;
+        }
         setLaunchError(data.error);
         return;
       }
