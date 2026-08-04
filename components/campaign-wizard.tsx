@@ -26,6 +26,7 @@ export function CampaignWizard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<DiscoveryError | null>(null);
   const [launching, setLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState<LaunchError | null>(null);
   const [, set] = useState< | null>(null);
 
   const proposals = result?.payload.campaigns ?? [];
