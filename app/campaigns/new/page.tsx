@@ -1,0 +1,2 @@
+import { AppShell } from "@/components/shell"; import { PageHeader } from "@/components/ui"; import { CampaignWizard } from "@/components/campaign-wizard";
+export default function NewCampaign(){return <AppShell title="New campaign"><PageHeader eyebrow="Business discovery" title="Build the campaign around your business" subtitle="SalesPilot starts by understanding your business, then proposes the strategy for you to review and launch."/><CampaignWizard/></AppShell>}

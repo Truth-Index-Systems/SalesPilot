@@ -1,0 +1,60 @@
+# Environment variables and secrets
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*.local
+
+# Keep the safe template
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Build output
+dist/
+build/
+
+# Visual Studio
+.vs/
+
+# VS Code local settings
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.example.json
+
+# JetBrains
+.idea/
+
+# Supabase local files
+supabase/.branches/
+supabase/.temp/
+
+# Testing
+coverage/
+test-results/
+playwright-report/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Operating system
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# TypeScript
+*.tsbuildinfo
+
+# Temporary files
+*.tmp
+*.temp

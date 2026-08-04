@@ -1,0 +1,33 @@
+{
+  "name": "salespilot-genesis",
+  "version": "0.4.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "genesis:check": "node scripts/validate-genesis.mjs",
+    "language:check": "node scripts/validate-language.mjs",
+    "intelligence:check": "node scripts/validate-intelligence.mjs",
+    "model-routing:check": "node scripts/validate-model-routing.mjs",
+    "website-errors:check": "node scripts/validate-website-errors.mjs",
+    "campaigns:check": "node scripts/validate-campaign-persistence.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "0.468.0",
+    "next": "15.2.4",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "zod": "3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "@types/react-dom": "19.0.4",
+    "typescript": "5.8.2"
+  }
+}
