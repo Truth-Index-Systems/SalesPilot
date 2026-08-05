@@ -1,5 +1,6 @@
 import "server-only";
 import { CompanyDiscoveryResultSchema } from "./schemas";
+import { normaliseDiscoveryResult } from "./normalise";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
@@ -27,7 +28,7 @@ const schema = {
   }
 };
 
-export async function discoverCompanies(input: { campaign: Record<string, unknown>; business: Record<string, unknown> }) {
+export async function discoverCompanies(input: { campaign: Record<string, unknown>; business: Record<string, unknown>; customerWebsite?: string | null }) {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model = resolveOpenAIModel("analysis").model;
@@ -41,5 +42,6 @@ export async function discoverCompanies(input: { campaign: Record<string, unknow
   })});
   const json = await response.json().catch(()=>null);
   if (!response.ok) throw new Error(`OPENAI_DISCOVERY_FAILED:${response.status}:${JSON.stringify((json as any)?.error ?? null)}`);
-  return CompanyDiscoveryResultSchema.parse(JSON.parse(outputText(json)));
+  const parsed = CompanyDiscoveryResultSchema.parse(JSON.parse(outputText(json)));
+  return normaliseDiscoveryResult(parsed, { customerWebsite: input.customerWebsite });
 }

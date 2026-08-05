@@ -6,6 +6,7 @@ import { getCampaign, listCampaigns } from "@/lib/campaigns/repository";
 import { presentCampaignDetail } from "@/lib/campaigns/presenter";
 import { requirePageUser } from "@/lib/auth/page-user";
 import { getDiscoveryForCampaign, listCompanies } from "@/lib/discovery/repository";
+import { DiscoveryRetryButton } from "@/components/discovery-retry-button";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const campaign = presentCampaignDetail(record);
   const discoveryRunning = discovery?.status === "RUNNING" || discovery?.status === "QUEUED";
   const discoveryComplete = discovery?.status === "COMPLETED";
+  const discoveryFailed = discovery?.status === "FAILED";
   const progress = Number(discovery?.progress ?? 0);
   const stageLabel = ({PREPARING:"Preparing company discovery",SEARCHING:"Searching for matching companies",ANALYSING:"Analysing company fit",VALIDATING:"Validating evidence",SAVING:"Saving recommendations",COMPLETE:"Companies ready for review"} as Record<string,string>)[discovery?.stage] ?? "Preparing company discovery";
 
@@ -73,10 +75,11 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     <div className="hero campaign-control-centre">
       <div className="campaign-control-copy">
         <div className="eyebrow" style={{ color: "#d8f6ff" }}>Campaign status</div>
-        <h2>{discoveryComplete ? "Matching companies are ready for review." : discoveryRunning ? "SalesPilot is finding matching companies." : "Your outbound sales campaign is ready."}</h2>
-        <p>{discoveryComplete ? `${companyCount} evidence-backed compan${companyCount === 1 ? "y is" : "ies are"} ready for your review.` : discoveryRunning ? "SalesPilot is continuing the approved campaign automatically. Every recommendation will include evidence and a confidence score." : "Business understanding and campaign approval are complete. SalesPilot is preparing company discovery."}</p>
-        <div className="campaign-readiness"><span/><strong>{stageLabel}</strong><small>{discoveryComplete ? "Review recommendations in Companies" : `${progress}% complete`}</small></div>
-        {!discoveryComplete && <div className="discovery-progress" aria-label={`Company discovery ${progress}% complete`}><span style={{width:`${Math.max(4,progress)}%`}}/></div>}
+        <h2>{discoveryComplete ? "Matching companies are ready for review." : discoveryRunning ? "SalesPilot is finding matching companies." : discoveryFailed ? "Company discovery needs another attempt." : "Your outbound sales campaign is ready."}</h2>
+        <p>{discoveryComplete ? `${companyCount} evidence-backed compan${companyCount === 1 ? "y is" : "ies are"} ready for your review.` : discoveryRunning ? "SalesPilot is continuing the approved campaign automatically. Every recommendation will include evidence and a confidence score." : discoveryFailed ? "No partial company recommendations were saved. Restart discovery when you are ready." : "Business understanding and campaign approval are complete. SalesPilot is preparing company discovery."}</p>
+        <div className="campaign-readiness"><span/><strong>{stageLabel}</strong><small>{discoveryComplete ? "Review recommendations in Companies" : discoveryFailed ? "Safe to retry" : `${progress}% complete`}</small></div>
+        {discoveryFailed && <DiscoveryRetryButton campaignId={id}/>}
+        {!discoveryComplete && !discoveryFailed && <div className="discovery-progress" aria-label={`Company discovery ${progress}% complete`}><span style={{width:`${Math.max(4,progress)}%`}}/></div>}
       </div>
       <div className="next-status-panel">
         <span>Next milestone</span>
