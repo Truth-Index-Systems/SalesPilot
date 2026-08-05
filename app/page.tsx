@@ -6,6 +6,7 @@ import { listCampaigns } from "@/lib/campaigns/repository";
 import { presentCampaignStatus } from "@/lib/campaigns/presenter";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import type { CampaignSummary } from "@/lib/campaigns/schemas";
+import { companyCounts } from "@/lib/discovery/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +30,10 @@ export default async function Home() {
   }
 
   const preparing = campaigns.filter(campaign => campaign.status === "PREPARING").length;
+  let companies = { total: 0, pending: 0, approved: 0 };
+  try { companies = await companyCounts(); } catch (error) { console.error("Overview companies unavailable", error); }
 
-  return <AppShell title="Overview" user={user} workspaceStats={{ campaigns: campaigns.length, companies: 0, replies: 0, opportunities: 0 }}>
+  return <AppShell title="Overview" user={user} workspaceStats={{ campaigns: campaigns.length, companies: companies.total, replies: 0, opportunities: 0 }}>
     <PageHeader
       eyebrow="Your sales workspace"
       title={greeting(user.name)}
@@ -40,7 +43,7 @@ export default async function Home() {
     <div className="grid cols-4">
       <Metric label="Campaigns" value={String(campaigns.length)} foot={storageReady ? (campaigns.length === 1 ? "1 saved outbound sales campaign" : `${campaigns.length} saved outbound sales campaigns`) : "Campaigns are temporarily unavailable"}/>
       <Metric label="Ready for discovery" value={String(preparing)} foot={preparing ? "Approved campaigns awaiting the next stage" : "No campaigns waiting"}/>
-      <Metric label="Companies" value="—" foot="Available when company discovery begins"/>
+      <Metric label="Companies" value={String(companies.total)} foot={companies.pending ? `${companies.pending} awaiting review` : companies.total ? `${companies.approved} approved` : "Discovery will begin automatically"}/>
       <Metric label="Pipeline" value="—" foot="Builds from real opportunities"/>
     </div>
     <div className="section hero">

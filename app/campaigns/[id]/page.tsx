@@ -5,6 +5,7 @@ import { CheckCircle2, Circle, Target, Users, WandSparkles, ShieldCheck, Rocket,
 import { getCampaign, listCampaigns } from "@/lib/campaigns/repository";
 import { presentCampaignDetail } from "@/lib/campaigns/presenter";
 import { requirePageUser } from "@/lib/auth/page-user";
+import { getDiscoveryForCampaign, listCompanies } from "@/lib/discovery/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -39,16 +40,24 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const user = await requirePageUser(`/campaigns/${id}`);
   let record;
   let campaignCount = 1;
+  let discovery: any = null;
+  let companyCount = 0;
   try {
     record = await getCampaign(id);
     campaignCount = (await listCampaigns()).length;
+    discovery = await getDiscoveryForCampaign(id);
+    companyCount = (await listCompanies({ campaignId: id })).length;
   } catch (error) {
     console.error("Campaign detail unavailable", error);
   }
   if (!record) notFound();
   const campaign = presentCampaignDetail(record);
+  const discoveryRunning = discovery?.status === "RUNNING" || discovery?.status === "QUEUED";
+  const discoveryComplete = discovery?.status === "COMPLETED";
+  const progress = Number(discovery?.progress ?? 0);
+  const stageLabel = ({PREPARING:"Preparing company discovery",SEARCHING:"Searching for matching companies",ANALYSING:"Analysing company fit",VALIDATING:"Validating evidence",SAVING:"Saving recommendations",COMPLETE:"Companies ready for review"} as Record<string,string>)[discovery?.stage] ?? "Preparing company discovery";
 
-  return <AppShell title={campaign.name} user={user} workspaceStats={{ campaigns: campaignCount, companies: 0, replies: 0, opportunities: 0 }}>
+  return <AppShell title={campaign.name} user={user} workspaceStats={{ campaigns: campaignCount, companies: companyCount, replies: 0, opportunities: 0 }}>
     <PageHeader eyebrow="Outbound sales campaign" title={campaign.name} subtitle="Your approved campaign, current position and next milestone in one place." action={<span className="badge green">{campaign.matchLabel} · {campaign.fitScore}/100</span>}/>
 
     <section className="campaign-summary-strip" aria-label="Campaign summary">
@@ -64,14 +73,15 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     <div className="hero campaign-control-centre">
       <div className="campaign-control-copy">
         <div className="eyebrow" style={{ color: "#d8f6ff" }}>Campaign status</div>
-        <h2>Your outbound sales campaign is ready.</h2>
-        <p>Business understanding and campaign approval are complete. SalesPilot is ready for the next stage: company discovery.</p>
-        <div className="campaign-readiness"><span/><strong>3 foundation stages complete</strong><small>Next milestone: Company discovery</small></div>
+        <h2>{discoveryComplete ? "Matching companies are ready for review." : discoveryRunning ? "SalesPilot is finding matching companies." : "Your outbound sales campaign is ready."}</h2>
+        <p>{discoveryComplete ? `${companyCount} evidence-backed compan${companyCount === 1 ? "y is" : "ies are"} ready for your review.` : discoveryRunning ? "SalesPilot is continuing the approved campaign automatically. Every recommendation will include evidence and a confidence score." : "Business understanding and campaign approval are complete. SalesPilot is preparing company discovery."}</p>
+        <div className="campaign-readiness"><span/><strong>{stageLabel}</strong><small>{discoveryComplete ? "Review recommendations in Companies" : `${progress}% complete`}</small></div>
+        {!discoveryComplete && <div className="discovery-progress" aria-label={`Company discovery ${progress}% complete`}><span style={{width:`${Math.max(4,progress)}%`}}/></div>}
       </div>
       <div className="next-status-panel">
         <span>Next milestone</span>
-        <strong>Company Discovery</strong>
-        <small>Ready when the discovery engine is connected</small>
+        <strong>{discoveryComplete ? "Companies ready" : "Company Discovery"}</strong>
+        <small>{discoveryComplete ? `${companyCount} recommendations available` : stageLabel}</small>
       </div>
       <div className="campaign-roadmap" aria-label="Sales campaign journey">
         {journey.map(([label, state], index) => <div className={`roadmap-stage ${state}`} key={label}>
@@ -97,14 +107,14 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       <Card className="next-milestone-card">
         <div className="eyebrow">Next milestone</div>
         <div className="card-title large">Company Discovery</div>
-        <div className="card-subtitle">This stage begins when the company discovery engine is enabled.</div>
+        <div className="card-subtitle">{discoveryComplete ? "Evidence-backed recommendations are ready for review." : "SalesPilot has started this stage automatically from your approved campaign."}</div>
         <div className="milestone-list section">
           <div><CheckCircle2 size={17}/><span>Find companies matching the approved audience</span></div>
           <div><CheckCircle2 size={17}/><span>Explain why every recommendation fits</span></div>
           <div><CheckCircle2 size={17}/><span>Hold uncertain matches for review</span></div>
           <div><CheckCircle2 size={17}/><span>Provide a confidence score for each result</span></div>
         </div>
-        <div className="milestone-state"><span className="roadmap-pulse"/><div><strong>Ready for the next stage</strong><small>No company discovery has started yet.</small></div></div>
+        <div className="milestone-state"><span className="roadmap-pulse"/><div><strong>{discoveryComplete ? "Recommendations ready" : stageLabel}</strong><small>{discoveryComplete ? `${companyCount} companies are waiting for review.` : `${progress}% complete · progress is saved automatically.`}</small></div></div>
       </Card>
     </div>
 

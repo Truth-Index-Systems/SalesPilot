@@ -1,0 +1,4 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+export function CompanyReviewActions({id,status}:{id:string;status:string}){const router=useRouter();const [busy,setBusy]=useState<string|null>(null);async function save(next:string){setBusy(next);try{const response=await fetch(`/api/companies/${id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({status:next})});if(!response.ok)throw new Error();router.refresh();}finally{setBusy(null);}}return <div className="company-review-actions"><button className="button primary" disabled={!!busy||status==='APPROVED'} onClick={()=>save('APPROVED')}>{busy==='APPROVED'?'Saving…':'Approve company'}</button><button className="button secondary" disabled={!!busy||status==='REJECTED'} onClick={()=>save('REJECTED')}>{busy==='REJECTED'?'Saving…':'Reject'}</button></div>}

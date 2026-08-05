@@ -20,7 +20,8 @@
     "auth:boundary-check": "node scripts/auth-boundary-check.mjs",
     "landing:check": "node scripts/validate-public-landing.mjs",
     "analysis-progress:check": "node scripts/validate-analysis-progress.mjs",
-    "g12:check": "node scripts/validate-g12-polish.mjs"
+    "g12:check": "node scripts/validate-g12-polish.mjs",
+    "g2:check": "node scripts/validate-g2.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
