@@ -47,7 +47,7 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
   const companiesWithRoutes = new Set(companyChannels.map(row => row.company_id)).size;
 
   return <AppShell title="Contacts" user={user} workspaceStats={{ campaigns: campaigns.length, companies: companies.total, replies: 0, opportunities: 0 }}>
-    <ContactAutoRefresh active={activeSessions.length > 0 || retrySessions.length > 0}/><PageHeader eyebrow="Autonomous contact discovery" title="Decision-maker review" subtitle="SalesPilot researches the right people inside approved companies, verifies the evidence, and pauses for human judgement before outreach." />
+    <ContactAutoRefresh active={activeSessions.length > 0 || retrySessions.length > 0}/><PageHeader eyebrow="Supporting buyer intelligence" title="Buyer intelligence" subtitle="SalesPilot researches the right people inside approved companies, verifies the evidence, and pauses for human judgement before outreach." />
 
     <Card className="autonomous-flow-card">
       <div className="flow-stage complete"><span>1</span><div><small>Approved companies</small><strong>{companies.approved}</strong></div></div><i>→</i>

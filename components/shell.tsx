@@ -15,14 +15,17 @@ import {
 import { AccountMenu } from "@/components/account-menu";
 import type { SalesPilotUser } from "@/lib/auth/current-user";
 
-const primary = [
+const revenue = [
   ["/", "Overview", LayoutDashboard],
+  ["/opportunities", "Opportunities", BriefcaseBusiness],
   ["/campaigns", "Campaigns", Rocket],
+  ["/replies", "Engagement", MessageSquareReply],
+  ["/focus", "Focus", Crosshair],
+] as const;
+
+const intelligence = [
   ["/companies", "Companies", Building2],
   ["/contacts", "Contacts", ContactRound],
-  ["/replies", "Replies", MessageSquareReply],
-  ["/opportunities", "Opportunities", BriefcaseBusiness],
-  ["/focus", "Focus", Crosshair],
 ] as const;
 
 export function AppShell({
@@ -44,8 +47,12 @@ export function AppShell({
       </Link>
       <nav>
         <div className="nav-group">
-          <div className="nav-label">Workspace</div>
-          {primary.map(([href, label, Icon]) => <Link key={href} href={href} className="nav-link"><Icon size={17}/>{label}</Link>)}
+          <div className="nav-label">Revenue workspace</div>
+          {revenue.map(([href, label, Icon]) => <Link key={href} href={href} className="nav-link"><Icon size={17}/>{label}</Link>)}
+        </div>
+        <div className="nav-group">
+          <div className="nav-label">Intelligence</div>
+          {intelligence.map(([href, label, Icon]) => <Link key={href} href={href} className="nav-link"><Icon size={17}/>{label}</Link>)}
         </div>
         <div className="nav-group">
           <div className="nav-label">Account</div>
@@ -55,7 +62,7 @@ export function AppShell({
           </>}
         </div>
       </nav>
-      {user ? workspaceStats ? <div className="sidebar-footer workspace-stats"><div><span>Campaigns</span><strong>{workspaceStats.campaigns}</strong></div><div><span>Companies</span><strong>{workspaceStats.companies}</strong></div><div><span>Replies</span><strong>{workspaceStats.replies}</strong></div><div><span>Opportunities</span><strong>{workspaceStats.opportunities}</strong></div></div> : <div className="sidebar-footer"><strong>Workspace connected</strong><span>Real campaign progress only</span></div> : <div className="sidebar-footer"><strong>Explore before signing in</strong><span>Your campaign draft stays on this device</span></div>}
+      {user ? workspaceStats ? <div className="sidebar-footer workspace-stats"><div><span>Opportunities</span><strong>{workspaceStats.opportunities}</strong></div><div><span>Campaigns</span><strong>{workspaceStats.campaigns}</strong></div><div><span>Engagements</span><strong>{workspaceStats.replies}</strong></div><div><span>Companies known</span><strong>{workspaceStats.companies}</strong></div></div> : <div className="sidebar-footer"><strong>Workspace connected</strong><span>Opportunity intelligence active</span></div> : <div className="sidebar-footer"><strong>Explore before signing in</strong><span>Your campaign draft stays on this device</span></div>}
     </aside>
     <main className="main">
       <header className="topbar">

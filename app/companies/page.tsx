@@ -33,7 +33,7 @@ export default async function Companies({ searchParams }: { searchParams: Promis
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.confidence);
 
   return <AppShell title="Companies" user={user} workspaceStats={{ campaigns: campaigns.length, companies: workspaceCounts.total, replies: 0, opportunities: 0 }}>
-    <PageHeader eyebrow="Company discovery" title="Company review queue" subtitle="Review verified businesses SalesPilot found for your approved outbound sales campaigns. Approve strong matches individually or in a controlled batch." />
+    <PageHeader eyebrow="Supporting company intelligence" title="Company intelligence" subtitle="Inspect the organisations behind SalesPilot’s opportunity recommendations. Company records remain visible for evidence review, correction and deeper analysis." />
 
     <Card className="company-review-summary">
       <div><span>Awaiting review</span><strong>{counts.pending}</strong></div>

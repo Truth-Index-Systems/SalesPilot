@@ -10,8 +10,9 @@ import { DiscoveryRetryButton } from "@/components/discovery-retry-button";
 import { DiscoveryActivityTicker } from "@/components/discovery-activity-ticker";
 import { CampaignControlActions } from "@/components/campaign-control-actions";
 import { contactCounts, listContactDiscoveryForCampaign } from "@/lib/contacts/repository";
+import { listCampaignOpportunities } from "@/lib/opportunities/repository";
+import type { OpportunityOverview } from "@/lib/opportunities/domain";
 import Link from "next/link";
-import { derivePipelineCampaignStage } from "@/lib/pipeline/campaign-state";
 import { canShowProgress, isJobComplete, isJobRetryScheduled, jobStateLabel, resolvePersistedJobState, truthfulProgress } from "@/lib/pipeline/presentation";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   let approvedContactCount = 0;
   let heldContactCount = 0;
   let contactSessions: any[] = [];
+  let opportunities: OpportunityOverview[] = [];
   try {
     record = await getCampaign(id);
     campaignCount = (await listCampaigns()).length;
@@ -68,6 +70,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     approvedContactCount = contacts.approved;
     heldContactCount = contacts.hold;
     contactSessions = await listContactDiscoveryForCampaign(id);
+    opportunities = await listCampaignOpportunities(id);
   } catch (error) {
     console.error("Campaign detail unavailable", error);
   }
@@ -87,28 +90,18 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const contactResearchComplete = contactSessions.length > 0 && contactSessions.every(session => isJobComplete(session) || resolvePersistedJobState(session) === "CANCELLED");
   const contactReviewComplete = contactResearchComplete && contactCount > 0 && pendingContactCount === 0;
   const contactsActive = approvedCompanyCount > 0 && (contactResearching > 0 || contactQueued > 0 || contactRetryScheduled > 0 || contactCount > 0 || contactSessions.length > 0);
+  const opportunityCount = opportunities.length;
+  const opportunityAwaitingReview = opportunities.filter(row => !["APPROVED", "REJECTED", "ENGAGED"].includes(row.status)).length;
+  const opportunityRecommended = opportunities.filter(row => (row.opportunity_score ?? 0) >= 80 && !["APPROVED", "REJECTED", "ENGAGED"].includes(row.status)).length;
+  const opportunityApproved = opportunities.filter(row => row.status === "APPROVED").length;
+  const topOpportunity = opportunities.find(row => row.status !== "REJECTED") ?? null;
   const progress = truthfulProgress(discovery);
   const stageLabel = discoveryRunning ? (({PREPARING:"Preparing company discovery",SEARCHING:"Searching for matching companies",ANALYSING:"Analysing company fit",VALIDATING:"Validating evidence",SAVING:"Saving recommendations",COMPLETE:"Companies ready for review"} as Record<string,string>)[discovery?.stage] ?? "Researching matching companies") : jobStateLabel(discovery, { queued: "Company discovery queued", complete: "Companies ready for review", noResults: "No new supported companies found" });
-  const visibleCampaignStage = derivePipelineCampaignStage({
-    campaignPaused,
-    campaignArchived: record.status === "ARCHIVED",
-    businessAnalysisReady: true,
-    campaignApproved: true,
-    companyDiscoveryActive: discoveryRunning || discoveryQueued,
-    companiesAwaitingReview: pendingCompanyCount,
-    approvedCompanies: approvedCompanyCount,
-    contactDiscoveryActive: contactResearching > 0 || contactQueued > 0,
-    contactsAwaitingReview: pendingContactCount,
-    approvedReachableContacts: approvedContactCount,
-    outreachStarted: false,
-    repliesReceived: false,
-    opportunitiesCreated: false,
-  });
-  const stageIndex = ({ BUSINESS_ANALYSIS:0, CAMPAIGN_REVIEW:1, COMPANY_DISCOVERY:2, COMPANY_REVIEW:3, CONTACT_DISCOVERY:4, CONTACT_REVIEW:4, OUTREACH_READY:5, OUTREACH:5, REPLIES:6, OPPORTUNITIES:7, PAUSED:-1, ARCHIVED:-1 } as Record<string,number>)[visibleCampaignStage] ?? 2;
-  const journeyLabels = ["Business", "Campaign", "Discovery", "Companies", "Contacts", "Outreach", "Replies", "Opportunities"] as const;
+  const stageIndex = campaignPaused ? -1 : opportunityApproved > 0 ? 4 : opportunityCount > 0 ? 3 : (contactsActive || approvedCompanyCount > 0) ? 2 : 2;
+  const journeyLabels = ["Business", "Campaign", "Intelligence", "Opportunities", "Engagement", "Replies", "Pipeline"] as const;
   const journey = journeyLabels.map((label, index) => [label, index < stageIndex ? "complete" : index === stageIndex ? "current" : "future"] as const);
 
-  return <AppShell title={campaign.name} user={user} workspaceStats={{ campaigns: campaignCount, companies: companyCount, replies: 0, opportunities: 0 }}>
+  return <AppShell title={campaign.name} user={user} workspaceStats={{ campaigns: campaignCount, companies: companyCount, replies: 0, opportunities: opportunityCount }}>
     <PageHeader eyebrow="Outbound sales campaign" title={campaign.name} subtitle="Your approved campaign, current position and next milestone in one place." action={<div className="campaign-page-actions"><span className={`badge ${campaignPaused ? "amber" : "green"}`}>{campaignPaused ? "Paused" : `${campaign.matchLabel} · ${campaign.fitScore}/100`}</span><CampaignControlActions campaignId={id} campaignName={campaign.name} status={record.status}/></div>}/>
 
     <section className="campaign-summary-strip" aria-label="Campaign summary">
@@ -124,18 +117,18 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     <div className="hero campaign-control-centre">
       <div className="campaign-control-copy">
         <div className="eyebrow" style={{ color: "#d8f6ff" }}>Campaign status</div>
-        <h2>{campaignPaused ? "This outbound sales campaign is paused." : contactReviewComplete ? "Decision-maker review is complete." : contactsActive ? "SalesPilot is identifying the right people." : reviewComplete ? "Company review is complete." : discoveryComplete ? "Matching companies are ready for review." : discoveryRunning ? "SalesPilot is finding matching companies." : discoveryRetryScheduled ? "Company discovery retry is scheduled." : discoveryNeedsAttention ? "Company discovery needs attention." : discoveryQueued ? "Company discovery is queued." : "Your outbound sales campaign is ready."}</h2>
-        <p>{campaignPaused ? "Autonomous work is stopped. Your campaign, companies, contacts, evidence and review history remain safely saved." : contactReviewComplete ? `${approvedContactCount} approved contact${approvedContactCount === 1 ? " is" : "s are"} ready for outreach.` : contactsActive ? `${contactResearching} compan${contactResearching === 1 ? "y is" : "ies are"} being researched and ${pendingContactCount} contact${pendingContactCount === 1 ? " is" : "s are"} awaiting review.` : reviewComplete ? `${approvedCompanyCount} approved companies have automatically entered contact discovery.` : discoveryComplete ? `${pendingCompanyCount} evidence-backed compan${pendingCompanyCount === 1 ? "y is" : "ies are"} ready for your review.` : discoveryRunning ? "SalesPilot is continuing the approved campaign automatically. Every recommendation will include evidence and a confidence score." : discoveryRetryScheduled ? "The scheduler will retry automatically at the saved retry time." : discoveryNeedsAttention ? "The job reached a terminal failure and requires an administrator to review the diagnostic reason." : discoveryQueued ? "The scheduler has accepted this campaign and will begin research when a worker is available." : "Business understanding and campaign approval are complete. SalesPilot is preparing company discovery."}</p>
-        <div className="campaign-readiness"><span/><strong>{contactReviewComplete ? "Contacts ready for outreach" : contactsActive ? "Autonomous contact discovery" : reviewComplete ? "Company review complete" : stageLabel}</strong><small>{contactReviewComplete ? `${approvedContactCount} approved contacts` : contactsActive ? `${contactResearching} researching · ${contactQueued} queued · ${contactRetryScheduled} retry scheduled · ${pendingContactCount} awaiting review` : reviewComplete ? "Approved companies moved forward automatically" : discoveryComplete ? `${pendingCompanyCount} awaiting review` : discoveryRetryScheduled ? "Retry scheduled" : discoveryNeedsAttention ? "Needs attention" : discoveryQueued ? "Queued" : progress !== null ? `${progress}% complete` : stageLabel}</small></div>
+        <h2>{campaignPaused ? "This outbound sales campaign is paused." : opportunityCount > 0 ? `${opportunityCount} sales opportunit${opportunityCount === 1 ? "y is" : "ies are"} assembled.` : contactsActive ? "SalesPilot is building complete commercial opportunities." : reviewComplete ? "Company intelligence is moving into buyer research." : discoveryComplete ? "Company intelligence is ready to progress." : discoveryRunning ? "SalesPilot is finding strong commercial matches." : discoveryRetryScheduled ? "Company intelligence retry is scheduled." : discoveryNeedsAttention ? "Company intelligence needs attention." : discoveryQueued ? "Company intelligence is queued." : "Your outbound sales campaign is ready."}</h2>
+        <p>{campaignPaused ? "Autonomous work is stopped. Your campaign and all supporting intelligence remain safely saved." : opportunityCount > 0 ? `${opportunityRecommended} recommended · ${opportunityAwaitingReview} awaiting your decision · ${opportunityApproved} approved for engagement. SalesPilot has combined company fit, the strongest buyer, reachability and evidence into one ranked commercial view.` : contactsActive ? `${contactResearching} compan${contactResearching === 1 ? "y is" : "ies are"} being researched while SalesPilot connects buyer authority, contactability and the reason to buy.` : reviewComplete ? `${approvedCompanyCount} approved companies are now being converted into complete opportunities.` : discoveryComplete ? `${companyCount} compan${companyCount === 1 ? "y has" : "ies have"} been retained in supporting intelligence. SalesPilot will continue building the strongest opportunities.` : discoveryRunning ? "SalesPilot is continuing the approved campaign automatically. Low-confidence matches remain visible with transparent limitations." : discoveryRetryScheduled ? "The scheduler will retry automatically at the saved retry time." : discoveryNeedsAttention ? "The job reached a terminal failure and requires an administrator to review the diagnostic reason." : discoveryQueued ? "The scheduler has accepted this campaign and will begin intelligence gathering when a worker is available." : "Business understanding and campaign approval are complete. SalesPilot is preparing opportunity intelligence."}</p>
+        <div className="campaign-readiness"><span/><strong>{opportunityCount > 0 ? "Opportunity intelligence" : contactsActive ? "Assembling opportunities" : reviewComplete ? "Buyer intelligence next" : stageLabel}</strong><small>{opportunityCount > 0 ? `${opportunityAwaitingReview} awaiting decision · ${opportunityApproved} approved` : contactsActive ? `${contactResearching} researching · ${contactQueued} queued · ${contactRetryScheduled} retry scheduled` : reviewComplete ? "Approved companies are moving forward automatically" : discoveryComplete ? `${companyCount} companies retained in intelligence` : discoveryRetryScheduled ? "Retry scheduled" : discoveryNeedsAttention ? "Needs attention" : discoveryQueued ? "Queued" : progress !== null ? `${progress}% complete` : stageLabel}</small></div>
         {discoveryNeedsAttention && <DiscoveryRetryButton campaignId={id}/>}
         {canShowProgress(discovery) && progress !== null && <div className="discovery-progress" aria-label={`Company discovery ${progress}% complete`}><span style={{width:`${Math.max(4,progress)}%`}}/></div>}
         {!campaignPaused && <DiscoveryActivityTicker campaignId={id} initialDiscovery={discovery} initialActivities={discoveryActivities} initialCompanyCount={companyCount}/>}
       </div>
       <div className="next-status-panel">
-        <span>{contactReviewComplete ? "Next autonomous stage" : contactsActive ? "Current autonomous stage" : reviewComplete || discoveryComplete ? "Current autonomous stage" : "Next milestone"}</span>
-        <strong>{contactReviewComplete ? "Outreach" : contactsActive ? "Contact Discovery" : reviewComplete ? "Contact Discovery" : discoveryComplete ? "Company Review" : "Company Discovery"}</strong>
-        <small>{contactReviewComplete ? `${approvedContactCount} contacts ready for G4` : contactsActive ? `${contactResearching} companies researching · ${pendingContactCount} contacts awaiting review` : reviewComplete ? "Approved companies are entering contact research" : discoveryComplete ? `${pendingCompanyCount} recommendations ready for your decision` : stageLabel}</small>
-        {contactsActive && <Link className="campaign-stage-link" href={`/contacts?campaign=${id}`}>Open campaign contacts →</Link>}
+        <span>{opportunityCount > 0 ? "Current commercial stage" : "Current intelligence stage"}</span>
+        <strong>{opportunityApproved > 0 ? "Engagement" : opportunityCount > 0 ? "Opportunity Review" : "Opportunity Intelligence"}</strong>
+        <small>{opportunityCount > 0 ? `${opportunityRecommended} recommended · top score ${topOpportunity?.opportunity_score ?? 0}/100` : contactsActive ? `${contactResearching} companies researching · ${pendingContactCount} contacts awaiting review` : reviewComplete ? "Building buyer and reachability intelligence" : stageLabel}</small>
+        {opportunityCount > 0 ? <Link className="campaign-stage-link" href={`/opportunities?campaign=${id}`}>Open campaign opportunities →</Link> : contactsActive ? <Link className="campaign-stage-link" href={`/contacts?campaign=${id}`}>View supporting contacts →</Link> : null}
       </div>
       <div className="campaign-roadmap" aria-label="Sales campaign journey">
         {journey.map(([label, state], index) => <div className={`roadmap-stage ${state}`} key={label}>
@@ -145,10 +138,16 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       </div>
     </div>
 
+    {opportunityCount > 0 && <Card className="campaign-contact-status opportunity-campaign-status">
+      <div><span className="eyebrow">Opportunity intelligence</span><h3>{opportunityApproved > 0 ? "Opportunities approved for engagement" : opportunityRecommended > 0 ? "Your strongest opportunities are ready" : "Commercial opportunities are ready to review"}</h3><p>SalesPilot has combined company fit, the strongest buyer, contactability and evidence into one ranked recommendation. Supporting company and contact records remain available for deeper inspection.</p></div>
+      <div className="campaign-contact-metrics"><div><span>Total</span><strong>{opportunityCount}</strong></div><div><span>Recommended</span><strong>{opportunityRecommended}</strong></div><div><span>Approved</span><strong>{opportunityApproved}</strong></div></div>
+      <Link className="button primary" href={`/opportunities?campaign=${id}`}>{opportunityAwaitingReview ? "Review opportunities" : "View opportunities"}</Link>
+    </Card>}
+
     {approvedCompanyCount > 0 && <Card className="campaign-contact-status">
-      <div><span className="eyebrow">Autonomous contact discovery</span><h3>{contactReviewComplete ? "Decision-makers approved" : contactResearching ? "SalesPilot is researching decision-makers" : pendingContactCount ? "Contacts are awaiting your judgement" : "Approved companies are entering contact research"}</h3><p>{contactReviewComplete ? "The campaign now has approved people ready for the Outreach stage." : "Every approved company moves forward automatically. SalesPilot identifies operational buyers, verifies public evidence, and only then asks for review."}</p></div>
+      <div><span className="eyebrow">Supporting buyer intelligence</span><h3>{contactReviewComplete ? "Decision-makers approved" : contactResearching ? "SalesPilot is researching decision-makers" : pendingContactCount ? "Contacts are awaiting your judgement" : "Approved companies are entering contact research"}</h3><p>{contactReviewComplete ? "Approved buyers are being composed into ranked opportunities." : "SalesPilot retains the underlying buyer research here so every opportunity remains transparent and auditable."}</p></div>
       <div className="campaign-contact-metrics"><div><span>Researching</span><strong>{contactResearching}</strong></div><div><span>Awaiting review</span><strong>{pendingContactCount}</strong></div><div><span>Approved</span><strong>{approvedContactCount}</strong></div></div>
-      <Link className="button secondary" href={`/contacts?campaign=${id}`}>{pendingContactCount ? "Review contacts" : "View contacts"}</Link>
+      <Link className="button secondary" href={`/contacts?campaign=${id}`}>{pendingContactCount ? "Review buyer intelligence" : "View contacts"}</Link>
     </Card>}
 
     <div className="grid cols-2 section campaign-primary-grid">

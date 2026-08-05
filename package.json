@@ -54,7 +54,8 @@
     "genesis:g2-intelligence-check": "node scripts/validate-genesis-g2-intelligence-tuning.mjs",
     "genesis:g35-phase1-check": "node scripts/validate-genesis-g35-phase1.mjs",
     "genesis:g35-phase2-check": "npm run genesis:g35-phase1-check && node scripts/validate-genesis-g35-phase2.mjs",
-    "genesis:g35-phase3-check": "npm run genesis:g35-phase2-check && node scripts/validate-genesis-g35-phase3.mjs"
+    "genesis:g35-phase3-check": "npm run genesis:g35-phase2-check && node scripts/validate-genesis-g35-phase3.mjs",
+    "genesis:g35-phase4-check": "npm run genesis:g35-phase3-check && node scripts/validate-genesis-g35-phase4.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
