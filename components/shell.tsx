@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Activity, BriefcaseBusiness, Building2, Crosshair, LayoutDashboard, MessageSquareReply, Rocket, Settings } from "@/components/icons";
+import { Activity, BriefcaseBusiness, Building2, Crosshair, LayoutDashboard, MessageSquareReply, Rocket, Settings, LogIn } from "@/components/icons";
+import { AccountMenu } from "@/components/account-menu";
 
 const primary = [
   ["/", "Overview", LayoutDashboard],
@@ -20,12 +21,12 @@ export function AppShell({ children, title = "SalesPilot" }: { children: React.R
       </Link>
       <nav>
         <div className="nav-group"><div className="nav-label">Workspace</div>{primary.map(([href,label,Icon]) => <Link key={href} href={href} className="nav-link"><Icon size={17}/>{label}</Link>)}</div>
-        <div className="nav-group"><div className="nav-label">Account</div><Link href="/settings" className="nav-link"><Settings size={17}/>Settings</Link></div>
+        <div className="nav-group"><div className="nav-label">Account</div><Link href="/sign-in" className="nav-link"><LogIn size={17}/>Sign in</Link><Link href="/settings" className="nav-link"><Settings size={17}/>Settings</Link></div>
       </nav>
       <div className="sidebar-footer"><strong>SalesPilot is working</strong><span>18 useful actions completed today</span></div>
     </aside>
     <main className="main">
-      <header className="topbar"><div className="topbar-title">{title}</div><div className="topbar-actions"><span className="badge green"><Activity size={12}/> Everything is running normally</span><button className="button secondary">Jaspal</button></div></header>
+      <header className="topbar"><div className="topbar-title">{title}</div><div className="topbar-actions"><span className="badge green"><Activity size={12}/> Everything is running normally</span><AccountMenu/></div></header>
       <div className="content">{children}</div>
     </main>
   </div>

@@ -27,3 +27,15 @@
 .sign-in-page{min-height:100vh;display:grid;place-items:center;padding:28px;background:radial-gradient(circle at top left,rgba(36,84,230,.10),transparent 34%),var(--canvas)}
 .sign-in-card{width:min(100%,470px);background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:0 24px 70px rgba(28,45,79,.13);padding:34px}
 .sign-in-brand{display:flex;align-items:center;gap:13px;margin-bottom:32px}.sign-in-brand strong{display:block;font-size:19px}.sign-in-brand span{display:block;color:var(--muted);font-size:11px;margin-top:2px}.sign-in-card h1{font-size:30px;line-height:1.15;margin:7px 0 9px}.sign-in-card>p{color:var(--muted);line-height:1.55;margin:0 0 24px}.sign-in-form{display:grid;gap:16px}.sign-in-submit{width:100%;min-height:46px}.sign-in-submit:disabled{opacity:.68;cursor:wait}.sign-in-error{margin-top:0;grid-template-columns:minmax(0,1fr)}.sign-in-loading{color:var(--muted);font-size:13px;padding:20px 0}
+
+.account-menu{position:relative}
+.account-menu-trigger{min-width:92px}
+.account-menu-chevron{font-size:14px;line-height:1;transform:translateY(-1px)}
+.account-menu-popover{position:absolute;right:0;top:calc(100% + 10px);width:230px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 50px rgba(28,45,79,.16);padding:8px;z-index:40}
+.account-menu-heading{padding:10px 11px 11px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.account-menu-heading strong{display:block;font-size:13px}
+.account-menu-heading span{display:block;color:var(--muted);font-size:11px;margin-top:3px;line-height:1.4}
+.account-menu-item{width:100%;border:0;background:transparent;color:var(--ink);border-radius:9px;padding:10px 11px;display:flex;align-items:center;text-align:left;font-size:13px;font-weight:700;cursor:pointer}
+.account-menu-item:hover,.account-menu-item:focus-visible{background:var(--surface-soft);outline:none}
+.account-menu-signout{color:var(--red)}
+.account-menu-signout:disabled{opacity:.6;cursor:wait}
