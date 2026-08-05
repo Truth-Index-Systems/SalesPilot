@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -57,5 +58,6 @@ export function SignInForm() {
       <div className="website-error-copy"><strong>{error.title}</strong><p>{error.message}</p><span>{error.hint}</span></div>
     </div> : null}
     <button className="button primary sign-in-submit" type="submit" disabled={submitting}>{submitting ? "Signing in…" : "Sign in"}</button>
+    <div className="auth-switch">New to SalesPilot? <Link href={`/sign-up${searchParams.get("next") ? `?next=${encodeURIComponent(searchParams.get("next")!)}` : ""}`}>Create account</Link></div>
   </form>;
 }
