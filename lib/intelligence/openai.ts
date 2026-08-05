@@ -58,12 +58,15 @@ export async function analyseBusiness(params: { website: string; sources: Websit
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 150_000);
       const response = await fetch(ENDPOINT, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
         body: JSON.stringify(body),
         cache: "no-store",
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
       const json = await response.json().catch(() => null);
       if (!response.ok) {
         const message = json && typeof json === "object" && "error" in json ? JSON.stringify((json as { error: unknown }).error) : `HTTP ${response.status}`;

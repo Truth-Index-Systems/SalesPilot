@@ -1,108 +1,59 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { analyseBusiness } from "@/lib/intelligence/openai";
-import { readWebsite, WebsiteReadError, type WebsiteReadErrorCode } from "@/lib/intelligence/website-reader";
+import { createBusinessAnalysisJob, getBusinessAnalysisJob } from "@/lib/intelligence/business-analysis-jobs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const RequestSchema = z.object({ website: z.string().trim().min(3).max(500) });
+const StartSchema = z.object({ website: z.string().trim().min(3).max(500) });
 
-type CustomerError = {
-  code: WebsiteReadErrorCode | "INVALID_REQUEST" | "SERVICE_UNAVAILABLE" | "ANALYSIS_FAILED";
-  title: string;
-  message: string;
-  hint: string;
-};
-
-function customerErrorFor(error: unknown): { status: number; error: CustomerError } {
-  if (error instanceof z.ZodError) {
-    return {
-      status: 400,
-      error: {
-        code: "INVALID_REQUEST",
-        title: "Check the website address",
-        message: "Please enter a valid company website.",
-        hint: "You can enter an address such as yourcompany.com — SalesPilot will add https:// automatically.",
-      },
-    };
-  }
-
-  if (error instanceof WebsiteReadError) {
-    const messages: Record<WebsiteReadErrorCode, Omit<CustomerError, "code">> = {
-      INVALID_URL: {
-        title: "Check the website address",
-        message: "That website address does not look valid.",
-        hint: "Enter the public company website, for example yourcompany.com.",
-      },
-      WEBSITE_NOT_FOUND: {
-        title: "We couldn't find that website",
-        message: "The address may be incorrect, unavailable or not publicly registered.",
-        hint: "Check the spelling and try the company’s main public website.",
-      },
-      WEBSITE_UNAVAILABLE: {
-        title: "That website isn't responding",
-        message: "SalesPilot could not reach the website at the moment.",
-        hint: "Check that it is publicly accessible, then try again in a moment.",
-      },
-      WEBSITE_TIMEOUT: {
-        title: "The website took too long to respond",
-        message: "SalesPilot stopped waiting so you were not left on a loading screen.",
-        hint: "Please try again in a moment.",
-      },
-      UNSUPPORTED_CONTENT: {
-        title: "We couldn't inspect that address",
-        message: "The address did not return a normal public website page.",
-        hint: "Use the company’s main website rather than a document, file or private portal.",
-      },
-      INSUFFICIENT_CONTENT: {
-        title: "We couldn't understand enough from this website",
-        message: "The website did not provide enough readable public information to build a reliable strategy.",
-        hint: "Try a more complete company website or add supporting material later.",
-      },
-      UNSAFE_ADDRESS: {
-        title: "Use a public company website",
-        message: "SalesPilot cannot inspect private network or local addresses.",
-        hint: "Enter the company’s public website.",
-      },
-    };
-
-    return { status: error.code === "WEBSITE_TIMEOUT" ? 504 : 400, error: { code: error.code, ...messages[error.code] } };
-  }
-
-  const message = error instanceof Error ? error.message : "";
-  if (message.includes("not configured")) {
-    return {
-      status: 503,
-      error: {
-        code: "SERVICE_UNAVAILABLE",
-        title: "SalesPilot is not ready to analyse websites",
-        message: "The intelligence service has not been configured yet.",
-        hint: "Complete the server environment setup and try again.",
-      },
-    };
-  }
-
+function publicJob(job: Awaited<ReturnType<typeof getBusinessAnalysisJob>>) {
+  if (!job) return null;
   return {
-    status: 500,
-    error: {
-      code: "ANALYSIS_FAILED",
-      title: "SalesPilot couldn't complete the analysis",
-      message: "Something interrupted the analysis before it finished.",
-      hint: "Please try again. If it continues, check the server logs for the technical details.",
-    },
+    id: job.id,
+    website: job.website_input,
+    canonicalUrl: job.canonical_url,
+    status: job.status,
+    stage: job.stage,
+    progress: job.progress,
+    attemptCount: job.attempt_count,
+    nextRetryAt: job.next_retry_at,
+    error: job.last_error_code ? {
+      code: job.last_error_code,
+      title: job.status === "FAILED_TERMINAL" ? "SalesPilot could not complete this analysis" : "Analysis paused before completion",
+      message: job.last_error_message ?? "The analysis did not complete.",
+      hint: job.status === "FAILED_RETRYABLE" ? "SalesPilot has saved the job. Retry it when the scheduled time arrives." : "Check the website and configuration before trying again.",
+    } : null,
+    pagesRead: job.pages_read,
+    analysis: job.analysis_json,
+    updatedAt: job.updated_at,
   };
 }
 
 export async function POST(request: Request) {
   try {
-    const input = RequestSchema.parse(await request.json());
-    const website = await readWebsite(input.website);
-    const analysis = await analyseBusiness({ website: website.canonicalUrl, sources: website.sources });
-    return NextResponse.json({ ok: true, analysis, pagesRead: website.sources.length, canonicalUrl: website.canonicalUrl });
+    const input = StartSchema.parse(await request.json());
+    const created = await createBusinessAnalysisJob(input.website);
+    return NextResponse.json({ ok: true, job: publicJob(created.job), accessToken: created.accessToken }, { status: 202 });
   } catch (error) {
-    console.error("Business discovery failed", error);
-    const mapped = customerErrorFor(error);
-    return NextResponse.json({ ok: false, error: mapped.error }, { status: mapped.status });
+    console.error("Business analysis job creation failed", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ ok: false, error: { code: "INVALID_REQUEST", title: "Check the website address", message: "Please enter a valid company website.", hint: "Enter an address such as yourcompany.com." } }, { status: 400 });
+    }
+    return NextResponse.json({ ok: false, error: { code: "SERVICE_UNAVAILABLE", title: "Analysis could not be started", message: "SalesPilot could not save the analysis job.", hint: "Please try again in a moment." } }, { status: 503 });
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const jobId = z.string().uuid().parse(url.searchParams.get("jobId"));
+    const accessToken = z.string().min(20).parse(url.searchParams.get("accessToken"));
+    const job = await getBusinessAnalysisJob(jobId, accessToken);
+    if (!job) return NextResponse.json({ ok: false, error: { code: "JOB_NOT_FOUND", title: "Analysis job not found", message: "This saved analysis could not be found.", hint: "Start a new analysis." } }, { status: 404 });
+    return NextResponse.json({ ok: true, job: publicJob(job) });
+  } catch (error) {
+    console.error("Business analysis status failed", error);
+    return NextResponse.json({ ok: false, error: { code: "INVALID_JOB", title: "Analysis could not be loaded", message: "The saved analysis reference is invalid.", hint: "Start a new analysis." } }, { status: 400 });
   }
 }

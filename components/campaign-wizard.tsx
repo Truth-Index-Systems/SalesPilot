@@ -34,6 +34,27 @@ type DiscoveryResponse =
       error: DiscoveryError;
     };
 
+
+type AnalysisJob = {
+  id: string;
+  website: string;
+  canonicalUrl: string | null;
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED_RETRYABLE" | "FAILED_TERMINAL" | "CANCELLED";
+  stage: string;
+  progress: number;
+  attemptCount: number;
+  nextRetryAt: string | null;
+  error: DiscoveryError | null;
+  pagesRead: number;
+  analysis: AiEnvelope<BusinessDnaPayload> | null;
+};
+
+type AnalysisJobResponse =
+  | { ok: true; job: AnalysisJob; accessToken?: string }
+  | { ok: false; error: DiscoveryError };
+
+type SavedAnalysisJob = { jobId: string; accessToken: string; savedAt: number };
+
 type LaunchError = {
   code: string;
   title: string;
@@ -55,6 +76,7 @@ type LaunchResponse =
     };
 
 const CAMPAIGN_DRAFT_KEY = "salespilot:campaign-draft:v2";
+const ANALYSIS_JOB_KEY = "salespilot:business-analysis-job:v1";
 const LEGACY_CAMPAIGN_DRAFT_KEY = "salespilot:campaign-draft:v1";
 const CAMPAIGN_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -130,6 +152,7 @@ export function CampaignWizard() {
   const [analysisStage, setAnalysisStage] = useState(0);
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [error, setError] = useState<DiscoveryError | null>(null);
+  const [analysisJob, setAnalysisJob] = useState<AnalysisJob | null>(null);
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState<LaunchError | null>(null);
 
@@ -152,23 +175,37 @@ export function CampaignWizard() {
   }, []);
 
   useEffect(() => {
-    if (!loading) return;
+    const stageMap: Record<string, number> = {
+      QUEUED: 0,
+      READING_WEBSITE: 1,
+      ANALYSING_BUSINESS: 3,
+      PREPARING_RECOMMENDATIONS: 6,
+      COMPLETE: 6,
+      FAILED: Math.max(0, analysisStage),
+    };
+    if (analysisJob) {
+      setAnalysisStage(stageMap[analysisJob.stage] ?? 0);
+      setAnalysisComplete(analysisJob.status === "COMPLETED");
+    }
+  }, [analysisJob, analysisStage]);
 
-    setAnalysisStage(0);
-    setAnalysisComplete(false);
-
-    const startedAt = Date.now();
-    const timer = window.setInterval(() => {
-      const elapsed = Date.now() - startedAt;
-      const nextStage = Math.min(
-        ANALYSIS_STAGES.length - 1,
-        Math.floor(elapsed / 3200),
-      );
-      setAnalysisStage(nextStage);
-    }, 350);
-
-    return () => window.clearInterval(timer);
-  }, [loading]);
+  useEffect(() => {
+    if (result) return;
+    const raw = localStorage.getItem(ANALYSIS_JOB_KEY);
+    if (!raw) return;
+    try {
+      const saved = JSON.parse(raw) as SavedAnalysisJob;
+      if (!saved.jobId || !saved.accessToken || Date.now() - saved.savedAt > CAMPAIGN_DRAFT_MAX_AGE_MS) {
+        localStorage.removeItem(ANALYSIS_JOB_KEY);
+        return;
+      }
+      void monitorAnalysisJob(saved.jobId, saved.accessToken, true);
+    } catch {
+      localStorage.removeItem(ANALYSIS_JOB_KEY);
+    }
+  // Resume once on mount. monitorAnalysisJob intentionally uses stable browser APIs only.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
 
   useEffect(() => {
     if (!result || !result.payload.campaigns[selected]) return;
@@ -208,85 +245,101 @@ export function CampaignWizard() {
       : `https://${trimmed}`;
   }
 
+  async function fetchAnalysisJob(jobId: string, accessToken: string) {
+    const response = await fetch(`/api/intelligence/business-discovery?jobId=${encodeURIComponent(jobId)}&accessToken=${encodeURIComponent(accessToken)}`, { cache: "no-store" });
+    const data = (await response.json()) as AnalysisJobResponse;
+    if (!data.ok) throw new Error(data.error.message);
+    return data.job;
+  }
+
+  async function runAnalysisJob(jobId: string, accessToken: string) {
+    await fetch("/api/intelligence/business-discovery/run", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jobId, accessToken }),
+    });
+  }
+
+  async function monitorAnalysisJob(jobId: string, accessToken: string, resume = false) {
+    setLoading(true);
+    setError(null);
+    try {
+      let job = await fetchAnalysisJob(jobId, accessToken);
+      setAnalysisJob(job);
+      setUrl(job.canonicalUrl ?? job.website);
+
+      if (["QUEUED", "FAILED_RETRYABLE"].includes(job.status)) {
+        const retryDue = !job.nextRetryAt || new Date(job.nextRetryAt).getTime() <= Date.now();
+        if (retryDue) void runAnalysisJob(jobId, accessToken);
+      } else if (job.status === "RUNNING" && resume) {
+        void runAnalysisJob(jobId, accessToken);
+      }
+
+      for (let count = 0; count < 180; count += 1) {
+        if (job.status === "COMPLETED") {
+          if (!job.analysis || !job.canonicalUrl) throw new Error("Completed analysis did not contain a result.");
+          setAnalysisComplete(true);
+          setResult(job.analysis);
+          setPagesRead(job.pagesRead);
+          setUrl(job.canonicalUrl);
+          setSelected(0);
+          setStep(1);
+          localStorage.removeItem(ANALYSIS_JOB_KEY);
+          return;
+        }
+        if (job.status === "FAILED_TERMINAL" || job.status === "CANCELLED") {
+          setError(job.error ?? { code: "ANALYSIS_FAILED", title: "SalesPilot couldn't complete the analysis", message: "The saved analysis ended before completion.", hint: "Check the website and try again." });
+          return;
+        }
+        if (job.status === "FAILED_RETRYABLE") {
+          setError(job.error ?? { code: "ANALYSIS_RETRY", title: "Analysis paused safely", message: "SalesPilot saved the work after an interruption.", hint: "Use Try again when the retry time arrives." });
+          return;
+        }
+        await new Promise(resolve => window.setTimeout(resolve, 2000));
+        job = await fetchAnalysisJob(jobId, accessToken);
+        setAnalysisJob(job);
+      }
+      setError({ code: "ANALYSIS_STILL_RUNNING", title: "Analysis is still running", message: "SalesPilot has saved this analysis and will not lose it.", hint: "You can leave this page and return later." });
+    } catch (reason) {
+      console.error("Website analysis monitoring failed", reason);
+      setError({ code: "SERVICE_UNAVAILABLE", title: "We couldn't refresh the analysis", message: "The analysis job remains saved, but its latest status could not be loaded.", hint: "Check your connection and try again." });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function analyse() {
     const normalisedUrl = normaliseWebsiteInput(url);
-
     if (!normalisedUrl) {
-      setError({
-        code: "INVALID_REQUEST",
-        title: "Enter your company website",
-        message:
-          "SalesPilot needs a public website address before it can begin.",
-        hint: "Enter an address such as yourcompany.com.",
-      });
+      setError({ code: "INVALID_REQUEST", title: "Enter your company website", message: "SalesPilot needs a public website address before it can begin.", hint: "Enter an address such as yourcompany.com." });
       return;
     }
 
     setLoading(true);
+    setAnalysisComplete(false);
+    setAnalysisJob(null);
     setError(null);
     setUrl(normalisedUrl);
 
     try {
-      const response = await fetch(
-        "/api/intelligence/business-discovery",
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            website: normalisedUrl,
-          }),
-        },
-      );
-
-      const data = (await response.json()) as DiscoveryResponse;
-
-      if (!data.ok) {
-        setError({
-          code: data.error.code ?? "ANALYSIS_FAILED",
-          title:
-            data.error.title ?? "We couldn't analyse that website",
-          message:
-            data.error.message ??
-            "SalesPilot could not complete the website analysis.",
-          hint:
-            data.error.hint ??
-            "Please check the address and try again.",
-        });
+      const response = await fetch("/api/intelligence/business-discovery", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ website: normalisedUrl }),
+      });
+      const data = (await response.json()) as AnalysisJobResponse;
+      if (!data.ok || !data.accessToken) {
+        setError(data.ok ? { code: "ANALYSIS_FAILED", title: "Analysis could not start", message: "The saved analysis token was not returned.", hint: "Please try again." } : data.error);
         return;
       }
-
-      if (!response.ok) {
-        setError({
-          code: "ANALYSIS_FAILED",
-          title: "We couldn't analyse that website",
-          message:
-            "SalesPilot could not complete the website analysis.",
-          hint: "Please check the address and try again.",
-        });
-        return;
-      }
-
-      setAnalysisStage(ANALYSIS_STAGES.length - 1);
-      setAnalysisComplete(true);
-      await new Promise(resolve => window.setTimeout(resolve, 650));
-
-      setUrl(data.canonicalUrl);
-      setResult(data.analysis);
-      setPagesRead(data.pagesRead);
-      setSelected(0);
-      setStep(1);
+      const saved = { jobId: data.job.id, accessToken: data.accessToken, savedAt: Date.now() } satisfies SavedAnalysisJob;
+      localStorage.setItem(ANALYSIS_JOB_KEY, JSON.stringify(saved));
+      setAnalysisJob(data.job);
+      void runAnalysisJob(data.job.id, data.accessToken);
+      await monitorAnalysisJob(data.job.id, data.accessToken);
     } catch (reason) {
       console.error("Website analysis request failed", reason);
-
-      setError({
-        code: "SERVICE_UNAVAILABLE",
-        title: "We couldn't connect to the analysis service",
-        message:
-          "SalesPilot could not start the website analysis at the moment.",
-        hint: "Check your connection and try again in a moment.",
-      });
+      setError({ code: "SERVICE_UNAVAILABLE", title: "We couldn't start the analysis", message: "SalesPilot could not save the website analysis job.", hint: "Check your connection and try again in a moment." });
     } finally {
       setLoading(false);
     }
@@ -495,12 +548,12 @@ export function CampaignWizard() {
                     <h2>{analysisComplete ? "Business understood" : "SalesPilot is analysing your website"}</h2>
                   </div>
                   <span className="analysis-percent">
-                    {analysisComplete ? 100 : Math.min(92, 12 + analysisStage * 13)}%
+                    {analysisJob?.progress ?? (analysisComplete ? 100 : Math.min(92, 12 + analysisStage * 13))}%
                   </span>
                 </div>
 
                 <div className="analysis-track" aria-hidden="true">
-                  <span style={{ width: `${analysisComplete ? 100 : Math.min(92, 12 + analysisStage * 13)}%` }} />
+                  <span style={{ width: `${analysisJob?.progress ?? (analysisComplete ? 100 : Math.min(92, 12 + analysisStage * 13))}%` }} />
                 </div>
 
                 <div className="analysis-stage-list">
