@@ -6,6 +6,8 @@ import type { WorkerExecutionResult } from "./executor";
 import { syncOpportunityFoundations } from "@/lib/opportunities/builder";
 import type { OpportunityScoringSummary, OpportunitySyncSummary } from "@/lib/opportunities/domain";
 import { scoreOpportunityIntelligence } from "@/lib/opportunities/scoring";
+import { syncOpportunityEngagementBridge } from "@/lib/engagement/repository";
+import type { EngagementSyncSummary } from "@/lib/engagement/domain";
 import {
   acquirePipelineSchedulerLease,
   preparePipelineWork,
@@ -28,6 +30,7 @@ export type PipelineSchedulerResult = {
   contact: SettledWorker | SettledWorker[] | null;
   opportunity: OpportunitySyncSummary | null;
   opportunityScoring: OpportunityScoringSummary | null;
+  engagement: EngagementSyncSummary | null;
 };
 
 async function settle(work: () => Promise<WorkerExecutionResult>): Promise<SettledWorker> {
@@ -50,7 +53,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contact: null, opportunity: null, opportunityScoring: null };
+    return { acquired: false, runId: null, preparation: null, company: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null };
   }
 
   const runId = lease.run_id;
@@ -72,8 +75,9 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
         : await settle(() => runNextContactDiscovery(context));
     const opportunity = await syncOpportunityFoundations(runId);
     const opportunityScoring = await scoreOpportunityIntelligence(runId);
-    await recordPipelineSchedulerOutcome(runId, company, contact, { foundation: opportunity, scoring: opportunityScoring });
-    return { acquired: true, runId, preparation, company, contact, opportunity, opportunityScoring };
+    const engagement = await syncOpportunityEngagementBridge(runId);
+    await recordPipelineSchedulerOutcome(runId, company, contact, { foundation: opportunity, scoring: opportunityScoring, engagement });
+    return { acquired: true, runId, preparation, company, contact, opportunity, opportunityScoring, engagement };
   } finally {
     await releasePipelineSchedulerLease(runId).catch((error) => {
       console.error("Failed to release pipeline scheduler lease", error);
