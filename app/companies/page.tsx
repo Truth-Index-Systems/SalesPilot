@@ -21,10 +21,10 @@ export default async function Companies({ searchParams }: { searchParams: Promis
   const search = await searchParams;
   const confidence = ["HIGH", "MEDIUM", "LOW"].includes(search.confidence ?? "") ? search.confidence as CompanyFilters["confidence"] : undefined;
   const filters: CompanyFilters = { status: search.status, campaignId: search.campaign, query: search.q?.trim(), confidence };
-  const [rows, counts, campaigns] = await Promise.all([listCompanies(filters), companyCounts(), listCampaigns()]);
+  const [rows, counts, workspaceCounts, campaigns] = await Promise.all([listCompanies(filters), companyCounts({ campaignId: search.campaign }), companyCounts(), listCampaigns()]);
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.confidence);
 
-  return <AppShell title="Companies" user={user} workspaceStats={{ campaigns: campaigns.length, companies: counts.total, replies: 0, opportunities: 0 }}>
+  return <AppShell title="Companies" user={user} workspaceStats={{ campaigns: campaigns.length, companies: workspaceCounts.total, replies: 0, opportunities: 0 }}>
     <PageHeader eyebrow="Company discovery" title="Company review queue" subtitle="Review verified businesses SalesPilot found for your approved outbound sales campaigns. Approve strong matches individually or in a controlled batch." />
 
     <Card className="company-review-summary">

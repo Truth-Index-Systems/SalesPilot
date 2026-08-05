@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function CompanyReviewActions({ id, status, note = "" }: { id: string; status: string; note?: string | null }) {
+export function CompanyReviewActions({ id, campaignId, status, note = "" }: { id: string; campaignId: string; status: string; note?: string | null }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState(note ?? "");
@@ -16,7 +16,7 @@ export function CompanyReviewActions({ id, status, note = "" }: { id: string; st
       const response = await fetch(`/api/companies/${id}/review`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status: next, note: reviewNote || undefined }),
+        body: JSON.stringify({ campaignId, status: next, note: reviewNote || undefined }),
       });
       if (!response.ok) throw new Error();
       router.refresh();

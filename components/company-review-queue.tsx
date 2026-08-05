@@ -7,6 +7,7 @@ import { CheckCircle2, ShieldCheck } from "@/components/icons";
 
 type CompanyRow = {
   id: string;
+  campaign_id: string;
   campaign_name: string;
   company_name: string;
   confidence: number;
@@ -50,10 +51,13 @@ export function CompanyReviewQueue({ rows }: { rows: CompanyRow[] }) {
     setBusy(status);
     setError("");
     try {
+      const selectedCompanies = rows
+        .filter(row => selectedSet.has(row.id))
+        .map(row => ({ id: row.id, campaignId: row.campaign_id }));
       const response = await fetch("/api/companies/review-bulk", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ companyIds: selected, status }),
+        body: JSON.stringify({ companies: selectedCompanies, status }),
       });
       if (!response.ok) throw new Error();
       setSelected([]);

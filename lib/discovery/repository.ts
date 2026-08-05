@@ -33,13 +33,14 @@ export async function getDiscoveryForCampaign(campaignId: string) {
   return rows[0] ?? null;
 }
 
-export async function companyCounts() {
-  const rows = await listCompanies();
+export async function companyCounts(filters?: Pick<CompanyFilters, "campaignId">) {
+  const rows = await listCompanies(filters);
   return {
     total: rows.length,
     pending: rows.filter(row => row.review_status === "PENDING_REVIEW").length,
     approved: rows.filter(row => row.review_status === "APPROVED").length,
     rejected: rows.filter(row => row.review_status === "REJECTED").length,
+    archived: rows.filter(row => row.review_status === "ARCHIVED").length,
   };
 }
 

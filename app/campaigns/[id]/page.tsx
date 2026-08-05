@@ -5,7 +5,7 @@ import { CheckCircle2, Circle, Target, Users, WandSparkles, ShieldCheck, Rocket,
 import { getCampaign, listCampaigns } from "@/lib/campaigns/repository";
 import { presentCampaignDetail } from "@/lib/campaigns/presenter";
 import { requirePageUser } from "@/lib/auth/page-user";
-import { getDiscoveryActivity, getDiscoveryForCampaign, listCompanies } from "@/lib/discovery/repository";
+import { companyCounts, getDiscoveryActivity, getDiscoveryForCampaign } from "@/lib/discovery/repository";
 import { DiscoveryRetryButton } from "@/components/discovery-retry-button";
 import { DiscoveryActivityTicker } from "@/components/discovery-activity-ticker";
 import { CampaignControlActions } from "@/components/campaign-control-actions";
@@ -39,12 +39,19 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   let campaignCount = 1;
   let discovery: any = null;
   let companyCount = 0;
+  let pendingCompanyCount = 0;
+  let approvedCompanyCount = 0;
+  let rejectedCompanyCount = 0;
   let discoveryActivities: any[] = [];
   try {
     record = await getCampaign(id);
     campaignCount = (await listCampaigns()).length;
     discovery = await getDiscoveryForCampaign(id);
-    companyCount = (await listCompanies({ campaignId: id })).length;
+    const counts = await companyCounts({ campaignId: id });
+    companyCount = counts.total;
+    pendingCompanyCount = counts.pending;
+    approvedCompanyCount = counts.approved;
+    rejectedCompanyCount = counts.rejected;
     discoveryActivities = await getDiscoveryActivity(id);
   } catch (error) {
     console.error("Campaign detail unavailable", error);
@@ -55,12 +62,13 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const discoveryRunning = !campaignPaused && (discovery?.status === "RUNNING" || discovery?.status === "QUEUED");
   const discoveryComplete = discovery?.status === "COMPLETED";
   const discoveryFailed = discovery?.status === "FAILED";
+  const reviewComplete = discoveryComplete && companyCount > 0 && pendingCompanyCount === 0;
   const progress = Number(discovery?.progress ?? 0);
   const stageLabel = ({PREPARING:"Preparing company discovery",SEARCHING:"Searching for matching companies",ANALYSING:"Analysing company fit",VALIDATING:"Validating evidence",SAVING:"Saving recommendations",COMPLETE:"Companies ready for review"} as Record<string,string>)[discovery?.stage] ?? "Preparing company discovery";
   const journey = [
     ["Business", "complete"], ["Campaign", "complete"],
     ["Discovery", discoveryComplete ? "complete" : "current"],
-    ["Companies", discoveryComplete ? "current" : "future"],
+    ["Companies", reviewComplete ? "complete" : discoveryComplete ? "current" : "future"],
     ["Contacts", "future"], ["Outreach", "future"],
     ["Replies", "future"], ["Opportunities", "future"],
   ] as const;
@@ -81,17 +89,17 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     <div className="hero campaign-control-centre">
       <div className="campaign-control-copy">
         <div className="eyebrow" style={{ color: "#d8f6ff" }}>Campaign status</div>
-        <h2>{campaignPaused ? "This outbound sales campaign is paused." : discoveryComplete ? "Matching companies are ready for review." : discoveryRunning ? "SalesPilot is finding matching companies." : discoveryFailed ? "Company discovery needs another attempt." : "Your outbound sales campaign is ready."}</h2>
-        <p>{campaignPaused ? "Autonomous work is stopped. Your campaign, companies, evidence and review history remain safely saved." : discoveryComplete ? `${companyCount} evidence-backed compan${companyCount === 1 ? "y is" : "ies are"} ready for your review.` : discoveryRunning ? "SalesPilot is continuing the approved campaign automatically. Every recommendation will include evidence and a confidence score." : discoveryFailed ? "No partial company recommendations were saved. Restart discovery when you are ready." : "Business understanding and campaign approval are complete. SalesPilot is preparing company discovery."}</p>
-        <div className="campaign-readiness"><span/><strong>{stageLabel}</strong><small>{discoveryComplete ? "Review recommendations in Companies" : discoveryFailed ? "Safe to retry" : `${progress}% complete`}</small></div>
+        <h2>{campaignPaused ? "This outbound sales campaign is paused." : reviewComplete ? "Company review is complete." : discoveryComplete ? "Matching companies are ready for review." : discoveryRunning ? "SalesPilot is finding matching companies." : discoveryFailed ? "Company discovery needs another attempt." : "Your outbound sales campaign is ready."}</h2>
+        <p>{campaignPaused ? "Autonomous work is stopped. Your campaign, companies, evidence and review history remain safely saved." : reviewComplete ? `${approvedCompanyCount} approved and ${rejectedCompanyCount} not selected. There are no companies waiting for review.` : discoveryComplete ? `${pendingCompanyCount} evidence-backed compan${pendingCompanyCount === 1 ? "y is" : "ies are"} ready for your review.` : discoveryRunning ? "SalesPilot is continuing the approved campaign automatically. Every recommendation will include evidence and a confidence score." : discoveryFailed ? "No partial company recommendations were saved. Restart discovery when you are ready." : "Business understanding and campaign approval are complete. SalesPilot is preparing company discovery."}</p>
+        <div className="campaign-readiness"><span/><strong>{reviewComplete ? "Company review complete" : stageLabel}</strong><small>{reviewComplete ? "No recommendations are awaiting review" : discoveryComplete ? `${pendingCompanyCount} awaiting review` : discoveryFailed ? "Safe to retry" : `${progress}% complete`}</small></div>
         {discoveryFailed && <DiscoveryRetryButton campaignId={id}/>}
         {!discoveryComplete && !discoveryFailed && <div className="discovery-progress" aria-label={`Company discovery ${progress}% complete`}><span style={{width:`${Math.max(4,progress)}%`}}/></div>}
         {!campaignPaused && <DiscoveryActivityTicker campaignId={id} initialDiscovery={discovery} initialActivities={discoveryActivities} initialCompanyCount={companyCount}/>}
       </div>
       <div className="next-status-panel">
-        <span>{discoveryComplete ? "Next autonomous stage" : "Next milestone"}</span>
-        <strong>{discoveryComplete ? "Company Review" : "Company Discovery"}</strong>
-        <small>{discoveryComplete ? `${companyCount} recommendations ready for your decision` : stageLabel}</small>
+        <span>{reviewComplete ? "Next autonomous stage" : discoveryComplete ? "Current autonomous stage" : "Next milestone"}</span>
+        <strong>{reviewComplete ? "Contact Discovery" : discoveryComplete ? "Company Review" : "Company Discovery"}</strong>
+        <small>{reviewComplete ? "Ready for the next Genesis stage" : discoveryComplete ? `${pendingCompanyCount} recommendations ready for your decision` : stageLabel}</small>
       </div>
       <div className="campaign-roadmap" aria-label="Sales campaign journey">
         {journey.map(([label, state], index) => <div className={`roadmap-stage ${state}`} key={label}>
@@ -116,15 +124,15 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
 
       <Card className="next-milestone-card">
         <div className="eyebrow">{discoveryComplete ? "Current autonomous stage" : "Next milestone"}</div>
-        <div className="card-title large">{discoveryComplete ? "Company Review" : "Company Discovery"}</div>
-        <div className="card-subtitle">{discoveryComplete ? "Review the evidence-backed recommendations and approve the strongest commercial matches." : "SalesPilot has started this stage automatically from your approved campaign."}</div>
+        <div className="card-title large">{reviewComplete ? "Review complete" : discoveryComplete ? "Company Review" : "Company Discovery"}</div>
+        <div className="card-subtitle">{reviewComplete ? "Every verified recommendation has received a workspace decision." : discoveryComplete ? "Review the evidence-backed recommendations and approve the strongest commercial matches." : "SalesPilot has started this stage automatically from your approved campaign."}</div>
         <div className="milestone-list section">
           <div><CheckCircle2 size={17}/><span>Find companies matching the approved audience</span></div>
           <div><CheckCircle2 size={17}/><span>Explain why every recommendation fits</span></div>
           <div><CheckCircle2 size={17}/><span>Hold uncertain matches for review</span></div>
           <div><CheckCircle2 size={17}/><span>Provide a confidence score for each result</span></div>
         </div>
-        <div className="milestone-state"><span className="roadmap-pulse"/><div><strong>{discoveryComplete ? "Recommendations ready" : stageLabel}</strong><small>{discoveryComplete ? `${companyCount} companies are waiting for review.` : `${progress}% complete · progress is saved automatically.`}</small></div></div>
+        <div className="milestone-state"><span className="roadmap-pulse"/><div><strong>{reviewComplete ? "Review decisions saved" : discoveryComplete ? "Recommendations ready" : stageLabel}</strong><small>{reviewComplete ? `${approvedCompanyCount} approved · ${rejectedCompanyCount} not selected.` : discoveryComplete ? `${pendingCompanyCount} companies are waiting for review.` : `${progress}% complete · progress is saved automatically.`}</small></div></div>
       </Card>
     </div>
 
