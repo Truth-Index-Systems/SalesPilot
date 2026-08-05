@@ -555,15 +555,15 @@ export function CampaignWizard() {
                     <div className="eyebrow" style={{ color: "#d8f6ff" }}>
                       Understanding your business
                     </div>
-                    <h2>{analysisComplete ? "Business understood" : "SalesPilot is analysing your website"}</h2>
+                    <h2>{analysisComplete ? "Business understood" : analysisJob?.status === "QUEUED" ? "Analysis queued" : analysisJob?.status === "FAILED_RETRYABLE" ? "Analysis retry scheduled" : "SalesPilot is analysing your website"}</h2>
                   </div>
                   <span className="analysis-percent">
-                    {analysisJob?.progress ?? (analysisComplete ? 100 : Math.min(92, 12 + analysisStage * 13))}%
+                    {analysisJob?.progress ?? 0}%
                   </span>
                 </div>
 
                 <div className="analysis-track" aria-hidden="true">
-                  <span style={{ width: `${analysisJob?.progress ?? (analysisComplete ? 100 : Math.min(92, 12 + analysisStage * 13))}%` }} />
+                  <span style={{ width: `${analysisJob?.progress ?? 0}%` }} />
                 </div>
 
                 <div className="analysis-stage-list">

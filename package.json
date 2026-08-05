@@ -42,7 +42,12 @@
     "stabilisation:s6-check": "node scripts/validate-genesis-stabilisation-s6.mjs",
     "stabilisation:s7-check": "node scripts/validate-genesis-stabilisation-s7.mjs",
     "stabilisation:s71-check": "node scripts/validate-genesis-stabilisation-s71.mjs",
-    "stabilisation:s72-check": "node scripts/validate-genesis-stabilisation-s72.mjs"
+    "stabilisation:s72-check": "node scripts/validate-genesis-stabilisation-s72.mjs",
+    "stabilisation:s8-check": "node scripts/validate-genesis-stabilisation-s8.mjs",
+    "stabilisation:s9-unit": "node scripts/test-genesis-stabilisation-s9-unit.mjs",
+    "stabilisation:s9-integration": "node scripts/test-genesis-stabilisation-s9-integration.mjs",
+    "stabilisation:s9-soak": "node scripts/test-genesis-stabilisation-s9-soak.mjs",
+    "stabilisation:s9-check": "npm run stabilisation:s9-unit && npm run stabilisation:s9-integration && npm run stabilisation:s9-soak && node scripts/validate-genesis-stabilisation-s9.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

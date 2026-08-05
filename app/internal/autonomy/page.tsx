@@ -7,6 +7,7 @@ import { requireOrganisationContext } from "@/lib/auth/organisation-context";
 import { getAutonomyDiagnostics, type PipelineJobDiagnostic } from "@/lib/pipeline/diagnostics";
 import { getAiGovernance } from "@/lib/ai/governance-repository";
 import { AiGovernanceControls } from "@/components/ai-governance-controls";
+import { jobStateLabel, truthfulProgress } from "@/lib/pipeline/presentation";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,9 @@ function ago(value: string | null): string {
 }
 
 function stateLabel(job: PipelineJobDiagnostic) {
-  if (job.job_state === "RUNNING") return `${job.stage.replaceAll("_", " ")} · ${job.progress}%`;
-  if (job.job_state === "FAILED_RETRYABLE") return job.next_retry_at ? `Retry ${new Date(job.next_retry_at).toLocaleString("en-GB")}` : "Retry awaiting schedule";
-  return job.job_state.replaceAll("_", " ");
+  const progress = truthfulProgress(job);
+  if (progress !== null) return `${job.stage.replaceAll("_", " ")} · ${progress}%`;
+  return jobStateLabel(job, { queued: "Queued", complete: "Complete", noResults: "No supported results" });
 }
 
 export default async function AutonomyHealthPage() {

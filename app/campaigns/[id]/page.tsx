@@ -11,6 +11,8 @@ import { DiscoveryActivityTicker } from "@/components/discovery-activity-ticker"
 import { CampaignControlActions } from "@/components/campaign-control-actions";
 import { contactCounts, listContactDiscoveryForCampaign } from "@/lib/contacts/repository";
 import Link from "next/link";
+import { derivePipelineCampaignStage } from "@/lib/pipeline/campaign-state";
+import { canShowProgress, isJobComplete, isJobRetryScheduled, jobStateLabel, resolvePersistedJobState, truthfulProgress } from "@/lib/pipeline/presentation";
 
 export const dynamic = "force-dynamic";
 
@@ -72,24 +74,39 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   if (!record) notFound();
   const campaign = presentCampaignDetail(record);
   const campaignPaused = record.status === "PAUSED";
-  const discoveryRunning = !campaignPaused && (discovery?.status === "RUNNING" || discovery?.status === "QUEUED");
-  const discoveryComplete = discovery?.status === "COMPLETED";
-  const discoveryFailed = discovery?.status === "FAILED";
+  const discoveryState = resolvePersistedJobState(discovery);
+  const discoveryRunning = !campaignPaused && discoveryState === "RUNNING";
+  const discoveryQueued = !campaignPaused && discoveryState === "QUEUED";
+  const discoveryComplete = isJobComplete(discovery);
+  const discoveryRetryScheduled = isJobRetryScheduled(discovery);
+  const discoveryNeedsAttention = discoveryState === "FAILED_TERMINAL";
   const reviewComplete = discoveryComplete && companyCount > 0 && pendingCompanyCount === 0;
-  const contactResearching = contactSessions.filter(session => ["QUEUED", "RUNNING", "FAILED"].includes(session.status)).length;
-  const contactResearchComplete = contactSessions.length > 0 && contactSessions.every(session => session.status === "COMPLETED");
+  const contactResearching = contactSessions.filter(session => resolvePersistedJobState(session) === "RUNNING").length;
+  const contactQueued = contactSessions.filter(session => resolvePersistedJobState(session) === "QUEUED").length;
+  const contactRetryScheduled = contactSessions.filter(isJobRetryScheduled).length;
+  const contactResearchComplete = contactSessions.length > 0 && contactSessions.every(session => isJobComplete(session) || resolvePersistedJobState(session) === "CANCELLED");
   const contactReviewComplete = contactResearchComplete && contactCount > 0 && pendingContactCount === 0;
-  const contactsActive = approvedCompanyCount > 0 && (contactResearching > 0 || contactCount > 0 || contactSessions.length > 0);
-  const progress = Number(discovery?.progress ?? 0);
-  const stageLabel = ({PREPARING:"Preparing company discovery",SEARCHING:"Searching for matching companies",ANALYSING:"Analysing company fit",VALIDATING:"Validating evidence",SAVING:"Saving recommendations",COMPLETE:"Companies ready for review"} as Record<string,string>)[discovery?.stage] ?? "Preparing company discovery";
-  const journey = [
-    ["Business", "complete"], ["Campaign", "complete"],
-    ["Discovery", discoveryComplete ? "complete" : "current"],
-    ["Companies", reviewComplete || contactsActive ? "complete" : discoveryComplete ? "current" : "future"],
-    ["Contacts", contactReviewComplete ? "complete" : contactsActive ? "current" : "future"],
-    ["Outreach", contactReviewComplete && approvedContactCount > 0 ? "current" : "future"],
-    ["Replies", "future"], ["Opportunities", "future"],
-  ] as const;
+  const contactsActive = approvedCompanyCount > 0 && (contactResearching > 0 || contactQueued > 0 || contactRetryScheduled > 0 || contactCount > 0 || contactSessions.length > 0);
+  const progress = truthfulProgress(discovery);
+  const stageLabel = discoveryRunning ? (({PREPARING:"Preparing company discovery",SEARCHING:"Searching for matching companies",ANALYSING:"Analysing company fit",VALIDATING:"Validating evidence",SAVING:"Saving recommendations",COMPLETE:"Companies ready for review"} as Record<string,string>)[discovery?.stage] ?? "Researching matching companies") : jobStateLabel(discovery, { queued: "Company discovery queued", complete: "Companies ready for review", noResults: "No new supported companies found" });
+  const visibleCampaignStage = derivePipelineCampaignStage({
+    campaignPaused,
+    campaignArchived: record.status === "ARCHIVED",
+    businessAnalysisReady: true,
+    campaignApproved: true,
+    companyDiscoveryActive: discoveryRunning || discoveryQueued,
+    companiesAwaitingReview: pendingCompanyCount,
+    approvedCompanies: approvedCompanyCount,
+    contactDiscoveryActive: contactResearching > 0 || contactQueued > 0,
+    contactsAwaitingReview: pendingContactCount,
+    approvedReachableContacts: approvedContactCount,
+    outreachStarted: false,
+    repliesReceived: false,
+    opportunitiesCreated: false,
+  });
+  const stageIndex = ({ BUSINESS_ANALYSIS:0, CAMPAIGN_REVIEW:1, COMPANY_DISCOVERY:2, COMPANY_REVIEW:3, CONTACT_DISCOVERY:4, CONTACT_REVIEW:4, OUTREACH_READY:5, OUTREACH:5, REPLIES:6, OPPORTUNITIES:7, PAUSED:-1, ARCHIVED:-1 } as Record<string,number>)[visibleCampaignStage] ?? 2;
+  const journeyLabels = ["Business", "Campaign", "Discovery", "Companies", "Contacts", "Outreach", "Replies", "Opportunities"] as const;
+  const journey = journeyLabels.map((label, index) => [label, index < stageIndex ? "complete" : index === stageIndex ? "current" : "future"] as const);
 
   return <AppShell title={campaign.name} user={user} workspaceStats={{ campaigns: campaignCount, companies: companyCount, replies: 0, opportunities: 0 }}>
     <PageHeader eyebrow="Outbound sales campaign" title={campaign.name} subtitle="Your approved campaign, current position and next milestone in one place." action={<div className="campaign-page-actions"><span className={`badge ${campaignPaused ? "amber" : "green"}`}>{campaignPaused ? "Paused" : `${campaign.matchLabel} · ${campaign.fitScore}/100`}</span><CampaignControlActions campaignId={id} campaignName={campaign.name} status={record.status}/></div>}/>
@@ -107,11 +124,11 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     <div className="hero campaign-control-centre">
       <div className="campaign-control-copy">
         <div className="eyebrow" style={{ color: "#d8f6ff" }}>Campaign status</div>
-        <h2>{campaignPaused ? "This outbound sales campaign is paused." : contactReviewComplete ? "Decision-maker review is complete." : contactsActive ? "SalesPilot is identifying the right people." : reviewComplete ? "Company review is complete." : discoveryComplete ? "Matching companies are ready for review." : discoveryRunning ? "SalesPilot is finding matching companies." : discoveryFailed ? "Company discovery needs another attempt." : "Your outbound sales campaign is ready."}</h2>
-        <p>{campaignPaused ? "Autonomous work is stopped. Your campaign, companies, contacts, evidence and review history remain safely saved." : contactReviewComplete ? `${approvedContactCount} approved contact${approvedContactCount === 1 ? " is" : "s are"} ready for outreach.` : contactsActive ? `${contactResearching} compan${contactResearching === 1 ? "y is" : "ies are"} being researched and ${pendingContactCount} contact${pendingContactCount === 1 ? " is" : "s are"} awaiting review.` : reviewComplete ? `${approvedCompanyCount} approved companies have automatically entered contact discovery.` : discoveryComplete ? `${pendingCompanyCount} evidence-backed compan${pendingCompanyCount === 1 ? "y is" : "ies are"} ready for your review.` : discoveryRunning ? "SalesPilot is continuing the approved campaign automatically. Every recommendation will include evidence and a confidence score." : discoveryFailed ? "No partial company recommendations were saved. Restart discovery when you are ready." : "Business understanding and campaign approval are complete. SalesPilot is preparing company discovery."}</p>
-        <div className="campaign-readiness"><span/><strong>{contactReviewComplete ? "Contacts ready for outreach" : contactsActive ? "Autonomous contact discovery" : reviewComplete ? "Company review complete" : stageLabel}</strong><small>{contactReviewComplete ? `${approvedContactCount} approved contacts` : contactsActive ? `${contactResearching} researching · ${pendingContactCount} awaiting review · ${heldContactCount} held` : reviewComplete ? "Approved companies moved forward automatically" : discoveryComplete ? `${pendingCompanyCount} awaiting review` : discoveryFailed ? "Safe to retry" : `${progress}% complete`}</small></div>
-        {discoveryFailed && <DiscoveryRetryButton campaignId={id}/>}
-        {!discoveryComplete && !discoveryFailed && <div className="discovery-progress" aria-label={`Company discovery ${progress}% complete`}><span style={{width:`${Math.max(4,progress)}%`}}/></div>}
+        <h2>{campaignPaused ? "This outbound sales campaign is paused." : contactReviewComplete ? "Decision-maker review is complete." : contactsActive ? "SalesPilot is identifying the right people." : reviewComplete ? "Company review is complete." : discoveryComplete ? "Matching companies are ready for review." : discoveryRunning ? "SalesPilot is finding matching companies." : discoveryRetryScheduled ? "Company discovery retry is scheduled." : discoveryNeedsAttention ? "Company discovery needs attention." : discoveryQueued ? "Company discovery is queued." : "Your outbound sales campaign is ready."}</h2>
+        <p>{campaignPaused ? "Autonomous work is stopped. Your campaign, companies, contacts, evidence and review history remain safely saved." : contactReviewComplete ? `${approvedContactCount} approved contact${approvedContactCount === 1 ? " is" : "s are"} ready for outreach.` : contactsActive ? `${contactResearching} compan${contactResearching === 1 ? "y is" : "ies are"} being researched and ${pendingContactCount} contact${pendingContactCount === 1 ? " is" : "s are"} awaiting review.` : reviewComplete ? `${approvedCompanyCount} approved companies have automatically entered contact discovery.` : discoveryComplete ? `${pendingCompanyCount} evidence-backed compan${pendingCompanyCount === 1 ? "y is" : "ies are"} ready for your review.` : discoveryRunning ? "SalesPilot is continuing the approved campaign automatically. Every recommendation will include evidence and a confidence score." : discoveryRetryScheduled ? "The scheduler will retry automatically at the saved retry time." : discoveryNeedsAttention ? "The job reached a terminal failure and requires an administrator to review the diagnostic reason." : discoveryQueued ? "The scheduler has accepted this campaign and will begin research when a worker is available." : "Business understanding and campaign approval are complete. SalesPilot is preparing company discovery."}</p>
+        <div className="campaign-readiness"><span/><strong>{contactReviewComplete ? "Contacts ready for outreach" : contactsActive ? "Autonomous contact discovery" : reviewComplete ? "Company review complete" : stageLabel}</strong><small>{contactReviewComplete ? `${approvedContactCount} approved contacts` : contactsActive ? `${contactResearching} researching · ${contactQueued} queued · ${contactRetryScheduled} retry scheduled · ${pendingContactCount} awaiting review` : reviewComplete ? "Approved companies moved forward automatically" : discoveryComplete ? `${pendingCompanyCount} awaiting review` : discoveryRetryScheduled ? "Retry scheduled" : discoveryNeedsAttention ? "Needs attention" : discoveryQueued ? "Queued" : progress !== null ? `${progress}% complete` : stageLabel}</small></div>
+        {discoveryNeedsAttention && <DiscoveryRetryButton campaignId={id}/>}
+        {canShowProgress(discovery) && progress !== null && <div className="discovery-progress" aria-label={`Company discovery ${progress}% complete`}><span style={{width:`${Math.max(4,progress)}%`}}/></div>}
         {!campaignPaused && <DiscoveryActivityTicker campaignId={id} initialDiscovery={discovery} initialActivities={discoveryActivities} initialCompanyCount={companyCount}/>}
       </div>
       <div className="next-status-panel">
@@ -157,7 +174,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           <div><CheckCircle2 size={17}/><span>Hold uncertain matches for review</span></div>
           <div><CheckCircle2 size={17}/><span>Provide a confidence score for each result</span></div>
         </div>
-        <div className="milestone-state"><span className="roadmap-pulse"/><div><strong>{reviewComplete ? "Review decisions saved" : discoveryComplete ? "Recommendations ready" : stageLabel}</strong><small>{reviewComplete ? `${approvedCompanyCount} approved · ${rejectedCompanyCount} not selected.` : discoveryComplete ? `${pendingCompanyCount} companies are waiting for review.` : `${progress}% complete · progress is saved automatically.`}</small></div></div>
+        <div className="milestone-state"><span className="roadmap-pulse"/><div><strong>{reviewComplete ? "Review decisions saved" : discoveryComplete ? "Recommendations ready" : stageLabel}</strong><small>{reviewComplete ? `${approvedCompanyCount} approved · ${rejectedCompanyCount} not selected.` : discoveryComplete ? `${pendingCompanyCount} companies are waiting for review.` : progress !== null ? `${progress}% complete · progress is saved automatically.` : stageLabel}</small></div></div>
       </Card>
     </div>
 
@@ -170,7 +187,14 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       <Card>
         <div className="card-title">Campaign timeline</div>
         <div className="card-subtitle">Only useful customer-facing progress is shown.</div>
-        <div className="premium-timeline section">{campaign.timeline.map(entry => {
+        <div className="premium-timeline section">{campaign.timeline.filter((entry, index, entries) => {
+          if (index === 0) return true;
+          const previous = entries[index - 1];
+          const key = `${entry.title.trim().toLowerCase()}|${(entry.description ?? "").trim().toLowerCase()}`;
+          const previousKey = `${previous.title.trim().toLowerCase()}|${(previous.description ?? "").trim().toLowerCase()}`;
+          const closeTogether = Math.abs(Date.parse(entry.occurredAt) - Date.parse(previous.occurredAt)) < 10 * 60 * 1000;
+          return key !== previousKey || !closeTogether;
+        }).map(entry => {
           const presented = humanTimeline(entry.title, entry.description);
           const exact = new Date(entry.occurredAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
           return <div className="timeline-entry" key={entry.id}><div className="timeline-icon"><CheckCircle2 size={17}/></div><div><div className="name">{presented.title}</div>{presented.description && <div className="meta">{presented.description}</div>}<time title={exact} dateTime={entry.occurredAt}>{relativeTime(entry.occurredAt)}</time></div></div>;

@@ -6,6 +6,7 @@ import { requirePageUser } from "@/lib/auth/page-user";
 import { listCompanies, companyCounts, type CompanyFilters } from "@/lib/discovery/repository";
 import { listCampaigns } from "@/lib/campaigns/repository";
 import { listContactDiscoveryActivity } from "@/lib/contacts/repository";
+import { resolvePersistedJobState } from "@/lib/pipeline/presentation";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,11 @@ export default async function Companies({ searchParams }: { searchParams: Promis
   const confidence = ["HIGH", "MEDIUM", "LOW"].includes(search.confidence ?? "") ? search.confidence as CompanyFilters["confidence"] : undefined;
   const filters: CompanyFilters = { status: search.status, campaignId: search.campaign, query: search.q?.trim(), confidence };
   const [rows, counts, workspaceCounts, campaigns, contactActivity] = await Promise.all([listCompanies(filters), companyCounts({ campaignId: search.campaign }), companyCounts(), listCampaigns(), listContactDiscoveryActivity()]);
-  const contactStateByCompany = new Map<string, "QUEUED" | "RESEARCHING" | "CONTACTS_FOUND">(contactActivity.map(session => [session.company_id, session.status === "COMPLETED" ? "CONTACTS_FOUND" : session.status === "RUNNING" ? "RESEARCHING" : "QUEUED"]));
+  const contactStateByCompany = new Map<string, "QUEUED" | "RESEARCHING" | "RETRY_SCHEDULED" | "NO_RESULTS" | "CONTACTS_FOUND">(contactActivity.map(session => {
+    const state = resolvePersistedJobState(session);
+    const visibleState = state === "RUNNING" ? "RESEARCHING" : state === "FAILED_RETRYABLE" ? "RETRY_SCHEDULED" : state === "NO_RESULTS" || state === "EXHAUSTED" ? "NO_RESULTS" : state === "COMPLETED" ? "CONTACTS_FOUND" : "QUEUED";
+    return [session.company_id, visibleState] as const;
+  }));
   const rowsWithContactState = rows.map(row => ({ ...row, contact_state: contactStateByCompany.get(row.id) ?? (row.review_status === "APPROVED" ? "QUEUED" : undefined) }));
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.confidence);
 

@@ -8,11 +8,16 @@ import { contactCounts, listContacts, listContactDiscoveryActivity, listCompanyC
 import { companyCounts, listCompanies } from "@/lib/discovery/repository";
 import { listCampaigns } from "@/lib/campaigns/repository";
 import { Activity, ArrowRight, CheckCircle2, Search, ShieldCheck, Mail, ExternalLink } from "@/components/icons";
+import { isJobActive, isJobComplete, isJobRetryScheduled, jobStateLabel, jobTone, resolvePersistedJobState } from "@/lib/pipeline/presentation";
 
 export const dynamic = "force-dynamic";
 type SearchParams = { status?: string; campaign?: string; q?: string; confidence?: string };
 function queryString(input: SearchParams) { const p = new URLSearchParams(); Object.entries(input).forEach(([k,v]) => v && p.set(k,v)); return p.size ? `/contacts?${p}` : "/contacts"; }
-function sessionLabel(stage?: string) { return ({ PREPARING:"Preparing research", RESEARCHING:"Researching leadership", IDENTIFYING:"Identifying decision-makers", VALIDATING:"Validating roles and evidence", SAVING:"Saving verified contacts", COMPLETE:"Contact research completed" } as Record<string,string>)[stage ?? ""] ?? "Contact research queued"; }
+function sessionLabel(item: any) {
+  const state = resolvePersistedJobState(item);
+  if (state !== "RUNNING") return jobStateLabel(item, { queued: "Contact research queued", complete: "Contact research completed", noResults: "No publicly supported decision-maker found" });
+  return ({ PREPARING:"Preparing research", RESEARCHING:"Researching leadership", IDENTIFYING:"Identifying decision-makers", VALIDATING:"Validating roles and evidence", SAVING:"Saving verified contacts", COMPLETE:"Contact research completed" } as Record<string,string>)[item.stage ?? ""] ?? "Researching decision-makers";
+}
 
 export default async function Contacts({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const user = await requirePageUser("/contacts");
@@ -24,11 +29,13 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
     listContacts(filters), contactCounts({ campaignId: search.campaign }), contactCounts(), companyCounts(), listCompanies({ status: "APPROVED" }), listCampaigns(), listContactDiscoveryActivity(), listCompanyContactChannels({ campaignId: search.campaign }),
   ]);
   const companyById = new Map(companyRows.map(row => [row.id, row.company_name]));
-  const activeSessions = activity.filter(row => ["QUEUED","RUNNING"].includes(row.status));
-  const failedSessions = activity.filter(row => row.status === "FAILED");
-  const researching = activeSessions.length;
-  const completedCompanies = new Set(activity.filter(row => row.status === "COMPLETED").map(row => row.company_id)).size;
-  const waitingResearch = Math.max(0, companies.approved - completedCompanies - researching);
+  const activeSessions = activity.filter(isJobActive);
+  const runningSessions = activity.filter(row => resolvePersistedJobState(row) === "RUNNING");
+  const queuedSessions = activity.filter(row => resolvePersistedJobState(row) === "QUEUED");
+  const retrySessions = activity.filter(isJobRetryScheduled);
+  const researching = runningSessions.length;
+  const completedCompanies = new Set(activity.filter(isJobComplete).map(row => row.company_id)).size;
+  const waitingResearch = Math.max(0, companies.approved - completedCompanies - activeSessions.length - retrySessions.length);
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.confidence);
   const latestActivity = activity.slice(0, 5);
   const verifiedEmails = rows.filter(row => row.email_status === "VERIFIED").length;
@@ -40,7 +47,7 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
   const companiesWithRoutes = new Set(companyChannels.map(row => row.company_id)).size;
 
   return <AppShell title="Contacts" user={user} workspaceStats={{ campaigns: campaigns.length, companies: companies.total, replies: 0, opportunities: 0 }}>
-    <ContactAutoRefresh active={researching > 0}/><PageHeader eyebrow="Autonomous contact discovery" title="Decision-maker review" subtitle="SalesPilot researches the right people inside approved companies, verifies the evidence, and pauses for human judgement before outreach." />
+    <ContactAutoRefresh active={activeSessions.length > 0 || retrySessions.length > 0}/><PageHeader eyebrow="Autonomous contact discovery" title="Decision-maker review" subtitle="SalesPilot researches the right people inside approved companies, verifies the evidence, and pauses for human judgement before outreach." />
 
     <Card className="autonomous-flow-card">
       <div className="flow-stage complete"><span>1</span><div><small>Approved companies</small><strong>{companies.approved}</strong></div></div><i>→</i>
@@ -57,14 +64,15 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
           <div><span>Approved companies</span><strong>{companies.approved}</strong></div>
           <div><span>Research completed</span><strong>{completedCompanies}</strong></div>
           <div><span>Currently researching</span><strong>{researching}</strong></div>
+          <div><span>Queued</span><strong>{queuedSessions.length}</strong></div>
           <div><span>Awaiting research</span><strong>{waitingResearch}</strong></div>
-          {failedSessions.length > 0 && <div><span>Retry scheduled</span><strong>{failedSessions.length}</strong></div>}
+          {retrySessions.length > 0 && <div><span>Retry scheduled</span><strong>{retrySessions.length}</strong></div>}
         </div>
       </Card>
       <Card className="contact-activity-card">
         <div className="section-head"><div><div className="card-title">SalesPilot activity</div><div className="card-subtitle">The latest autonomous contact-discovery work.</div></div><span className={`live-dot ${researching ? "active" : ""}`}/></div>
         <div className="contact-activity-feed section">
-          {latestActivity.length ? latestActivity.map(item => <div key={item.id} className="contact-activity-item"><span className={item.status === "COMPLETED" ? "complete" : "active"}>{item.status === "COMPLETED" ? <CheckCircle2 size={14}/> : <Activity size={14}/>}</span><div><strong>{companyById.get(item.company_id) ?? "Approved company"}</strong><small>{sessionLabel(item.stage)}{item.contacts_saved ? ` · ${item.contacts_saved} saved` : ""}</small></div></div>) : <div className="contact-activity-empty"><Search size={18}/><span>Approve a company and SalesPilot will begin decision-maker research automatically.</span></div>}
+          {latestActivity.length ? latestActivity.map(item => <div key={item.id} className="contact-activity-item"><span className={jobTone(item) === "complete" ? "complete" : jobTone(item) === "attention" ? "attention" : "active"}>{isJobComplete(item) ? <CheckCircle2 size={14}/> : <Activity size={14}/>}</span><div><strong>{companyById.get(item.company_id) ?? "Approved company"}</strong><small>{sessionLabel(item)}{item.contacts_saved ? ` · ${item.contacts_saved} saved` : ""}</small></div></div>) : <div className="contact-activity-empty"><Search size={18}/><span>Approve a company and SalesPilot will begin decision-maker research automatically.</span></div>}
         </div>
       </Card>
     </div>
