@@ -7,6 +7,30 @@ import type { DiscoveredCompany, VerifiedDiscoveredCompany, VerifiedDiscoveryEvi
 const MAX_BYTES = 750_000;
 const TIMEOUT_MS = 8_000;
 
+export type CompanyVerificationReason =
+  | "INVALID_DOMAIN"
+  | "HOMEPAGE_UNREACHABLE"
+  | "NO_OFFICIAL_EVIDENCE"
+  | "EVIDENCE_TOO_WEAK"
+  | "CONFIDENCE_TOO_LOW";
+
+export type CompanyVerificationResult =
+  | { accepted: true; company: VerifiedDiscoveredCompany; diagnostics: CompanyVerificationDiagnostics }
+  | { accepted: false; reason: CompanyVerificationReason; diagnostics: CompanyVerificationDiagnostics };
+
+export type CompanyVerificationDiagnostics = {
+  officialEvidenceSubmitted: number;
+  officialEvidenceReachable: number;
+  excerptMatches: number;
+  evidenceQuality: number;
+  fitScore: number;
+  finalConfidence: number;
+};
+
+function emptyDiagnostics(): CompanyVerificationDiagnostics {
+  return { officialEvidenceSubmitted: 0, officialEvidenceReachable: 0, excerptMatches: 0, evidenceQuality: 0, fitScore: 0, finalConfidence: 0 };
+}
+
 function isPrivateIpv4(ip: string): boolean {
   const parts = ip.split(".").map(Number);
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part))) return true;
@@ -34,6 +58,21 @@ async function assertPublicHost(hostname: string): Promise<void> {
 
 function normaliseText(value: string): string {
   return value.toLowerCase().replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/gi, " ").replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function meaningfulTokens(value: string): string[] {
+  return normaliseText(value).split(/\s+/).filter((token) => token.length >= 4).slice(0, 80);
+}
+
+function excerptSupported(pageText: string, excerptValue: string | null | undefined): boolean {
+  const excerpt = normaliseText(excerptValue ?? "");
+  if (excerpt.length < 12) return false;
+  if (pageText.includes(excerpt.slice(0, 240))) return true;
+  const tokens = meaningfulTokens(excerpt);
+  if (tokens.length < 4) return false;
+  const pageTokens = new Set(meaningfulTokens(pageText));
+  const matches = tokens.filter((token) => pageTokens.has(token)).length;
+  return matches / tokens.length >= 0.6;
 }
 
 async function fetchPublicPage(initialUrl: string, expectedDomain: string): Promise<{ text: string; finalUrl: string }> {
@@ -83,47 +122,67 @@ function label(confidence: number): DiscoveredCompany["matchLabel"] {
   return "Good match";
 }
 
-export async function verifyDiscoveredCompany(company: DiscoveredCompany): Promise<VerifiedDiscoveredCompany | null> {
+export async function verifyDiscoveredCompanyDetailed(company: DiscoveredCompany): Promise<CompanyVerificationResult> {
   const domain = canonicalDomain(company.websiteUrl);
-  if (!domain) return null;
+  if (!domain) return { accepted: false, reason: "INVALID_DOMAIN", diagnostics: emptyDiagnostics() };
 
-  let homepageReachable = false;
   try {
     await fetchPublicPage(company.websiteUrl, domain);
-    homepageReachable = true;
   } catch {
-    return null;
+    return { accepted: false, reason: "HOMEPAGE_UNREACHABLE", diagnostics: emptyDiagnostics() };
   }
 
+  const officialEvidence = company.evidence.filter((item) => canonicalDomain(item.sourceUrl) === domain);
   const verifiedEvidence: VerifiedDiscoveryEvidence[] = [];
-  for (const evidence of company.evidence) {
-    if (canonicalDomain(evidence.sourceUrl) !== domain) continue;
+  for (const evidence of officialEvidence) {
     try {
       const page = await fetchPublicPage(evidence.sourceUrl, domain);
-      const excerpt = evidence.excerpt ? normaliseText(evidence.excerpt) : "";
-      const excerptMatched = excerpt.length >= 12 ? page.text.includes(excerpt.slice(0, 240)) : false;
+      const excerptMatched = excerptSupported(page.text, evidence.excerpt);
       verifiedEvidence.push({ ...evidence, verified: true, excerptMatched, sourceDomain: domain, retrievedAt: new Date().toISOString() });
     } catch {
       continue;
     }
   }
 
-  if (!homepageReachable || verifiedEvidence.length === 0) return null;
   const excerptMatches = verifiedEvidence.filter((item) => item.excerptMatched).length;
-  const evidenceQuality = Math.min(100, 35 + Math.min(verifiedEvidence.length, 4) * 12 + Math.min(excerptMatches, 3) * 7);
-  if (evidenceQuality < 55) return null;
-
+  const evidenceQuality = Math.min(100, 38 + Math.min(verifiedEvidence.length, 4) * 12 + Math.min(excerptMatches, 3) * 8);
   const fitScore = weightedFit(company);
-  const confidence = Math.round(Math.min(company.confidence, fitScore * 0.75 + evidenceQuality * 0.25));
-  if (confidence < 60) return null;
+  const confidence = Math.round(Math.min(company.confidence, fitScore * 0.72 + evidenceQuality * 0.28));
+  const diagnostics = {
+    officialEvidenceSubmitted: officialEvidence.length,
+    officialEvidenceReachable: verifiedEvidence.length,
+    excerptMatches,
+    evidenceQuality,
+    fitScore,
+    finalConfidence: confidence,
+  };
+
+  if (verifiedEvidence.length === 0) return { accepted: false, reason: "NO_OFFICIAL_EVIDENCE", diagnostics };
+
+  // One reachable official source is acceptable when campaign fit and model
+  // confidence are both strong. Weak-fit candidates still require richer or
+  // directly matched evidence. This preserves the evidence-first gate without
+  // discarding legitimate smaller businesses whose official sites are sparse.
+  const minimumEvidenceQuality = fitScore >= 72 && company.confidence >= 72 ? 48 : 55;
+  if (evidenceQuality < minimumEvidenceQuality) return { accepted: false, reason: "EVIDENCE_TOO_WEAK", diagnostics };
+  if (confidence < 58) return { accepted: false, reason: "CONFIDENCE_TOO_LOW", diagnostics };
 
   return {
-    ...company,
-    websiteUrl: `https://${domain}`,
-    confidence,
-    matchLabel: label(confidence),
-    evidence: verifiedEvidence.slice(0, 8),
-    evidenceQuality,
-    verificationStatus: "VERIFIED",
+    accepted: true,
+    diagnostics,
+    company: {
+      ...company,
+      websiteUrl: `https://${domain}`,
+      confidence,
+      matchLabel: label(confidence),
+      evidence: verifiedEvidence.slice(0, 8),
+      evidenceQuality,
+      verificationStatus: "VERIFIED",
+    },
   };
+}
+
+export async function verifyDiscoveredCompany(company: DiscoveredCompany): Promise<VerifiedDiscoveredCompany | null> {
+  const result = await verifyDiscoveredCompanyDetailed(company);
+  return result.accepted ? result.company : null;
 }

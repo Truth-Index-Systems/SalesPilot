@@ -55,6 +55,8 @@ export function normaliseDiscoveryResult(
     if (companies.length >= maximumCompanies) break;
   }
 
-  if (companies.length === 0) throw new Error("DISCOVERY_NO_VERIFIED_COMPANIES");
+  // Zero post-normalisation candidates is a valid research outcome. The worker
+  // records it as NO_RESULTS and applies the normal discovery cooldown rather
+  // than treating it as an infrastructure failure.
   return { ...parsed, companies };
 }

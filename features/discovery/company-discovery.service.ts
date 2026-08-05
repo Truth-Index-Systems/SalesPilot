@@ -1,7 +1,7 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { discoverCompanies } from "@/lib/discovery/openai";
-import { verifyDiscoveredCompany } from "@/lib/discovery/site-verifier";
+import { verifyDiscoveredCompanyDetailed, type CompanyVerificationReason } from "@/lib/discovery/site-verifier";
 import type { WorkerExecutionContext, WorkerExecutionResult } from "@/lib/pipeline/executor";
 import { classifyPipelineError } from "@/lib/pipeline/errors";
 import { createResultSummary } from "@/lib/pipeline/result-summary";
@@ -56,15 +56,28 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
 
     let saved=0;
     let verified=0;
+    const heldReasons: Record<CompanyVerificationReason, number> = {
+      INVALID_DOMAIN: 0,
+      HOMEPAGE_UNREACHABLE: 0,
+      NO_OFFICIAL_EVIDENCE: 0,
+      EVIDENCE_TOO_WEAK: 0,
+      CONFIDENCE_TOO_LOW: 0,
+    };
+    let reachableOfficialEvidence = 0;
+    let excerptMatches = 0;
     for (let index=0; index<result.companies.length; index++) {
       const candidate=result.companies[index];
       const validationProgress=73+Math.round(((index+1)/result.companies.length)*12);
       await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"VALIDATING",p_progress:Math.min(85,validationProgress),p_candidates:result.companies.length})});
-      const company=await verifyDiscoveredCompany(candidate);
-      if (!company) {
-        await activity(job.session_id,"CANDIDATE_HELD",`${candidate.name} held back`,"The available official-site evidence was not strong enough to recommend this company.",{companyName:candidate.name});
+      const verification=await verifyDiscoveredCompanyDetailed(candidate);
+      reachableOfficialEvidence += verification.diagnostics.officialEvidenceReachable;
+      excerptMatches += verification.diagnostics.excerptMatches;
+      if (!verification.accepted) {
+        heldReasons[verification.reason] += 1;
+        await activity(job.session_id,"CANDIDATE_HELD",`${candidate.name} held back`,"The available official-site evidence was not strong enough to recommend this company.",{companyName:candidate.name,reason:verification.reason,diagnostics:verification.diagnostics});
         continue;
       }
+      const company=verification.company;
       verified+=1;
       const saveProgress=86+Math.round((verified/result.companies.length)*9);
       await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"SAVING",p_progress:Math.min(95,saveProgress),p_candidates:result.companies.length})});
@@ -77,7 +90,17 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     // companies after exclusions and verification. Finalise that cycle so the
     // database can apply its exhaustion cooldown instead of treating it as a
     // transient worker failure and immediately reopening it on the next tick.
-    const finalSaved=await databaseRequest<number>("rpc/finalize_company_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_result_summary:createResultSummary(Number(saved)>0?"COMPLETED_WITH_RESULTS":"COMPLETED_NO_RESULTS",Number(saved),startedAt)})});
+    const discoverySummary = {
+      ...createResultSummary(Number(saved)>0?"COMPLETED_WITH_RESULTS":"COMPLETED_NO_RESULTS",Number(saved),startedAt),
+      candidatesReturned: result.companies.length,
+      candidatesVerified: verified,
+      candidatesHeld: result.companies.length - verified,
+      reachableOfficialEvidence,
+      excerptMatches,
+      heldReasons,
+    };
+    await activity(job.session_id,"DISCOVERY_SUMMARY",saved > 0 ? `${saved} companies ready for review` : "No companies met the evidence gate",saved > 0 ? `${verified} verified from ${result.companies.length} candidates.` : "The search completed normally. Candidate diagnostics have been saved for tuning.",discoverySummary);
+    const finalSaved=await databaseRequest<number>("rpc/finalize_company_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_result_summary:discoverySummary})});
     return {
       worker: "COMPANY_DISCOVERY",
       processed: true,
