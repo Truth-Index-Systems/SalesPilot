@@ -30,7 +30,7 @@ function outputText(value:unknown){const data=value as {output_text?:unknown;out
 
 export async function discoverContacts(input:{company:Record<string,unknown>;campaign:Record<string,unknown>;business:Record<string,unknown>}){
   const apiKey=process.env.OPENAI_API_KEY?.trim();if(!apiKey)throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
-  const response=await fetch(ENDPOINT,{method:"POST",cache:"no-store",signal:AbortSignal.timeout(220_000),headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({
+  const response=await fetch(ENDPOINT,{method:"POST",cache:"no-store",signal:AbortSignal.timeout(150_000),headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({
     model:resolveOpenAIModel("analysis").model,
     instructions:[
       "You are SalesPilot Contact Discovery.",

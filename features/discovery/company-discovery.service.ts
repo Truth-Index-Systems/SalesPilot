@@ -65,7 +65,10 @@ export async function runNextCompanyDiscovery(): Promise<{ processed: boolean; s
       // COMPANY_VERIFIED quality gate completed before the persisted COMPANY_SAVED activity.
       await activity(job.session_id,"COMPANY_SAVED",`${company.name} verified and added`,`${company.matchLabel} · ${company.confidence}/100 confidence · ${company.evidenceQuality}/100 evidence quality`,{companyName:company.name,confidence:company.confidence,evidenceQuality:company.evidenceQuality,savedCount:saved});
     }
-    if (saved===0) throw new Error("DISCOVERY_NO_VERIFIED_COMPANIES");
+    // A valid search can legitimately produce no new unique, evidence-backed
+    // companies after exclusions and verification. Finalise that cycle so the
+    // database can apply its exhaustion cooldown instead of treating it as a
+    // transient worker failure and immediately reopening it on the next tick.
     const finalSaved=await databaseRequest<number>("rpc/finalize_company_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id})});
     return { processed:true,sessionId:job.session_id,saved:Number(finalSaved) };
   } catch (error) {
