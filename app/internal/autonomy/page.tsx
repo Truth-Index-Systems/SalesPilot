@@ -8,6 +8,8 @@ import { getAutonomyDiagnostics, type PipelineJobDiagnostic } from "@/lib/pipeli
 import { getAiGovernance } from "@/lib/ai/governance-repository";
 import { AiGovernanceControls } from "@/components/ai-governance-controls";
 import { jobStateLabel, truthfulProgress } from "@/lib/pipeline/presentation";
+import { getPipelineReleaseReadiness } from "@/lib/pipeline/release";
+import { PipelineReleaseControls } from "@/components/pipeline-release-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +31,7 @@ export default async function AutonomyHealthPage() {
   const user = await requirePageUser("/internal/autonomy");
   const context = await requireOrganisationContext();
   if (!['OWNER', 'ADMIN'].includes(context.role)) notFound();
-  const [diagnostics, governance] = await Promise.all([getAutonomyDiagnostics(context.organisationId), getAiGovernance(context.organisationId)]);
+  const [diagnostics, governance, release] = await Promise.all([getAutonomyDiagnostics(context.organisationId), getAiGovernance(context.organisationId), getPipelineReleaseReadiness(context.organisationId)]);
   const latestRun = diagnostics.runs[0] ?? null;
   const activeJobs = diagnostics.jobs.filter(job => ["QUEUED", "RUNNING", "FAILED_RETRYABLE"].includes(job.job_state));
   const recentJobs = diagnostics.jobs.slice(0, 20);
@@ -37,6 +39,19 @@ export default async function AutonomyHealthPage() {
   return <AppShell title="Autonomy health" user={user}>
     <AutonomyHealthRefresh />
     <PageHeader eyebrow="Internal diagnostics" title="Autonomy health" subtitle="Authoritative scheduler, lease, retry and worker state for this workspace. This page refreshes every 15 seconds." />
+
+    <Card className="section">
+      <div className="card-title">Production readiness and G3 freeze</div>
+      <div className="card-subtitle">Run a safe repair preview, start the controlled observation window, and freeze G3 only when persisted health checks pass.</div>
+      <div className="grid cols-4 section">
+        <Metric label="Release state" value={release.readiness?.release_status ?? "DRAFT"} foot={release.readiness?.frozen_at ? `Frozen ${ago(release.readiness.frozen_at)}` : "Genesis stabilisation S10"} tone={release.readiness?.release_status === "FROZEN" ? "positive" : undefined}/>
+        <Metric label="Expired leases" value={String(release.readiness?.expired_leases ?? 0)} foot="Must remain zero" tone={(release.readiness?.expired_leases ?? 0) ? "negative" : "positive"}/>
+        <Metric label="Terminal failures" value={String(release.readiness?.terminal_failures ?? 0)} foot="Must remain zero" tone={(release.readiness?.terminal_failures ?? 0) ? "negative" : "positive"}/>
+        <Metric label="Overdue retries" value={String(release.readiness?.overdue_retries ?? 0)} foot="Scheduler should clear these" tone={(release.readiness?.overdue_retries ?? 0) ? "negative" : "positive"}/>
+      </div>
+      <PipelineReleaseControls status={release.readiness?.release_status ?? "DRAFT"} observationEndsAt={release.readiness?.observation_ends_at ?? null} ready={(release.readiness?.expired_leases ?? 0) === 0 && (release.readiness?.terminal_failures ?? 0) === 0 && (release.readiness?.overdue_retries ?? 0) === 0}/>
+      {release.repairs[0] && <details><summary>Latest repair run</summary><pre className="diagnostic-json">{JSON.stringify(release.repairs[0], null, 2)}</pre></details>}
+    </Card>
 
     <div className="grid cols-4">
       <Metric label="Engine" value={diagnostics.health?.engine_state ?? "Unknown"} foot={diagnostics.health?.updated_at ? `Updated ${ago(diagnostics.health.updated_at)}` : "No heartbeat recorded"} tone={diagnostics.health?.engine_state === "RUNNING" || diagnostics.health?.engine_state === "IDLE" ? "positive" : "negative"}/>
