@@ -16,7 +16,8 @@
     "model-routing:check": "node scripts/validate-model-routing.mjs",
     "website-errors:check": "node scripts/validate-website-errors.mjs",
     "campaigns:check": "node scripts/validate-campaign-persistence.mjs",
-    "auth:draft-check": "node scripts/validate-auth-draft-persistence.mjs"
+    "auth:draft-check": "node scripts/validate-auth-draft-persistence.mjs",
+    "auth:boundary-check": "node scripts/auth-boundary-check.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
-export function AccountMenu() {
+export function AccountMenu({ name }: { name: string }) {
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
@@ -32,15 +31,13 @@ export function AccountMenu() {
     setSigningOut(true);
     try {
       await fetch("/api/auth/sign-out", { method: "POST" });
-      router.replace("/sign-in?next=/");
+      router.replace("/");
       router.refresh();
     } finally {
       setSigningOut(false);
       setOpen(false);
     }
   }
-
-  const signInHref = `/sign-in?next=${encodeURIComponent(pathname || "/")}`;
 
   return <div className="account-menu" ref={containerRef}>
     <button
@@ -50,17 +47,14 @@ export function AccountMenu() {
       aria-expanded={open}
       onClick={() => setOpen(value => !value)}
     >
-      Jaspal
+      {name}
       <span className="account-menu-chevron" aria-hidden="true">⌄</span>
     </button>
     {open ? <div className="account-menu-popover" role="menu">
       <div className="account-menu-heading">
-        <strong>Account</strong>
-        <span>Manage your SalesPilot session</span>
+        <strong>{name}</strong>
+        <span>Manage your SalesPilot account</span>
       </div>
-      <Link href={signInHref} className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-        Sign in
-      </Link>
       <Link href="/settings" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
         Settings
       </Link>

@@ -4,17 +4,19 @@ import { Card, PageHeader } from "@/components/ui";
 import { CheckCircle2, Circle } from "@/components/icons";
 import { getCampaign } from "@/lib/campaigns/repository";
 import { presentCampaignDetail } from "@/lib/campaigns/presenter";
+import { requirePageUser } from "@/lib/auth/page-user";
 
 export const dynamic = "force-dynamic";
 
 export default async function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const user = await requirePageUser(`/campaigns/${id}`);
   let record;
   try { record = await getCampaign(id); } catch (error) { console.error("Campaign detail unavailable", error); }
   if (!record) notFound();
   const campaign = presentCampaignDetail(record);
 
-  return <AppShell title={campaign.name}>
+  return <AppShell title={campaign.name} user={user}>
     <PageHeader eyebrow={`${campaign.statusLabel} · ${campaign.modeLabel}`} title={campaign.name} subtitle="Your approved strategy, real progress and next stage in one place." action={<span className="badge green">{campaign.matchLabel} · {campaign.fitScore}/100</span>}/>
 
     <div className="hero">
