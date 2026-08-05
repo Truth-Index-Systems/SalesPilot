@@ -55,7 +55,18 @@ export default async function AutonomyHealthPage() {
     <Card className="section">
       <div className="card-title">AI governance and emergency stop</div>
       <div className="card-subtitle">Hard request and estimated-cost limits are checked before every OpenAI request. New work is disabled by default.</div>
-      <AiGovernanceControls enabled={governance.summary?.autonomy_enabled ?? false} dailyRequestLimit={governance.summary?.daily_request_limit ?? 25} dailyCostLimitUsd={Number(governance.summary?.daily_cost_limit_usd ?? 5)} campaignDailyRequestLimit={governance.summary?.campaign_daily_request_limit ?? 10}/>
+      <AiGovernanceControls
+        platformEnabled={process.env.SALESPILOT_AI_PLATFORM_ENABLED === "true"}
+        enabled={governance.summary?.autonomy_enabled ?? false}
+        dailyRequestLimit={governance.summary?.daily_request_limit ?? 25}
+        dailyCostLimitUsd={Number(governance.summary?.daily_cost_limit_usd ?? 5)}
+        campaignDailyRequestLimit={governance.summary?.campaign_daily_request_limit ?? 10}
+        requestsToday={governance.summary?.requests_today ?? 0}
+        blockedToday={governance.summary?.blocked_today ?? 0}
+        costTodayUsd={Number(governance.summary?.cost_today_usd ?? 0)}
+        inputTokensToday={governance.summary?.input_tokens_today ?? 0}
+        outputTokensToday={governance.summary?.output_tokens_today ?? 0}
+      />
     </Card>
 
     <div className="grid cols-2 section">

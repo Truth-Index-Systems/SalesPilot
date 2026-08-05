@@ -18,12 +18,35 @@ function publicJob(job: Awaited<ReturnType<typeof getBusinessAnalysisJob>>) {
     progress: job.progress,
     attemptCount: job.attempt_count,
     nextRetryAt: job.next_retry_at,
-    error: job.last_error_code ? {
-      code: job.last_error_code,
-      title: job.status === "FAILED_TERMINAL" ? "SalesPilot could not complete this analysis" : "Analysis paused before completion",
-      message: job.last_error_message ?? "The analysis did not complete.",
-      hint: job.status === "FAILED_RETRYABLE" ? "SalesPilot has saved the job. Retry it when the scheduled time arrives." : "Check the website and configuration before trying again.",
-    } : null,
+    error: job.last_error_code ? (() => {
+      const governanceReason = job.last_error_message?.split(":").at(-1);
+      if (job.last_error_code === "AI_GOVERNANCE_BLOCKED") {
+        if (governanceReason === "PLATFORM_DISABLED") return {
+          code: "AI_PLATFORM_PAUSED",
+          title: "AI research is currently paused",
+          message: "SalesPilot's deployment-level AI safety gate is disabled, so no OpenAI request was made.",
+          hint: "Enable the platform gate in Vercel, then manage workspace access from Settings → AI governance.",
+        };
+        if (governanceReason === "AUTONOMY_DISABLED") return {
+          code: "AI_WORKSPACE_PAUSED",
+          title: "AI research is paused for this workspace",
+          message: "The workspace AI switch is off, so SalesPilot stopped before using any credit.",
+          hint: "An owner or administrator can enable it in Settings → AI governance.",
+        };
+        return {
+          code: "AI_BUDGET_BLOCKED",
+          title: "AI research stopped at its safety limit",
+          message: "SalesPilot blocked this request before OpenAI because a daily request or cost limit was reached.",
+          hint: "Review today's usage and limits in Settings → AI governance.",
+        };
+      }
+      return {
+        code: job.last_error_code,
+        title: job.status === "FAILED_TERMINAL" ? "SalesPilot could not complete this analysis" : "Analysis paused before completion",
+        message: job.last_error_message ?? "The analysis did not complete.",
+        hint: job.status === "FAILED_RETRYABLE" ? "SalesPilot has saved the job. Retry it when the scheduled time arrives." : "Check the website and configuration before trying again.",
+      };
+    })() : null,
     pagesRead: job.pages_read,
     analysis: job.analysis_json,
     updatedAt: job.updated_at,

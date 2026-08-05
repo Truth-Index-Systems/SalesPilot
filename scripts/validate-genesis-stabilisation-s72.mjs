@@ -1,0 +1,11 @@
+import fs from "node:fs";
+const read = path => fs.readFileSync(path, "utf8");
+const component = read("components/ai-governance-controls.tsx");
+const settings = read("app/settings/page.tsx");
+const route = read("app/api/intelligence/business-discovery/route.ts");
+const wizard = read("components/campaign-wizard.tsx");
+for (const token of ["Platform gate", "Workspace gate", "Budget gate", "Stop AI immediately", "Confirm enable"]) if (!component.includes(token)) throw new Error(`Missing governance control: ${token}`);
+if (!settings.includes("AI governance") || !settings.includes("getAiGovernance")) throw new Error("Settings does not expose AI governance");
+for (const token of ["AI_PLATFORM_PAUSED", "AI_WORKSPACE_PAUSED", "AI_BUDGET_BLOCKED"]) if (!route.includes(token)) throw new Error(`Missing friendly error mapping: ${token}`);
+if (!wizard.includes("Open AI settings")) throw new Error("Campaign wizard does not link blocked analysis to settings");
+console.log("Genesis Stabilisation S7.2 validation passed.");

@@ -511,14 +511,24 @@ export function CampaignWizard() {
                     <span>{error.hint}</span>
                   </div>
 
-                  <button
-                    className="button secondary website-error-action"
-                    type="button"
-                    onClick={analyse}
-                    disabled={loading}
-                  >
-                    Try again
-                  </button>
+                  {error.code.startsWith("AI_") ? (
+                    <button
+                      className="button secondary website-error-action"
+                      type="button"
+                      onClick={() => router.push("/settings")}
+                    >
+                      Open AI settings
+                    </button>
+                  ) : (
+                    <button
+                      className="button secondary website-error-action"
+                      type="button"
+                      onClick={analyse}
+                      disabled={loading}
+                    >
+                      Try again
+                    </button>
+                  )}
                 </div>
               )}
             </div>
