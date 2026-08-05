@@ -23,7 +23,7 @@ const requiredSchemaTokens = [
   '"HOLD"',
   "ContactConfidenceSchema",
   "ContactEvidenceSchema",
-  'z.literal("contact-discovery/v1")',
+  'z.literal("contact-discovery/v2")',
 ];
 
 const requiredRepositoryTokens = [

@@ -2,11 +2,12 @@ import Link from "next/link";
 import { AppShell } from "@/components/shell";
 import { Card, PageHeader } from "@/components/ui";
 import { ContactReviewQueue } from "@/components/contact-review-queue";
+import { ContactAutoRefresh } from "@/components/contact-auto-refresh";
 import { requirePageUser } from "@/lib/auth/page-user";
 import { contactCounts, listContacts, listContactDiscoveryActivity, type ContactFilters } from "@/lib/contacts/repository";
 import { companyCounts, listCompanies } from "@/lib/discovery/repository";
 import { listCampaigns } from "@/lib/campaigns/repository";
-import { Activity, ArrowRight, CheckCircle2, Search, ShieldCheck } from "@/components/icons";
+import { Activity, ArrowRight, CheckCircle2, Search, ShieldCheck, Mail, ExternalLink } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 type SearchParams = { status?: string; campaign?: string; q?: string; confidence?: string };
@@ -23,15 +24,20 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
     listContacts(filters), contactCounts({ campaignId: search.campaign }), contactCounts(), companyCounts(), listCompanies({ status: "APPROVED" }), listCampaigns(), listContactDiscoveryActivity(),
   ]);
   const companyById = new Map(companyRows.map(row => [row.id, row.company_name]));
-  const activeSessions = activity.filter(row => ["QUEUED","RUNNING","FAILED"].includes(row.status));
+  const activeSessions = activity.filter(row => ["QUEUED","RUNNING"].includes(row.status));
+  const failedSessions = activity.filter(row => row.status === "FAILED");
   const researching = activeSessions.length;
   const completedCompanies = new Set(activity.filter(row => row.status === "COMPLETED").map(row => row.company_id)).size;
   const waitingResearch = Math.max(0, companies.approved - completedCompanies - researching);
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.confidence);
   const latestActivity = activity.slice(0, 5);
+  const verifiedEmails = rows.filter(row => row.email_status === "VERIFIED").length;
+  const likelyEmails = rows.filter(row => row.email_status === "LIKELY").length;
+  const linkedInProfiles = rows.filter(row => Boolean(row.linkedin_profile_url)).length;
+  const reachableApproved = rows.filter(row => row.review_status === "APPROVED" && (row.email_address || row.linkedin_profile_url)).length;
 
   return <AppShell title="Contacts" user={user} workspaceStats={{ campaigns: campaigns.length, companies: companies.total, replies: 0, opportunities: 0 }}>
-    <PageHeader eyebrow="Autonomous contact discovery" title="Decision-maker review" subtitle="SalesPilot researches the right people inside approved companies, verifies the evidence, and pauses for human judgement before outreach." />
+    <ContactAutoRefresh active={researching > 0}/><PageHeader eyebrow="Autonomous contact discovery" title="Decision-maker review" subtitle="SalesPilot researches the right people inside approved companies, verifies the evidence, and pauses for human judgement before outreach." />
 
     <Card className="autonomous-flow-card">
       <div className="flow-stage complete"><span>1</span><div><small>Approved companies</small><strong>{companies.approved}</strong></div></div><i>→</i>
@@ -49,6 +55,7 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
           <div><span>Research completed</span><strong>{completedCompanies}</strong></div>
           <div><span>Currently researching</span><strong>{researching}</strong></div>
           <div><span>Awaiting research</span><strong>{waitingResearch}</strong></div>
+          {failedSessions.length > 0 && <div><span>Retry scheduled</span><strong>{failedSessions.length}</strong></div>}
         </div>
       </Card>
       <Card className="contact-activity-card">
@@ -59,7 +66,8 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
       </Card>
     </div>
 
-    <Card className="company-review-summary contact-review-summary"><div><span>Awaiting review</span><strong>{counts.pending}</strong></div><div><span>Approved</span><strong>{counts.approved}</strong></div><div><span>Held</span><strong>{counts.hold}</strong></div><div><span>Total found</span><strong>{counts.total}</strong></div></Card>
+    <Card className="company-review-summary contact-review-summary"><div><span>Awaiting review</span><strong>{counts.pending}</strong></div><div><span>Approved</span><strong>{counts.approved}</strong></div><div><span>Verified emails</span><strong>{verifiedEmails}</strong><small>{likelyEmails} likely</small></div><div><span>LinkedIn profiles</span><strong>{linkedInProfiles}</strong></div></Card>
+    <Card className="contact-channel-summary"><div className="section-head"><div><div className="card-title">Outreach channel readiness</div><div className="card-subtitle">SalesPilot only exposes contact methods supported by transparent evidence.</div></div><ShieldCheck size={20}/></div><div className="channel-readiness-grid section"><div><Mail size={17}/><span>Email coverage</span><strong>{verifiedEmails + likelyEmails}</strong><small>{verifiedEmails} verified · {likelyEmails} likely</small></div><div><ExternalLink size={17}/><span>LinkedIn coverage</span><strong>{linkedInProfiles}</strong><small>Matched public profiles</small></div><div><CheckCircle2 size={17}/><span>Approved and reachable</span><strong>{reachableApproved}</strong><small>Ready for G4 channel selection</small></div></div></Card>
     <form className="company-search-controls" action="/contacts" method="get">
       <input name="q" defaultValue={search.q} placeholder="Search name, role, company or location" aria-label="Search contacts" />
       <select name="campaign" defaultValue={search.campaign ?? ""}><option value="">All campaigns</option>{campaigns.map(c => <option value={c.id} key={c.id}>{c.name}</option>)}</select>
@@ -75,6 +83,6 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
     </div>
     {rows.length ? <ContactReviewQueue rows={rows}/> : <Card><div className="empty"><h3>{hasFilters ? "No contacts match these filters" : researching ? "SalesPilot is researching decision-makers" : "No contacts yet"}</h3><p>{hasFilters ? "Adjust or clear the filters." : researching ? "Verified contacts will appear here as research completes." : "Approve companies to begin autonomous contact discovery."}</p></div></Card>}
 
-    <Card className="contact-next-stage"><div><span className="eyebrow">Next autonomous stage</span><h3>Outreach</h3><p>Approved contacts automatically become available for evidence-led, personalised outreach in G4.</p></div><div className="next-stage-count"><strong>{allCounts.approved}</strong><span>contacts ready</span></div><ArrowRight size={22}/></Card>
+    <Card className="contact-next-stage"><div><span className="eyebrow">Next autonomous stage</span><h3>Outreach</h3><p>Approved contacts automatically become available for evidence-led, personalised outreach in G4.</p></div><div className="next-stage-count"><strong>{reachableApproved}</strong><span>approved and reachable</span></div><ArrowRight size={22}/></Card>
   </AppShell>;
 }

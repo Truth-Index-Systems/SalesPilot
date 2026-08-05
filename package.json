@@ -1,6 +1,6 @@
 {
   "name": "salespilot-genesis",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "engines": {
     "node": ">=20.11.0"
@@ -31,7 +31,8 @@
     "g3:phase2-check": "node scripts/validate-g3-phase2.mjs",
     "g3:step3-check": "node scripts/validate-g3-step3.mjs",
     "g3:stage4-check": "node scripts/validate-g3-stage4.mjs",
-    "g3:stage5-check": "node scripts/validate-g3-stage5.mjs"
+    "g3:stage5-check": "node scripts/validate-g3-stage5.mjs",
+    "g3:final-check": "node scripts/validate-g3-final-contact-enrichment.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

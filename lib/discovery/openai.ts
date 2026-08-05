@@ -110,6 +110,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
   const response = await fetch(ENDPOINT, {
     method: "POST",
     cache: "no-store",
+    signal: AbortSignal.timeout(220_000),
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",

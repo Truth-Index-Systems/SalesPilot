@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const migration=fs.readFileSync('supabase/migrations/0016_genesis_g3_pipeline_recovery.sql','utf8');
+const pipeline=fs.readFileSync('app/api/autonomy/pipeline/run/route.ts','utf8');
+const contacts=fs.readFileSync('app/contacts/page.tsx','utf8');
+const contactOpenAI=fs.readFileSync('lib/contacts/openai.ts','utf8');
+for (const token of ['ensure_active_company_review_queues','case when s.status=\'QUEUED\' then 0 else 1 end','progress=0','interval \'1 minute\'']) if(!migration.includes(token)) throw new Error(`missing ${token}`);
+if(!pipeline.includes('rpc/ensure_active_company_review_queues')) throw new Error('pipeline maintenance missing');
+if(contacts.includes('["QUEUED","RUNNING","FAILED"].includes')) throw new Error('failed sessions still shown as researching');
+if(!contactOpenAI.includes('AbortSignal.timeout(220_000)')) throw new Error('contact timeout missing');
+console.log('G3 pipeline recovery validation passed');
