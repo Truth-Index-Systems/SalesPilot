@@ -1,6 +1,6 @@
 {
   "name": "salespilot-genesis",
-  "version": "0.4.0",
+  "version": "0.8.0",
   "private": true,
   "engines": {
     "node": ">=20.11.0"
@@ -22,7 +22,10 @@
     "analysis-progress:check": "node scripts/validate-analysis-progress.mjs",
     "g12:check": "node scripts/validate-g12-polish.mjs",
     "g2:check": "node scripts/validate-g2.mjs",
-    "g21:check": "node scripts/validate-g21-hardening.mjs"
+    "g21:check": "node scripts/validate-g21-hardening.mjs",
+    "g22:check": "node scripts/validate-g22-progressive.mjs",
+    "g23:check": "node scripts/validate-g23-evidence.mjs",
+    "g24:check": "node scripts/validate-g24-review-queue.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

@@ -1,9 +1,55 @@
 import Link from "next/link";
 import { AppShell } from "@/components/shell";
 import { Card, PageHeader } from "@/components/ui";
+import { CompanyReviewQueue } from "@/components/company-review-queue";
 import { requirePageUser } from "@/lib/auth/page-user";
-import { listCompanies, companyCounts } from "@/lib/discovery/repository";
+import { listCompanies, companyCounts, type CompanyFilters } from "@/lib/discovery/repository";
 import { listCampaigns } from "@/lib/campaigns/repository";
-export const dynamic="force-dynamic";
-function statusLabel(value:string){return ({PENDING_REVIEW:"Awaiting review",APPROVED:"Approved",REJECTED:"Rejected",ARCHIVED:"Archived"} as Record<string,string>)[value]??"Awaiting review"}
-export default async function Companies({searchParams}:{searchParams:Promise<{status?:string}>}){const user=await requirePageUser('/companies');const {status}=await searchParams;const [rows,counts,campaigns]=await Promise.all([listCompanies(status?{status}:undefined),companyCounts(),listCampaigns()]);return <AppShell title="Companies" user={user} workspaceStats={{campaigns:campaigns.length,companies:counts.total,replies:0,opportunities:0}}><PageHeader eyebrow="Company discovery" title="Companies" subtitle="Real businesses SalesPilot found for your approved outbound sales campaigns, with evidence and confidence for every recommendation."/><div className="company-filter-row"><Link className={`filter-chip ${!status?'active':''}`} href="/companies">All · {counts.total}</Link><Link className={`filter-chip ${status==='PENDING_REVIEW'?'active':''}`} href="/companies?status=PENDING_REVIEW">Awaiting review · {counts.pending}</Link><Link className={`filter-chip ${status==='APPROVED'?'active':''}`} href="/companies?status=APPROVED">Approved · {counts.approved}</Link></div>{rows.length===0?<Card><div className="empty"><h3>{campaigns.length?"Company discovery is preparing":"No companies yet"}</h3><p>{campaigns.length?"SalesPilot will add evidence-backed recommendations here as discovery completes.":"Launch an outbound sales campaign to begin company discovery."}</p></div></Card>:<div className="company-card-grid">{rows.map(row=><Link href={`/companies/${row.id}`} className="card company-result-card" key={row.id}><div className="company-result-head"><div><span className="eyebrow">{row.campaign_name}</span><h3>{row.company_name}</h3></div><span className="badge green">{row.confidence}/100</span></div><p>{row.summary}</p><div className="company-result-meta"><span>{row.industry||"Industry not confirmed"}</span><span>{row.country||"Location not confirmed"}</span><span>{row.evidence_count} evidence source{Number(row.evidence_count)===1?'':'s'}</span></div><div className="company-result-footer"><span className={`review-status ${row.review_status.toLowerCase()}`}>{statusLabel(row.review_status)}</span><strong>{row.match_label}</strong></div></Link>)}</div>}</AppShell>}
+
+export const dynamic = "force-dynamic";
+
+type Search = { status?: string; campaign?: string; q?: string; confidence?: string };
+function queryString(input: Search) {
+  const params = new URLSearchParams();
+  Object.entries(input).forEach(([key, value]) => { if (value) params.set(key, value); });
+  const query = params.toString();
+  return query ? `/companies?${query}` : "/companies";
+}
+
+export default async function Companies({ searchParams }: { searchParams: Promise<Search> }) {
+  const user = await requirePageUser("/companies");
+  const search = await searchParams;
+  const confidence = ["HIGH", "MEDIUM", "LOW"].includes(search.confidence ?? "") ? search.confidence as CompanyFilters["confidence"] : undefined;
+  const filters: CompanyFilters = { status: search.status, campaignId: search.campaign, query: search.q?.trim(), confidence };
+  const [rows, counts, campaigns] = await Promise.all([listCompanies(filters), companyCounts(), listCampaigns()]);
+  const hasFilters = Boolean(search.status || search.campaign || search.q || search.confidence);
+
+  return <AppShell title="Companies" user={user} workspaceStats={{ campaigns: campaigns.length, companies: counts.total, replies: 0, opportunities: 0 }}>
+    <PageHeader eyebrow="Company discovery" title="Company review queue" subtitle="Review verified businesses SalesPilot found for your approved outbound sales campaigns. Approve strong matches individually or in a controlled batch." />
+
+    <Card className="company-review-summary">
+      <div><span>Awaiting review</span><strong>{counts.pending}</strong></div>
+      <div><span>Approved</span><strong>{counts.approved}</strong></div>
+      <div><span>Not selected</span><strong>{counts.rejected}</strong></div>
+      <div><span>Total verified</span><strong>{counts.total}</strong></div>
+    </Card>
+
+    <form className="company-search-controls" action="/companies" method="get">
+      <input name="q" defaultValue={search.q} placeholder="Search company, industry or country" aria-label="Search companies" />
+      <select name="campaign" defaultValue={search.campaign ?? ""} aria-label="Filter by campaign"><option value="">All campaigns</option>{campaigns.map(campaign => <option value={campaign.id} key={campaign.id}>{campaign.name}</option>)}</select>
+      <select name="confidence" defaultValue={search.confidence ?? ""} aria-label="Filter by confidence"><option value="">All confidence</option><option value="HIGH">High confidence · 80+</option><option value="MEDIUM">Medium confidence · 60–79</option><option value="LOW">Lower confidence · below 60</option></select>
+      {search.status && <input type="hidden" name="status" value={search.status} />}
+      <button className="button secondary" type="submit">Apply filters</button>
+      {hasFilters && <Link className="button text" href="/companies">Clear</Link>}
+    </form>
+
+    <div className="company-filter-row">
+      <Link className={`filter-chip ${!search.status ? "active" : ""}`} href={queryString({ ...search, status: undefined })}>All · {counts.total}</Link>
+      <Link className={`filter-chip ${search.status === "PENDING_REVIEW" ? "active" : ""}`} href={queryString({ ...search, status: "PENDING_REVIEW" })}>Awaiting review · {counts.pending}</Link>
+      <Link className={`filter-chip ${search.status === "APPROVED" ? "active" : ""}`} href={queryString({ ...search, status: "APPROVED" })}>Approved · {counts.approved}</Link>
+      <Link className={`filter-chip ${search.status === "REJECTED" ? "active" : ""}`} href={queryString({ ...search, status: "REJECTED" })}>Not selected · {counts.rejected}</Link>
+    </div>
+
+    {rows.length === 0 ? <Card><div className="empty"><h3>{hasFilters ? "No companies match these filters" : campaigns.length ? "Company discovery is preparing" : "No companies yet"}</h3><p>{hasFilters ? "Adjust or clear the filters to review more recommendations." : campaigns.length ? "SalesPilot will add independently verified recommendations here as discovery completes." : "Launch an outbound sales campaign to begin company discovery."}</p></div></Card> : <CompanyReviewQueue rows={rows} />}
+  </AppShell>;
+}

@@ -77,3 +77,7 @@ Current routing categories:
 G1 turns the approved website analysis into a persisted campaign. Apply `supabase/migrations/0001_genesis_campaign_foundation.sql` to a development Supabase project, run `supabase/seed-dev.sql`, and copy the returned organisation UUID into `SALESPILOT_DEV_ORGANISATION_ID`. Add the server-only service role key to `.env.local`. The launch button then stores the approved Business DNA, campaign configuration version 1, customer timeline, idempotency result and one `CampaignCreated` outbox event in a single database transaction.
 
 Company discovery is deliberately not started in this release.
+
+## Genesis G2.4
+
+The Company Discovery milestone is now complete and frozen with verified evidence, progressive persistence, live campaign activity, search and filters, individual and bulk review, review notes, immutable review history, and campaign timeline integration. See `docs/G2.4-REVIEW-QUEUE-FREEZE.md`.

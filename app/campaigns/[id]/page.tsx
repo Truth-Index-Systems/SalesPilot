@@ -5,8 +5,9 @@ import { CheckCircle2, Circle, Target, Users, WandSparkles, ShieldCheck, Rocket,
 import { getCampaign, listCampaigns } from "@/lib/campaigns/repository";
 import { presentCampaignDetail } from "@/lib/campaigns/presenter";
 import { requirePageUser } from "@/lib/auth/page-user";
-import { getDiscoveryForCampaign, listCompanies } from "@/lib/discovery/repository";
+import { getDiscoveryActivity, getDiscoveryForCampaign, listCompanies } from "@/lib/discovery/repository";
 import { DiscoveryRetryButton } from "@/components/discovery-retry-button";
+import { DiscoveryActivityTicker } from "@/components/discovery-activity-ticker";
 
 export const dynamic = "force-dynamic";
 
@@ -43,11 +44,13 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   let campaignCount = 1;
   let discovery: any = null;
   let companyCount = 0;
+  let discoveryActivities: any[] = [];
   try {
     record = await getCampaign(id);
     campaignCount = (await listCampaigns()).length;
     discovery = await getDiscoveryForCampaign(id);
     companyCount = (await listCompanies({ campaignId: id })).length;
+    discoveryActivities = await getDiscoveryActivity(id);
   } catch (error) {
     console.error("Campaign detail unavailable", error);
   }
@@ -80,6 +83,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         <div className="campaign-readiness"><span/><strong>{stageLabel}</strong><small>{discoveryComplete ? "Review recommendations in Companies" : discoveryFailed ? "Safe to retry" : `${progress}% complete`}</small></div>
         {discoveryFailed && <DiscoveryRetryButton campaignId={id}/>}
         {!discoveryComplete && !discoveryFailed && <div className="discovery-progress" aria-label={`Company discovery ${progress}% complete`}><span style={{width:`${Math.max(4,progress)}%`}}/></div>}
+        <DiscoveryActivityTicker campaignId={id} initialDiscovery={discovery} initialActivities={discoveryActivities} initialCompanyCount={companyCount}/>
       </div>
       <div className="next-status-panel">
         <span>Next milestone</span>
