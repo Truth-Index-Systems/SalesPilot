@@ -75,9 +75,9 @@ export async function planContactDiscoveryDispatch(runId: string): Promise<Conta
   return rows[0] ?? { dispatch_count: 1, campaign_id: null, mode: "NORMAL" };
 }
 
-export async function recordPipelineSchedulerOutcome(runId: string, company: unknown, contact: unknown): Promise<void> {
+export async function recordPipelineSchedulerOutcome(runId: string, company: unknown, contact: unknown, opportunity: unknown = null): Promise<void> {
   await databaseRequest("rpc/record_pipeline_scheduler_outcome", {
     method: "POST",
-    body: JSON.stringify({ p_run_id: runId, p_company_result: company, p_contact_result: contact }),
+    body: JSON.stringify({ p_run_id: runId, p_company_result: company, p_contact_result: contact, p_opportunity_result: opportunity }),
   });
 }

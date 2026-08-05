@@ -4,5 +4,5 @@ export type DomainEventName =
   | "CompaniesDiscovered" | "CompanyQualified"
   | "ContactDiscoveryQueued" | "ContactsDiscovered" | "ContactApproved" | "ContactRejected" | "ContactHeld" | "ContactDiscoveryCompleted" | "ContactVerified"
   | "MessagePrepared" | "MessageApproved" | "MessageSent"
-  | "ReplyReceived" | "ReplyClassified" | "OpportunityCreated" | "RecommendationCreated";
+  | "ReplyReceived" | "ReplyClassified" | "OpportunityCreated" | "OpportunityUpdated" | "OpportunityRanked" | "OpportunityApproved" | "OpportunityRejected" | "RecommendationCreated";
 export type DomainEvent<T=unknown> = { id:string; name:DomainEventName; aggregateId:string; organisationId:string; occurredAt:string; idempotencyKey:string; payload:T };
