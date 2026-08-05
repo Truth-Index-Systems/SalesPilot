@@ -7,9 +7,11 @@ import { createResultSummary } from "@/lib/pipeline/result-summary";
 
 function safeError(error:unknown){const m=error instanceof Error?error.message:"CONTACT_DISCOVERY_FAILED";return m.startsWith("OPENAI_CONTACT_DISCOVERY_FAILED:")?m.slice(0,500):["OPENAI_API_KEY_NOT_CONFIGURED","CONTACT_DISCOVERY_COMPANY_MISMATCH","CONTACT_DISCOVERY_NO_VERIFIED_CONTACTS","CAMPAIGN_NOT_FOUND","COMPANY_NOT_FOUND","BUSINESS_PROFILE_NOT_FOUND"].includes(m)?m:"CONTACT_DISCOVERY_FAILED";}
 
-export async function runNextContactDiscovery(context:WorkerExecutionContext):Promise<WorkerExecutionResult> {
+export type ContactDiscoveryExecutionOptions={campaignId?:string|null;freshOnly?:boolean};
+
+export async function runNextContactDiscovery(context:WorkerExecutionContext,options:ContactDiscoveryExecutionOptions={}):Promise<WorkerExecutionResult> {
   const startedAt=Date.now();
-  const claimed=await databaseRequest<Array<{session_id:string;organisation_id:string;campaign_id:string;company_id:string}>>("rpc/claim_contact_discovery",{method:"POST",body:JSON.stringify({p_scheduler_run_id:context.schedulerRunId})});
+  const claimed=await databaseRequest<Array<{session_id:string;organisation_id:string;campaign_id:string;company_id:string}>>("rpc/claim_contact_discovery",{method:"POST",body:JSON.stringify({p_scheduler_run_id:context.schedulerRunId,p_campaign_id:options.campaignId??null,p_fresh_only:options.freshOnly??false})});
   const job=claimed[0]; if(!job) return {worker:"CONTACT_DISCOVERY",processed:false,outcome:"NO_JOB"};
   try{
     const companies=await databaseRequest<any[]>(`companies?id=eq.${job.company_id}&campaign_id=eq.${job.campaign_id}&organisation_id=eq.${job.organisation_id}&review_status=eq.APPROVED&limit=1`);

@@ -3,7 +3,7 @@ import { databaseRequest } from "@/lib/database/postgrest";
 
 export type AiGovernanceSummary={
   organisation_id:string;autonomy_enabled:boolean;daily_request_limit:number;daily_cost_limit_usd:number;campaign_daily_request_limit:number;
-  requests_today:number;blocked_today:number;cost_today_usd:number;input_tokens_today:number;output_tokens_today:number;updated_at:string;
+  requests_today:number;blocked_today:number;cost_today_usd:number;input_tokens_today:number;output_tokens_today:number;updated_at:string;initial_contact_burst_size:number;
 };
 export type AiUsageRow={id:string;job_type:string;status:string;model:string;estimated_cost_usd:number;actual_cost_usd:number;input_tokens:number|null;output_tokens:number|null;web_search_calls:number;error_code:string|null;created_at:string;campaign_id:string|null};
 

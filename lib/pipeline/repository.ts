@@ -60,6 +60,21 @@ function emptyPreparation(): SchedulerPreparation {
 }
 
 
+export type ContactDispatchPlan = {
+  dispatch_count: number;
+  campaign_id: string | null;
+  mode: "NORMAL" | "INITIAL_BURST" | "BUDGET_FALLBACK" | "BUDGET_BLOCKED";
+};
+
+export async function planContactDiscoveryDispatch(runId: string): Promise<ContactDispatchPlan> {
+  const estimatedCostUsd = Number(process.env.SALESPILOT_CONTACT_DISCOVERY_ESTIMATED_COST_USD ?? "0.35");
+  const rows = await databaseRequest<ContactDispatchPlan[]>("rpc/plan_contact_discovery_dispatch", {
+    method: "POST",
+    body: JSON.stringify({ p_scheduler_run_id: runId, p_estimated_cost_usd: estimatedCostUsd }),
+  });
+  return rows[0] ?? { dispatch_count: 1, campaign_id: null, mode: "NORMAL" };
+}
+
 export async function recordPipelineSchedulerOutcome(runId: string, company: unknown, contact: unknown): Promise<void> {
   await databaseRequest("rpc/record_pipeline_scheduler_outcome", {
     method: "POST",

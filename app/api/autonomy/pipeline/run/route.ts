@@ -23,7 +23,10 @@ async function run(request: Request) {
     return NextResponse.json({ ok: true, skipped: true, reason: "SCHEDULER_ALREADY_RUNNING" });
   }
 
-  const workerFailed = scheduler.company?.ok === false || scheduler.contact?.ok === false;
+  const contactFailed = Array.isArray(scheduler.contact)
+    ? scheduler.contact.some(result => result.ok === false)
+    : scheduler.contact?.ok === false;
+  const workerFailed = scheduler.company?.ok === false || contactFailed;
   return NextResponse.json(
     { ok: !workerFailed, skipped: false, scheduler },
     { status: workerFailed ? 207 : 200 },

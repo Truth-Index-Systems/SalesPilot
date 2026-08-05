@@ -10,6 +10,7 @@ import {
   type SchedulerPreparation,
   recordPipelineSchedulerOutcome,
   recoverPipelineJobs,
+  planContactDiscoveryDispatch,
 } from "./repository";
 
 type SettledWorker =
@@ -21,7 +22,7 @@ export type PipelineSchedulerResult = {
   runId: string | null;
   preparation: SchedulerPreparation | null;
   company: SettledWorker | null;
-  contact: SettledWorker | null;
+  contact: SettledWorker | SettledWorker[] | null;
 };
 
 async function settle(work: () => Promise<WorkerExecutionResult>): Promise<SettledWorker> {
@@ -37,9 +38,8 @@ async function settle(work: () => Promise<WorkerExecutionResult>): Promise<Settl
  * Runs one bounded scheduler cycle.
  *
  * The scheduler owns work evaluation. Workers only claim and execute already
- * eligible jobs. Dispatch is intentionally sequential during stabilisation so
- * one invocation cannot create competing state transitions inside the same
- * campaign at the same time.
+ * eligible jobs. Normal contact work remains sequential. A campaign may receive
+ * one persisted, budget-aware initial burst of fresh contact jobs.
  */
 export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
@@ -54,7 +54,17 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     const preparation = await preparePipelineWork(runId);
     const context = { schedulerRunId: runId };
     const company = await settle(() => runNextCompanyDiscovery(context));
-    const contact = await settle(() => runNextContactDiscovery(context));
+    const contactPlan = await planContactDiscoveryDispatch(runId);
+    const burstCampaignId = contactPlan.campaign_id;
+    const contact = contactPlan.dispatch_count === 0
+      ? null
+      : contactPlan.dispatch_count > 1 && burstCampaignId
+        ? await Promise.all(
+            Array.from({ length: contactPlan.dispatch_count }, () =>
+              settle(() => runNextContactDiscovery(context, { campaignId: burstCampaignId, freshOnly: true })),
+            ),
+          )
+        : await settle(() => runNextContactDiscovery(context));
     await recordPipelineSchedulerOutcome(runId, company, contact);
     return { acquired: true, runId, preparation, company, contact };
   } finally {

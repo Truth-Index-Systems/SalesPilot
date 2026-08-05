@@ -77,6 +77,7 @@ export default async function AutonomyHealthPage() {
         dailyRequestLimit={governance.summary?.daily_request_limit ?? 25}
         dailyCostLimitUsd={Number(governance.summary?.daily_cost_limit_usd ?? 5)}
         campaignDailyRequestLimit={governance.summary?.campaign_daily_request_limit ?? 10}
+        initialContactBurstSize={governance.summary?.initial_contact_burst_size ?? 3}
         requestsToday={governance.summary?.requests_today ?? 0}
         blockedToday={governance.summary?.blocked_today ?? 0}
         costTodayUsd={Number(governance.summary?.cost_today_usd ?? 0)}

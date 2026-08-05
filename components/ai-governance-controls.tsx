@@ -11,6 +11,7 @@ type Props = {
   dailyRequestLimit: number;
   dailyCostLimitUsd: number;
   campaignDailyRequestLimit: number;
+  initialContactBurstSize: number;
   requestsToday?: number;
   blockedToday?: number;
   costTodayUsd?: number;
@@ -27,6 +28,7 @@ export function AiGovernanceControls(props: Props) {
   const [requests, setRequests] = useState(props.dailyRequestLimit);
   const [cost, setCost] = useState(props.dailyCostLimitUsd);
   const [campaign, setCampaign] = useState(props.campaignDailyRequestLimit);
+  const [burstSize, setBurstSize] = useState(props.initialContactBurstSize);
 
   const canManage = props.canManage ?? true;
   const costUsed = Math.max(0, props.costTodayUsd ?? 0);
@@ -56,6 +58,7 @@ export function AiGovernanceControls(props: Props) {
           dailyRequestLimit: requests,
           dailyCostLimitUsd: cost,
           campaignDailyRequestLimit: campaign,
+          initialContactBurstSize: burstSize,
         }),
       });
       const payload = await response.json().catch(() => null) as { error?: string } | null;
@@ -107,6 +110,7 @@ export function AiGovernanceControls(props: Props) {
       <label><span>Workspace daily AI requests</span><input className="input" type="number" min="0" value={requests} disabled={!canManage || saving} onChange={event => setRequests(Number(event.target.value))}/><small>Hard application limit before a new request is reserved.</small></label>
       <label><span>Workspace daily AI budget (USD)</span><input className="input" type="number" min="0" step="0.25" value={cost} disabled={!canManage || saving} onChange={event => setCost(Number(event.target.value))}/><small>Estimated cost guard. OpenAI project budgets should remain a second layer.</small></label>
       <label><span>Campaign daily AI requests</span><input className="input" type="number" min="0" value={campaign} disabled={!canManage || saving} onChange={event => setCampaign(Number(event.target.value))}/><small>Stops one campaign consuming the whole workspace allowance.</small></label>
+      <label><span>Initial contact research burst</span><select className="input" value={burstSize} disabled={!canManage || saving} onChange={event => setBurstSize(Number(event.target.value))}><option value={1}>Conservative · 1 job</option><option value={3}>Balanced · 3 jobs</option><option value={5}>Fast · 5 jobs</option></select><small>Used once per campaign for fresh contact jobs only. Normal processing returns to one job per scheduler run.</small></label>
     </div>
 
     {error && <div className="website-error section" role="alert"><AlertTriangle size={18}/><div className="website-error-copy"><strong>Governance update failed</strong><p>{error}</p></div></div>}
