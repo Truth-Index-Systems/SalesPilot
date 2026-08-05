@@ -27,7 +27,8 @@
     "g23:check": "node scripts/validate-g23-evidence.mjs",
     "g24:check": "node scripts/validate-g24-review-queue.mjs",
     "g2:controls-check": "node scripts/validate-g2-controls.mjs",
-    "g3:phase1-check": "node scripts/validate-g3-phase1.mjs"
+    "g3:phase1-check": "node scripts/validate-g3-phase1.mjs",
+    "g3:phase2-check": "node scripts/validate-g3-phase2.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

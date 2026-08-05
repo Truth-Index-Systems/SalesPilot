@@ -1,1 +1,1 @@
-{"crons":[{"path":"/api/autonomy/company-discovery/run","schedule":"* * * * *"}]}
+{"crons":[{"path":"/api/autonomy/company-discovery/run","schedule":"* * * * *"},{"path":"/api/autonomy/contact-discovery/run","schedule":"* * * * *"}]}

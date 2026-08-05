@@ -165,41 +165,56 @@ select
   co.summary as company_summary,
   co.confidence as company_confidence,
   co.review_status as company_review_status,
+
   coalesce((
-    select jsonb_agg(jsonb_build_object(
-      'id',e.id,
-      'evidence_type',e.evidence_type,
-      'claim',e.claim,
-      'source_url',e.source_url,
-      'source_title',e.source_title,
-      'excerpt',e.excerpt,
-      'source_kind',e.source_kind,
-      'source_domain',e.source_domain,
-      'verified',e.verified,
-      'excerpt_matched',e.excerpt_matched,
-      'quality_score',e.quality_score,
-      'retrieved_at',e.retrieved_at,
-      'created_at',e.created_at
-    ) order by e.quality_score desc,e.created_at
-    from public.contact_evidence e where e.contact_id=c.id
-  ),'[]'::jsonb) as evidence,
+    select jsonb_agg(
+      jsonb_build_object(
+        'id', e.id,
+        'evidence_type', e.evidence_type,
+        'claim', e.claim,
+        'source_url', e.source_url,
+        'source_title', e.source_title,
+        'excerpt', e.excerpt,
+        'source_kind', e.source_kind,
+        'source_domain', e.source_domain,
+        'verified', e.verified,
+        'excerpt_matched', e.excerpt_matched,
+        'quality_score', e.quality_score,
+        'retrieved_at', e.retrieved_at,
+        'created_at', e.created_at
+      )
+      order by e.quality_score desc, e.created_at
+    )
+    from public.contact_evidence e
+    where e.contact_id = c.id
+  ), '[]'::jsonb) as evidence,
+
   coalesce((
-    select jsonb_agg(jsonb_build_object(
-      'id',r.id,
-      'previous_status',r.previous_status,
-      'next_status',r.next_status,
-      'note',r.note,
-      'occurred_at',r.occurred_at
-    ) order by r.occurred_at desc)
-    from public.contact_review_events r where r.contact_id=c.id
-  ),'[]'::jsonb) as review_history,
+    select jsonb_agg(
+      jsonb_build_object(
+        'id', r.id,
+        'previous_status', r.previous_status,
+        'next_status', r.next_status,
+        'note', r.note,
+        'occurred_at', r.occurred_at
+      )
+      order by r.occurred_at desc
+    )
+    from public.contact_review_events r
+    where r.contact_id = c.id
+  ), '[]'::jsonb) as review_history,
+
   coalesce((
-    select v.payload_json from public.contact_versions v
-    where v.contact_id=c.id order by v.version_number desc limit 1
-  ),'{}'::jsonb) as payload
+    select v.payload_json
+    from public.contact_versions v
+    where v.contact_id = c.id
+    order by v.version_number desc
+    limit 1
+  ), '{}'::jsonb) as payload
+
 from public.contacts c
-join public.campaigns ca on ca.id=c.campaign_id
-join public.companies co on co.id=c.company_id;
+join public.campaigns ca on ca.id = c.campaign_id
+join public.companies co on co.id = c.company_id;
 
 -- Shared event boundary for later G3 workers and review actions.
 -- The service role remains the only writer to the frozen outbox architecture.
