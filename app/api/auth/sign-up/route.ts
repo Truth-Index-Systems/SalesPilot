@@ -18,6 +18,7 @@ const SignUpSchema = z.object({
   workspaceName: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(254),
   password: z.string().min(8).max(256),
+  next: z.string().max(500).optional(),
 });
 
 type SupabaseAuthResult = Partial<SupabaseSession> & {
@@ -42,6 +43,14 @@ function getSupabaseUrl(): string {
   }
 
   return value.replace(/\/$/, "");
+}
+
+function safeNextPath(value: string | undefined): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/campaigns/new";
+  }
+
+  return value;
 }
 
 function getApplicationUrl(request: Request): string {
@@ -135,7 +144,8 @@ export async function POST(request: Request) {
   try {
     const input = SignUpSchema.parse(await request.json());
     const applicationUrl = getApplicationUrl(request);
-    const confirmationUrl = `${applicationUrl}/sign-in?confirmed=1`;
+    const nextPath = safeNextPath(input.next);
+    const confirmationUrl = `${applicationUrl}/sign-in?confirmed=1&next=${encodeURIComponent(nextPath)}`;
 
     const authResponse = await fetch(
       `${getSupabaseUrl()}/auth/v1/signup?redirect_to=${encodeURIComponent(

@@ -54,6 +54,59 @@ type LaunchResponse =
       error: LaunchError;
     };
 
+const CAMPAIGN_DRAFT_KEY = "salespilot:campaign-draft:v2";
+const LEGACY_CAMPAIGN_DRAFT_KEY = "salespilot:campaign-draft:v1";
+const CAMPAIGN_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+type CampaignDraft = {
+  version: 2;
+  savedAt: number;
+  step: number;
+  result: AiEnvelope<BusinessDnaPayload>;
+  selectedProposalId: string;
+  websiteUrl: string;
+  pagesRead: number;
+};
+
+function readCampaignDraft(): CampaignDraft | null {
+  const rawDraft =
+    localStorage.getItem(CAMPAIGN_DRAFT_KEY) ??
+    sessionStorage.getItem(LEGACY_CAMPAIGN_DRAFT_KEY);
+
+  if (!rawDraft) return null;
+
+  try {
+    const parsed = JSON.parse(rawDraft) as Partial<CampaignDraft> & {
+      result?: AiEnvelope<BusinessDnaPayload>;
+      selectedProposalId?: string;
+      websiteUrl?: string;
+    };
+
+    if (!parsed.result || !parsed.selectedProposalId) return null;
+
+    const savedAt = typeof parsed.savedAt === "number" ? parsed.savedAt : Date.now();
+    if (Date.now() - savedAt > CAMPAIGN_DRAFT_MAX_AGE_MS) {
+      localStorage.removeItem(CAMPAIGN_DRAFT_KEY);
+      sessionStorage.removeItem(LEGACY_CAMPAIGN_DRAFT_KEY);
+      return null;
+    }
+
+    return {
+      version: 2,
+      savedAt,
+      step: typeof parsed.step === "number" ? Math.min(3, Math.max(1, parsed.step)) : 3,
+      result: parsed.result,
+      selectedProposalId: parsed.selectedProposalId,
+      websiteUrl: parsed.websiteUrl ?? parsed.result.payload.company.website,
+      pagesRead: typeof parsed.pagesRead === "number" ? parsed.pagesRead : 0,
+    };
+  } catch {
+    localStorage.removeItem(CAMPAIGN_DRAFT_KEY);
+    sessionStorage.removeItem(LEGACY_CAMPAIGN_DRAFT_KEY);
+    return null;
+  }
+}
+
 export function CampaignWizard() {
   const router = useRouter();
 
@@ -69,26 +122,38 @@ export function CampaignWizard() {
   const [launchError, setLaunchError] = useState<LaunchError | null>(null);
 
   useEffect(() => {
-    const rawDraft = sessionStorage.getItem("salespilot:campaign-draft:v1");
-    if (!rawDraft) return;
-    try {
-      const draft = JSON.parse(rawDraft) as {
-        result?: AiEnvelope<BusinessDnaPayload>;
-        selectedProposalId?: string;
-        websiteUrl?: string;
-      };
-      if (!draft.result || !draft.selectedProposalId) return;
-      const proposalIndex = draft.result.payload.campaigns.findIndex(
-        proposal => proposal.id === draft.selectedProposalId,
-      );
-      setResult(draft.result);
-      setSelected(proposalIndex >= 0 ? proposalIndex : 0);
-      setUrl(draft.websiteUrl ?? draft.result.payload.company.website);
-      setStep(3);
-    } catch {
-      sessionStorage.removeItem("salespilot:campaign-draft:v1");
-    }
+    const draft = readCampaignDraft();
+    if (!draft) return;
+
+    const proposalIndex = draft.result.payload.campaigns.findIndex(
+      proposal => proposal.id === draft.selectedProposalId,
+    );
+
+    setResult(draft.result);
+    setSelected(proposalIndex >= 0 ? proposalIndex : 0);
+    setUrl(draft.websiteUrl);
+    setPagesRead(draft.pagesRead);
+    setStep(draft.step);
+
+    localStorage.setItem(CAMPAIGN_DRAFT_KEY, JSON.stringify(draft));
+    sessionStorage.removeItem(LEGACY_CAMPAIGN_DRAFT_KEY);
   }, []);
+
+  useEffect(() => {
+    if (!result || !result.payload.campaigns[selected]) return;
+
+    const draft: CampaignDraft = {
+      version: 2,
+      savedAt: Date.now(),
+      step,
+      result,
+      selectedProposalId: result.payload.campaigns[selected].id,
+      websiteUrl: url,
+      pagesRead,
+    };
+
+    localStorage.setItem(CAMPAIGN_DRAFT_KEY, JSON.stringify(draft));
+  }, [pagesRead, result, selected, step, url]);
 
   const proposals = result?.payload.campaigns ?? [];
   const chosen = proposals[selected];
@@ -198,30 +263,34 @@ export function CampaignWizard() {
     setLaunching(true);
     setLaunchError(null);
 
-    const draftKey = "salespilot:campaign-draft:v1";
     const idempotencyStorageKey =
       `salespilot:campaign-launch:${chosen.id}`;
 
     let idempotencyKey =
+      localStorage.getItem(idempotencyStorageKey) ??
       sessionStorage.getItem(idempotencyStorageKey);
 
     if (!idempotencyKey) {
       idempotencyKey =
         `campaign-launch:${crypto.randomUUID()}:${chosen.id}`;
 
-      sessionStorage.setItem(
+      localStorage.setItem(
         idempotencyStorageKey,
         idempotencyKey,
       );
     }
 
-    sessionStorage.setItem(
-      draftKey,
+    localStorage.setItem(
+      CAMPAIGN_DRAFT_KEY,
       JSON.stringify({
+        version: 2,
+        savedAt: Date.now(),
+        step: 3,
         result,
         selectedProposalId: chosen.id,
         websiteUrl: url,
-      }),
+        pagesRead,
+      } satisfies CampaignDraft),
     );
 
     try {
@@ -249,7 +318,9 @@ export function CampaignWizard() {
         return;
       }
 
-      sessionStorage.removeItem(draftKey);
+      localStorage.removeItem(CAMPAIGN_DRAFT_KEY);
+      localStorage.removeItem(idempotencyStorageKey);
+      sessionStorage.removeItem(LEGACY_CAMPAIGN_DRAFT_KEY);
       sessionStorage.removeItem(idempotencyStorageKey);
 
       router.push(data.campaign.redirectUrl);
