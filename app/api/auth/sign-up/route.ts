@@ -44,7 +44,34 @@ export async function POST(request: Request) {
         title: "Account could not be created", message: "SalesPilot could not create this account.", hint: "Check your details and try again.",
       } }, { status: duplicate ? 409 : 400 });
     }
+    if (!authResponse.ok) {
+  console.error("Supabase signup rejected", {
+    status: authResponse.status,
+    response: authResult,
+  });
 
+  const duplicate = /already|registered|exists|user_already_exists/i.test(
+    JSON.stringify(authResult),
+  );
+
+  return NextResponse.json(
+    {
+      ok: false,
+      error: duplicate
+        ? {
+            title: "Account already exists",
+            message: "An account already uses this email address.",
+            hint: "Sign in instead or use a different email address.",
+          }
+        : {
+            title: "Account could not be created",
+            message: "SalesPilot could not create this account.",
+            hint: "Check your details and try again.",
+          },
+    },
+    { status: duplicate ? 409 : 400 },
+  );
+}
     const userId = authResult.user?.id ?? authResult.id;
     if (!userId) throw new Error("INVALID_AUTH_RESPONSE");
     await databaseRequest("rpc/provision_salespilot_workspace", {
