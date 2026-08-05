@@ -33,7 +33,15 @@ export async function runNextCompanyDiscovery(): Promise<{ processed: boolean; s
     await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"ANALYSING",p_progress:40})});
     await activity(job.session_id,"RESEARCHING","Searching for matching companies","SalesPilot is researching public company information and official websites.");
 
-    const result = await discoverCompanies({campaign:{name:campaign.name,objective:campaign.objective,audience:campaign.audience,buyerRoles:campaign.buyer_roles,messageAngle:campaign.message_angle,why:campaign.why,fitScore:campaign.fit_score},business,customerWebsite:campaign.website_url});
+    const existingCompanies = await databaseRequest<Array<{ company_name: string; canonical_domain: string }>>(
+      `companies?organisation_id=eq.${job.organisation_id}&campaign_id=eq.${job.campaign_id}&select=company_name,canonical_domain&limit=1000`
+    );
+    const result = await discoverCompanies({
+      campaign:{name:campaign.name,objective:campaign.objective,audience:campaign.audience,buyerRoles:campaign.buyer_roles,messageAngle:campaign.message_angle,why:campaign.why,fitScore:campaign.fit_score},
+      business,
+      customerWebsite:campaign.website_url,
+      excludedCompanies:existingCompanies.map(company=>({name:company.company_name,domain:company.canonical_domain})),
+    });
 
     await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"VALIDATING",p_progress:72,p_candidates:result.companies.length})});
     await activity(job.session_id,"CANDIDATES_FOUND",`${result.companies.length} potential matches found`,"Each company is now being checked against official-site evidence.",{candidateCount:result.companies.length});

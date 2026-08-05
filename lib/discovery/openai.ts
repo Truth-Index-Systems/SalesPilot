@@ -99,6 +99,7 @@ type DiscoverCompaniesInput = {
   campaign: Record<string, unknown>;
   business: Record<string, unknown>;
   customerWebsite?: string | null;
+  excludedCompanies?: Array<{ name: string; domain: string }>;
 };
 
 export async function discoverCompanies(input: DiscoverCompaniesInput) {
@@ -121,6 +122,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
         "Return only official company websites and evidence from those official domains.",
         "Do not invent employee counts, technology usage, operational problems, buyer intent, or private information.",
         "Exclude the customer's own company, directories, agencies listing clients, news articles, and duplicate domains.",
+        "Never return a company present in excludedCompanies. Treat both its canonical domain and company name as already researched.",
         "Score industry fit, audience fit, operational fit, geography fit, and commercial fit independently.",
         "Record genuine uncertainties and risk flags instead of hiding them.",
         "Prefer 8–12 high-confidence matches.",
@@ -130,6 +132,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
         approvedCampaign: input.campaign,
         approvedBusinessUnderstanding: input.business,
         customerWebsite: input.customerWebsite ?? null,
+        excludedCompanies: input.excludedCompanies ?? [],
       }),
       tools: [{ type: "web_search_preview", search_context_size: "medium" }],
       text: {

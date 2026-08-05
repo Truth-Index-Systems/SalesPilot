@@ -5,5 +5,5 @@ must("features/contacts/contact-discovery.service.ts",["runNextContactDiscovery"
 must("lib/contacts/openai.ts",["web_search_preview","json_schema","Never invent","ContactDiscoveryResultSchema"]);
 must("lib/contacts/normalise.ts",["IDENTITY","ROLE","allowedSource","officialDomain"]);
 must("app/api/autonomy/contact-discovery/run/route.ts",["CRON_SECRET","timingSafeEqual","runNextContactDiscovery"]);
-must("vercel.json",["/api/autonomy/company-discovery/run","/api/autonomy/contact-discovery/run"]);
+{const v=fs.readFileSync("vercel.json","utf8");if(!(v.includes("/api/autonomy/pipeline/run")||(v.includes("/api/autonomy/company-discovery/run")&&v.includes("/api/autonomy/contact-discovery/run"))))throw new Error("vercel.json missing autonomous discovery cron");}
 console.log("G3 Phase 2 contact discovery worker contract passed.");

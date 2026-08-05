@@ -5,6 +5,7 @@ import { CompanyReviewQueue } from "@/components/company-review-queue";
 import { requirePageUser } from "@/lib/auth/page-user";
 import { listCompanies, companyCounts, type CompanyFilters } from "@/lib/discovery/repository";
 import { listCampaigns } from "@/lib/campaigns/repository";
+import { listContactDiscoveryActivity } from "@/lib/contacts/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,9 @@ export default async function Companies({ searchParams }: { searchParams: Promis
   const search = await searchParams;
   const confidence = ["HIGH", "MEDIUM", "LOW"].includes(search.confidence ?? "") ? search.confidence as CompanyFilters["confidence"] : undefined;
   const filters: CompanyFilters = { status: search.status, campaignId: search.campaign, query: search.q?.trim(), confidence };
-  const [rows, counts, workspaceCounts, campaigns] = await Promise.all([listCompanies(filters), companyCounts({ campaignId: search.campaign }), companyCounts(), listCampaigns()]);
+  const [rows, counts, workspaceCounts, campaigns, contactActivity] = await Promise.all([listCompanies(filters), companyCounts({ campaignId: search.campaign }), companyCounts(), listCampaigns(), listContactDiscoveryActivity()]);
+  const contactStateByCompany = new Map<string, "QUEUED" | "RESEARCHING" | "CONTACTS_FOUND">(contactActivity.map(session => [session.company_id, session.status === "COMPLETED" ? "CONTACTS_FOUND" : session.status === "RUNNING" ? "RESEARCHING" : "QUEUED"]));
+  const rowsWithContactState = rows.map(row => ({ ...row, contact_state: contactStateByCompany.get(row.id) ?? (row.review_status === "APPROVED" ? "QUEUED" : undefined) }));
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.confidence);
 
   return <AppShell title="Companies" user={user} workspaceStats={{ campaigns: campaigns.length, companies: workspaceCounts.total, replies: 0, opportunities: 0 }}>
@@ -50,6 +53,6 @@ export default async function Companies({ searchParams }: { searchParams: Promis
       <Link className={`filter-chip ${search.status === "REJECTED" ? "active" : ""}`} href={queryString({ ...search, status: "REJECTED" })}>Not selected · {counts.rejected}</Link>
     </div>
 
-    {rows.length === 0 ? <Card><div className="empty"><h3>{hasFilters ? "No companies match these filters" : campaigns.length ? "Company discovery is preparing" : "No companies yet"}</h3><p>{hasFilters ? "Adjust or clear the filters to review more recommendations." : campaigns.length ? "SalesPilot will add independently verified recommendations here as discovery completes." : "Launch an outbound sales campaign to begin company discovery."}</p></div></Card> : <CompanyReviewQueue rows={rows} />}
+    {rows.length === 0 ? <Card><div className="empty"><h3>{hasFilters ? "No companies match these filters" : campaigns.length ? "Company discovery is preparing" : "No companies yet"}</h3><p>{hasFilters ? "Adjust or clear the filters to review more recommendations." : campaigns.length ? "SalesPilot will add independently verified recommendations here as discovery completes." : "Launch an outbound sales campaign to begin company discovery."}</p></div></Card> : <CompanyReviewQueue rows={rowsWithContactState} />}
   </AppShell>;
 }

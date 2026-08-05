@@ -18,6 +18,7 @@ type CompanyRow = {
   evidence_count: number;
   evidence_quality?: number | null;
   review_status: string;
+  contact_state?: "QUEUED" | "RESEARCHING" | "CONTACTS_FOUND";
 };
 
 function statusLabel(value: string) {
@@ -93,6 +94,7 @@ export function CompanyReviewQueue({ rows }: { rows: CompanyRow[] }) {
           <p className="company-summary-card">{row.summary}</p>
           <div className="company-result-meta"><span>{row.industry || "Industry not confirmed"}</span><span>{row.country || "Location not confirmed"}</span><span><CheckCircle2 size={13}/> {row.evidence_count} official source{Number(row.evidence_count) === 1 ? "" : "s"}</span></div>
           <div className="evidence-meter"><div><span>Evidence quality</span><strong>{evidenceQuality}/100</strong></div><div className="evidence-meter-track"><span style={{ width: `${evidenceQuality}%` }}/></div></div>
+          {row.review_status === "APPROVED" && <div className={`company-contact-progress ${row.contact_state === "CONTACTS_FOUND" ? "complete" : "active"}`}><span className="roadmap-pulse"/><div><strong>{row.contact_state === "CONTACTS_FOUND" ? "Decision-makers identified" : row.contact_state === "RESEARCHING" ? "Researching decision-makers" : "Contact research queued"}</strong><small>SalesPilot automatically moved this company into Contact Discovery.</small></div></div>}
           <div className="company-result-footer"><span className={`review-status ${row.review_status.toLowerCase()}`}>{statusLabel(row.review_status)}</span><span className="open-report">Open company report →</span></div>
         </Link>
       </article>;

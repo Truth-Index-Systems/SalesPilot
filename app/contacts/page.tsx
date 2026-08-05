@@ -4,33 +4,61 @@ import { Card, PageHeader } from "@/components/ui";
 import { ContactReviewQueue } from "@/components/contact-review-queue";
 import { requirePageUser } from "@/lib/auth/page-user";
 import { contactCounts, listContacts, listContactDiscoveryActivity, type ContactFilters } from "@/lib/contacts/repository";
-import { companyCounts } from "@/lib/discovery/repository";
+import { companyCounts, listCompanies } from "@/lib/discovery/repository";
 import { listCampaigns } from "@/lib/campaigns/repository";
+import { Activity, ArrowRight, CheckCircle2, Search, ShieldCheck } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
-type Search = { status?: string; campaign?: string; q?: string; confidence?: string };
-function queryString(input: Search) { const p = new URLSearchParams(); Object.entries(input).forEach(([k,v]) => v && p.set(k,v)); return p.size ? `/contacts?${p}` : "/contacts"; }
+type SearchParams = { status?: string; campaign?: string; q?: string; confidence?: string };
+function queryString(input: SearchParams) { const p = new URLSearchParams(); Object.entries(input).forEach(([k,v]) => v && p.set(k,v)); return p.size ? `/contacts?${p}` : "/contacts"; }
+function sessionLabel(stage?: string) { return ({ PREPARING:"Preparing research", RESEARCHING:"Researching leadership", IDENTIFYING:"Identifying decision-makers", VALIDATING:"Validating roles and evidence", SAVING:"Saving verified contacts", COMPLETE:"Contact research completed" } as Record<string,string>)[stage ?? ""] ?? "Contact research queued"; }
 
-export default async function Contacts({ searchParams }: { searchParams: Promise<Search> }) {
+export default async function Contacts({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const user = await requirePageUser("/contacts");
   const search = await searchParams;
   const status = ["PENDING_REVIEW","APPROVED","REJECTED","HOLD","ARCHIVED"].includes(search.status ?? "") ? search.status as ContactFilters["status"] : undefined;
   const confidence = ["HIGH","MEDIUM","LOW","VERIFIED","LIKELY","POSSIBLE","UNKNOWN"].includes(search.confidence ?? "") ? search.confidence as ContactFilters["confidence"] : undefined;
   const filters: ContactFilters = { status, campaignId: search.campaign, query: search.q?.trim(), confidence };
-  const [rows, counts, allCounts, companies, campaigns, activity] = await Promise.all([
-    listContacts(filters), contactCounts({ campaignId: search.campaign }), contactCounts(), companyCounts(), listCampaigns(), listContactDiscoveryActivity(),
+  const [rows, counts, allCounts, companies, companyRows, campaigns, activity] = await Promise.all([
+    listContacts(filters), contactCounts({ campaignId: search.campaign }), contactCounts(), companyCounts(), listCompanies({ status: "APPROVED" }), listCampaigns(), listContactDiscoveryActivity(),
   ]);
-  const researching = activity.filter(row => ["QUEUED","RUNNING","FAILED"].includes(row.status)).length;
+  const companyById = new Map(companyRows.map(row => [row.id, row.company_name]));
+  const activeSessions = activity.filter(row => ["QUEUED","RUNNING","FAILED"].includes(row.status));
+  const researching = activeSessions.length;
+  const completedCompanies = new Set(activity.filter(row => row.status === "COMPLETED").map(row => row.company_id)).size;
+  const waitingResearch = Math.max(0, companies.approved - completedCompanies - researching);
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.confidence);
+  const latestActivity = activity.slice(0, 5);
+
   return <AppShell title="Contacts" user={user} workspaceStats={{ campaigns: campaigns.length, companies: companies.total, replies: 0, opportunities: 0 }}>
     <PageHeader eyebrow="Autonomous contact discovery" title="Decision-maker review" subtitle="SalesPilot researches the right people inside approved companies, verifies the evidence, and pauses for human judgement before outreach." />
+
     <Card className="autonomous-flow-card">
       <div className="flow-stage complete"><span>1</span><div><small>Approved companies</small><strong>{companies.approved}</strong></div></div><i>→</i>
-      <div className={`flow-stage ${researching ? "active" : "complete"}`}><span>2</span><div><small>Researching</small><strong>{researching}</strong></div></div><i>→</i>
-      <div className={`flow-stage ${counts.pending ? "active" : ""}`}><span>3</span><div><small>Awaiting review</small><strong>{counts.pending}</strong></div></div><i>→</i>
-      <div className="flow-stage"><span>4</span><div><small>Approved contacts</small><strong>{counts.approved}</strong></div></div><i>→</i>
-      <div className="flow-stage"><span>5</span><div><small>Ready for outreach</small><strong>{counts.approved}</strong></div></div>
+      <div className={`flow-stage ${researching ? "active" : completedCompanies ? "complete" : ""}`}><span>2</span><div><small>Researching</small><strong>{researching}</strong></div></div><i>→</i>
+      <div className={`flow-stage ${counts.pending ? "active" : counts.total ? "complete" : ""}`}><span>3</span><div><small>Awaiting review</small><strong>{counts.pending}</strong></div></div><i>→</i>
+      <div className={`flow-stage ${counts.approved ? "complete" : ""}`}><span>4</span><div><small>Approved contacts</small><strong>{counts.approved}</strong></div></div><i>→</i>
+      <div className={`flow-stage ${counts.approved ? "active" : ""}`}><span>5</span><div><small>Ready for outreach</small><strong>{counts.approved}</strong></div></div>
     </Card>
+
+    <div className="contact-intelligence-grid">
+      <Card className="contact-progress-card">
+        <div className="section-head"><div><div className="card-title">Company contact coverage</div><div className="card-subtitle">How approved companies are moving through contact research.</div></div><ShieldCheck size={20}/></div>
+        <div className="contact-coverage-list section">
+          <div><span>Approved companies</span><strong>{companies.approved}</strong></div>
+          <div><span>Research completed</span><strong>{completedCompanies}</strong></div>
+          <div><span>Currently researching</span><strong>{researching}</strong></div>
+          <div><span>Awaiting research</span><strong>{waitingResearch}</strong></div>
+        </div>
+      </Card>
+      <Card className="contact-activity-card">
+        <div className="section-head"><div><div className="card-title">SalesPilot activity</div><div className="card-subtitle">The latest autonomous contact-discovery work.</div></div><span className={`live-dot ${researching ? "active" : ""}`}/></div>
+        <div className="contact-activity-feed section">
+          {latestActivity.length ? latestActivity.map(item => <div key={item.id} className="contact-activity-item"><span className={item.status === "COMPLETED" ? "complete" : "active"}>{item.status === "COMPLETED" ? <CheckCircle2 size={14}/> : <Activity size={14}/>}</span><div><strong>{companyById.get(item.company_id) ?? "Approved company"}</strong><small>{sessionLabel(item.stage)}{item.contacts_saved ? ` · ${item.contacts_saved} saved` : ""}</small></div></div>) : <div className="contact-activity-empty"><Search size={18}/><span>Approve a company and SalesPilot will begin decision-maker research automatically.</span></div>}
+        </div>
+      </Card>
+    </div>
+
     <Card className="company-review-summary contact-review-summary"><div><span>Awaiting review</span><strong>{counts.pending}</strong></div><div><span>Approved</span><strong>{counts.approved}</strong></div><div><span>Held</span><strong>{counts.hold}</strong></div><div><span>Total found</span><strong>{counts.total}</strong></div></Card>
     <form className="company-search-controls" action="/contacts" method="get">
       <input name="q" defaultValue={search.q} placeholder="Search name, role, company or location" aria-label="Search contacts" />
@@ -46,5 +74,7 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
       <Link className={`filter-chip ${search.status === "REJECTED" ? "active" : ""}`} href={queryString({...search,status:"REJECTED"})}>Not selected · {counts.rejected}</Link>
     </div>
     {rows.length ? <ContactReviewQueue rows={rows}/> : <Card><div className="empty"><h3>{hasFilters ? "No contacts match these filters" : researching ? "SalesPilot is researching decision-makers" : "No contacts yet"}</h3><p>{hasFilters ? "Adjust or clear the filters." : researching ? "Verified contacts will appear here as research completes." : "Approve companies to begin autonomous contact discovery."}</p></div></Card>}
+
+    <Card className="contact-next-stage"><div><span className="eyebrow">Next autonomous stage</span><h3>Outreach</h3><p>Approved contacts automatically become available for evidence-led, personalised outreach in G4.</p></div><div className="next-stage-count"><strong>{allCounts.approved}</strong><span>contacts ready</span></div><ArrowRight size={22}/></Card>
   </AppShell>;
 }
