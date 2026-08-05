@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { runNextCompanyDiscovery } from "@/features/discovery/company-discovery.service";
 import { runNextContactDiscovery } from "@/features/contacts/contact-discovery.service";
+import type { WorkerExecutionResult } from "./executor";
 import {
   acquirePipelineSchedulerLease,
   preparePipelineWork,
@@ -9,10 +10,8 @@ import {
   type SchedulerPreparation,
 } from "./repository";
 
-type WorkerResult = { processed: boolean; sessionId?: string; saved?: number };
-
 type SettledWorker =
-  | { ok: true; result: WorkerResult }
+  | { ok: true; result: WorkerExecutionResult }
   | { ok: false; error: string };
 
 export type PipelineSchedulerResult = {
@@ -23,7 +22,7 @@ export type PipelineSchedulerResult = {
   contact: SettledWorker | null;
 };
 
-async function settle(work: () => Promise<WorkerResult>): Promise<SettledWorker> {
+async function settle(work: () => Promise<WorkerExecutionResult>): Promise<SettledWorker> {
   try {
     return { ok: true, result: await work() };
   } catch (error) {

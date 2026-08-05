@@ -2,6 +2,7 @@ import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { discoverCompanies } from "@/lib/discovery/openai";
 import { verifyDiscoveredCompany } from "@/lib/discovery/site-verifier";
+import type { WorkerExecutionResult } from "@/lib/pipeline/executor";
 
 function safeWorkerError(error: unknown): string {
   const message = error instanceof Error ? error.message : "Company discovery failed";
@@ -14,10 +15,10 @@ async function activity(sessionId:string,type:string,title:string,description?:s
   await databaseRequest("rpc/record_discovery_activity", {method:"POST",body:JSON.stringify({p_session_id:sessionId,p_activity_type:type,p_title:title,p_description:description??null,p_metadata:metadata})});
 }
 
-export async function runNextCompanyDiscovery(): Promise<{ processed: boolean; sessionId?: string; saved?: number }> {
+export async function runNextCompanyDiscovery(): Promise<WorkerExecutionResult> {
   const claimed = await databaseRequest<Array<{ session_id: string; organisation_id: string; campaign_id: string }>>("rpc/claim_company_discovery",{ method: "POST", body: "{}" });
   const job = claimed[0];
-  if (!job) return { processed: false };
+  if (!job) return { worker: "COMPANY_DISCOVERY", processed: false, outcome: "NO_JOB" };
   try {
     await activity(job.session_id,"DISCOVERY_STARTED","Company discovery started","SalesPilot is preparing a search from the approved campaign.");
     const campaigns = await databaseRequest<any[]>(`campaign_detail?id=eq.${job.campaign_id}&organisation_id=eq.${job.organisation_id}&limit=1`);
@@ -70,7 +71,13 @@ export async function runNextCompanyDiscovery(): Promise<{ processed: boolean; s
     // database can apply its exhaustion cooldown instead of treating it as a
     // transient worker failure and immediately reopening it on the next tick.
     const finalSaved=await databaseRequest<number>("rpc/finalize_company_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id})});
-    return { processed:true,sessionId:job.session_id,saved:Number(finalSaved) };
+    return {
+      worker: "COMPANY_DISCOVERY",
+      processed: true,
+      outcome: Number(finalSaved) > 0 ? "COMPLETED_WITH_RESULTS" : "COMPLETED_NO_RESULTS",
+      sessionId: job.session_id,
+      saved: Number(finalSaved),
+    };
   } catch (error) {
     const safeMessage=safeWorkerError(error);
     await activity(job.session_id,"DISCOVERY_FAILED","Company discovery paused","SalesPilot could not complete this attempt. No unverified recommendations were marked ready.").catch(()=>undefined);

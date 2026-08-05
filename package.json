@@ -35,7 +35,9 @@
     "g3:final-check": "node scripts/validate-g3-final-contact-enrichment.mjs",
     "g3:routes-check": "node scripts/validate-g3-company-routes.mjs",
     "stabilisation:s1-check": "node scripts/validate-genesis-stabilisation-s1.mjs",
-    "stabilisation:s2-check": "node scripts/validate-genesis-stabilisation-s2.mjs"
+    "stabilisation:s2-check": "node scripts/validate-genesis-stabilisation-s2.mjs",
+    "stabilisation:s3-check": "node scripts/validate-genesis-stabilisation-s3.mjs",
+    "stabilisation:s4-check": "node scripts/validate-genesis-stabilisation-s4.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
