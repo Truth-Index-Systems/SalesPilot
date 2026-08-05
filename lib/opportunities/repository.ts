@@ -1,7 +1,7 @@
 import "server-only";
 import { requireOrganisationContext } from "@/lib/auth/organisation-context";
 import { databaseRequest } from "@/lib/database/postgrest";
-import type { OpportunityFoundation, OpportunityStatus } from "./domain";
+import type { OpportunityDetail, OpportunityFoundation, OpportunityOverview, OpportunityStatus } from "./domain";
 
 export type OpportunityFilters = {
   campaignId?: string;
@@ -9,18 +9,18 @@ export type OpportunityFilters = {
   status?: OpportunityStatus;
 };
 
-export async function listOpportunities(filters?: OpportunityFilters): Promise<OpportunityFoundation[]> {
+export async function listOpportunities(filters?: OpportunityFilters): Promise<OpportunityOverview[]> {
   const context = await requireOrganisationContext();
   let path = `opportunity_overview?organisation_id=eq.${context.organisationId}&order=campaign_id.asc,rank.asc,created_at.asc`;
   if (filters?.campaignId) path += `&campaign_id=eq.${encodeURIComponent(filters.campaignId)}`;
   if (filters?.companyId) path += `&company_id=eq.${encodeURIComponent(filters.companyId)}`;
   if (filters?.status) path += `&status=eq.${encodeURIComponent(filters.status)}`;
-  return databaseRequest<OpportunityFoundation[]>(path);
+  return databaseRequest<OpportunityOverview[]>(path);
 }
 
-export async function getOpportunity(id: string) {
+export async function getOpportunity(id: string): Promise<OpportunityDetail | null> {
   const context = await requireOrganisationContext();
-  const rows = await databaseRequest<any[]>(
+  const rows = await databaseRequest<OpportunityDetail[]>(
     `opportunity_detail?id=eq.${encodeURIComponent(id)}&organisation_id=eq.${context.organisationId}&limit=1`,
   );
   return rows[0] ?? null;
@@ -34,6 +34,7 @@ export async function reviewOpportunity(
   campaignId: string,
   opportunityId: string,
   status: "APPROVED" | "REJECTED",
+  note?: string,
 ) {
   const context = await requireOrganisationContext();
   if (context.role === "VIEWER") throw new Error("OPPORTUNITY_REVIEW_FORBIDDEN");
@@ -45,14 +46,15 @@ export async function reviewOpportunity(
       p_opportunity_id: opportunityId,
       p_user_id: context.userId,
       p_status: status,
+      p_note: note ?? null,
     }),
   });
 }
 
-export function approveOpportunity(campaignId: string, opportunityId: string) {
-  return reviewOpportunity(campaignId, opportunityId, "APPROVED");
+export function approveOpportunity(campaignId: string, opportunityId: string, note?: string) {
+  return reviewOpportunity(campaignId, opportunityId, "APPROVED", note);
 }
 
-export function rejectOpportunity(campaignId: string, opportunityId: string) {
-  return reviewOpportunity(campaignId, opportunityId, "REJECTED");
+export function rejectOpportunity(campaignId: string, opportunityId: string, note?: string) {
+  return reviewOpportunity(campaignId, opportunityId, "REJECTED", note);
 }

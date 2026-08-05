@@ -52,9 +52,47 @@ export type OpportunityFoundation = {
   score_explanation_json: OpportunityScoreExplanation | null;
   scoring_version: string | null;
   scored_at: string | null;
+  review_note: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
   rank: number;
   created_at: string;
   updated_at: string;
+};
+
+export type OpportunityOverview = OpportunityFoundation & {
+  campaign_name: string;
+  company_name: string;
+  company_website_url: string;
+  company_industry: string | null;
+  company_country: string | null;
+  company_summary: string | null;
+  company_confidence: number;
+  primary_contact_name: string | null;
+  primary_contact_role: string | null;
+  primary_contact_department: string | null;
+  primary_contact_location: string | null;
+  contact_reason_selected: string | null;
+  primary_contact_confidence: number | null;
+  primary_contact_review_status: string | null;
+  primary_contact_email: string | null;
+  primary_contact_email_status: string | null;
+  primary_contact_linkedin_url: string | null;
+  company_evidence_count: number;
+  contact_evidence_count: number;
+  primary_route_id: string | null;
+  primary_route_email: string | null;
+  primary_route_verification_status: string | null;
+  primary_route_score: number | null;
+  primary_route_likely_reader: string | null;
+  primary_route_reason: string | null;
+  primary_route_source_url: string | null;
+};
+
+export type OpportunityDetail = OpportunityOverview & {
+  company_evidence: Array<Record<string, unknown>>;
+  contact_evidence: Array<Record<string, unknown>>;
+  history: Array<Record<string, unknown>>;
 };
 
 export type OpportunitySyncSummary = {

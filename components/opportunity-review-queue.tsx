@@ -1,0 +1,95 @@
+"use client";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Building2, CheckCircle2, ContactRound, ExternalLink, Mail, ShieldCheck } from "@/components/icons";
+import type { OpportunityOverview } from "@/lib/opportunities/domain";
+
+function band(row: OpportunityOverview) {
+  if (row.status === "APPROVED") return { label: "Approved", className: "approved" };
+  if (row.status === "REJECTED") return { label: "Not selected", className: "rejected" };
+  if (row.status === "NEEDS_CONTACT") return { label: "Needs contact", className: "hold" };
+  if (row.status === "NEEDS_EVIDENCE") return { label: "Needs evidence", className: "hold" };
+  if (row.status === "LOW_PRIORITY") return { label: "Low priority", className: "archived" };
+  return { label: (row.opportunity_score ?? 0) >= 80 ? "Recommended" : "Review", className: "pending_review" };
+}
+
+function reachable(row: OpportunityOverview) {
+  return row.primary_contact_email || row.primary_route_email || row.primary_contact_linkedin_url;
+}
+
+export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }) {
+  const router = useRouter();
+  const [selected, setSelected] = useState<string[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const all = rows.length > 0 && selected.length === rows.length;
+
+  async function review(status: "APPROVED" | "REJECTED") {
+    if (!selected.length) return;
+    setBusy(status);
+    setError("");
+    try {
+      const opportunities = rows.filter(row => selectedSet.has(row.id)).map(row => ({ id: row.id, campaignId: row.campaign_id }));
+      const response = await fetch("/api/opportunities/review-bulk", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ opportunities, status }),
+      });
+      if (!response.ok) throw new Error();
+      setSelected([]);
+      router.refresh();
+    } catch {
+      setError("SalesPilot could not save the selected opportunity reviews.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return <>
+    <div className="review-queue-toolbar">
+      <label className="review-select-all"><input type="checkbox" checked={all} onChange={() => setSelected(all ? [] : rows.map(row => row.id))} /> Select all on this page</label>
+      <div><strong>{selected.length}</strong> selected</div>
+      <button className="button primary" disabled={!selected.length || !!busy} onClick={() => review("APPROVED")}>{busy === "APPROVED" ? "Approving…" : "Approve selected"}</button>
+      <button className="button secondary" disabled={!selected.length || !!busy} onClick={() => review("REJECTED")}>{busy === "REJECTED" ? "Saving…" : "Reject selected"}</button>
+    </div>
+    {error && <p className="review-error">{error}</p>}
+    <div className="opportunity-card-grid">
+      {rows.map(row => {
+        const state = band(row);
+        const score = row.opportunity_score ?? 0;
+        const channel = row.primary_contact_email || row.primary_route_email;
+        return <article className={`card opportunity-review-card ${selectedSet.has(row.id) ? "selected" : ""}`} key={row.id}>
+          <label className="company-select"><input type="checkbox" checked={selectedSet.has(row.id)} onChange={() => setSelected(current => current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id])} aria-label={`Select ${row.company_name}`} /></label>
+          <Link href={`/opportunities/${row.id}`} className="opportunity-card-link">
+            <div className="opportunity-card-head">
+              <div><span className="eyebrow">#{row.rank} · {row.campaign_name}</span><h3>{row.company_name}</h3><span>{row.company_industry || "Industry not confirmed"}{row.company_country ? ` · ${row.company_country}` : ""}</span></div>
+              <div className="opportunity-score"><strong>{score}</strong><span>Opportunity score</span></div>
+            </div>
+            <div className="opportunity-contact">
+              <ContactRound size={18}/><div><span>Strongest buying contact</span><strong>{row.primary_contact_name || "Still researching"}</strong><small>{row.primary_contact_role || "No supported decision-maker yet"}</small></div>
+            </div>
+            <div className="opportunity-reason"><span>Why this is an opportunity</span><p>{row.buying_reason || row.company_summary || "SalesPilot is still assembling the recommendation."}</p></div>
+            <div className="opportunity-score-grid">
+              <div><span>Company fit</span><strong>{row.company_fit ?? 0}</strong></div>
+              <div><span>Operational fit</span><strong>{row.operational_fit ?? 0}</strong></div>
+              <div><span>Buying authority</span><strong>{row.buying_authority ?? 0}</strong></div>
+              <div><span>Contactability</span><strong>{row.contactability ?? 0}</strong></div>
+            </div>
+            <div className="opportunity-channel-row">
+              <div className={channel ? "available" : "unknown"}><Mail size={15}/><span>{channel || "Email route not found"}</span></div>
+              <div className={row.primary_contact_linkedin_url ? "available" : "unknown"}><ExternalLink size={15}/><span>{row.primary_contact_linkedin_url ? "LinkedIn matched" : "LinkedIn unknown"}</span></div>
+              <div><ShieldCheck size={15}/><span>{Number(row.company_evidence_count) + Number(row.contact_evidence_count)} evidence sources</span></div>
+            </div>
+            <div className="opportunity-card-footer">
+              <span className={`review-status ${state.className}`}>{state.label}</span>
+              <span className={reachable(row) ? "opportunity-ready" : "opportunity-limited"}>{reachable(row) ? <><CheckCircle2 size={14}/> Reachable</> : "Contact route incomplete"}</span>
+              <span className="open-report">Open opportunity intelligence →</span>
+            </div>
+          </Link>
+        </article>;
+      })}
+    </div>
+  </>;
+}
