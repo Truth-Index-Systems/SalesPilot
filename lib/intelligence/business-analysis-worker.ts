@@ -10,6 +10,7 @@ function classify(error:unknown){
   const message=error instanceof Error?error.message:"Business analysis failed";
   if(/429|rate limit/i.test(message))return {code:"RATE_LIMIT",message,retryable:true};
   if(/timeout|abort/i.test(message))return {code:"TIMEOUT",message,retryable:true};
+  if(/AI_GOVERNANCE_BLOCKED/i.test(message))return {code:"AI_GOVERNANCE_BLOCKED",message,retryable:false};
   if(/not configured|authentication|401/i.test(message))return {code:"CONFIGURATION",message,retryable:false};
   if(/JSON|structured output|invalid response/i.test(message))return {code:"INVALID_AI_OUTPUT",message,retryable:true};
   return {code:"ANALYSIS_FAILED",message,retryable:true};
@@ -22,7 +23,7 @@ export async function runBusinessAnalysisJob(id:string,token:string){
   try{
     const website=await readWebsite(job.website_input);
     await updateBusinessAnalysisProgress(id,token,"ANALYSING_BUSINESS",52,website.canonicalUrl,website.sources.length);
-    const analysis=await analyseBusiness({website:website.canonicalUrl,sources:website.sources});
+    const analysis=await analyseBusiness({organisationId:job.organisation_id,jobId:job.id,website:website.canonicalUrl,sources:website.sources});
     await updateBusinessAnalysisProgress(id,token,"PREPARING_RECOMMENDATIONS",88,website.canonicalUrl,website.sources.length);
     await completeBusinessAnalysisJob(id,token,website.canonicalUrl,website.sources.length,analysis,Date.now()-started);
     return {claimed:true as const,completed:true as const};

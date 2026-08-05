@@ -3,6 +3,7 @@ import { BusinessDnaPayloadSchema, type BusinessDnaPayload } from "@/lib/ai/sche
 import { businessDiscoveryJsonSchema } from "@/lib/intelligence/business-discovery-schema";
 import type { WebsiteSource } from "@/lib/intelligence/website-reader";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
+import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 const envelopeSchema = AiEnvelopeSchema(BusinessDnaPayloadSchema);
@@ -32,7 +33,7 @@ function extractOutputText(response: unknown): string {
   throw new Error("OpenAI returned no structured output.");
 }
 
-export async function analyseBusiness(params: { website: string; sources: WebsiteSource[] }): Promise<AiEnvelope<BusinessDnaPayload>> {
+export async function analyseBusiness(params: { organisationId:string|null; jobId:string; website: string; sources: WebsiteSource[] }): Promise<AiEnvelope<BusinessDnaPayload>> {
   const { apiKey, model } = getConfig();
   const sourceBlock = params.sources.map((source, index) => `SOURCE ${index + 1}\nURL: ${source.url}\nTITLE: ${source.title}\nCONTENT: ${source.text}`).join("\n\n");
   const now = new Date().toISOString();
@@ -55,6 +56,8 @@ export async function analyseBusiness(params: { website: string; sources: Websit
     store: false,
   };
 
+  const reservation = await reserveAiRequest({ organisationId: params.organisationId, jobType: "BUSINESS_ANALYSIS", jobId: params.jobId, requestScope: `business-analysis:${params.jobId}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_BUSINESS_ANALYSIS_ESTIMATED_COST_USD ?? "0.10") });
+  const startedAt = Date.now();
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
@@ -73,10 +76,13 @@ export async function analyseBusiness(params: { website: string; sources: Websit
         throw new Error(`OpenAI request failed: ${message}`);
       }
       const parsed = JSON.parse(extractOutputText(json));
-      return envelopeSchema.parse(parsed);
+      const result = envelopeSchema.parse(parsed);
+      await completeAiRequest({ ledgerId: reservation.ledgerId, ok: true, usage: responseUsage(json), durationMs: Date.now()-startedAt, responseId: typeof (json as any)?.id === "string" ? (json as any).id : null });
+      return result;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("Business analysis failed.");
     }
   }
+  await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, errorCode: "ANALYSIS_FAILED", errorMessage: lastError?.message ?? "Business analysis failed" }).catch(()=>undefined);
   throw lastError ?? new Error("Business analysis failed.");
 }

@@ -21,7 +21,7 @@ export async function runNextContactDiscovery(context:WorkerExecutionContext):Pr
     const profiles=await databaseRequest<any[]>(`business_profile_versions?business_profile_id=eq.${profileId}&organisation_id=eq.${job.organisation_id}&order=version_number.desc&limit=1&select=payload_json`);
     const business=profiles[0]?.payload_json??{};
     await databaseRequest("rpc/update_contact_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"RESEARCHING",p_progress:30})});
-    const result=await discoverContacts({company,campaign:{name:campaign.name,objective:campaign.objective,audience:campaign.audience,buyerRoles:campaign.buyer_roles,messageAngle:campaign.message_angle},business});
+    const result=await discoverContacts({organisationId:job.organisation_id,campaignId:job.campaign_id,schedulerRunId:context.schedulerRunId,jobId:job.session_id,company,campaign:{name:campaign.name,objective:campaign.objective,audience:campaign.audience,buyerRoles:campaign.buyer_roles,messageAngle:campaign.message_angle},business});
     await databaseRequest("rpc/update_contact_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"VALIDATING",p_progress:72,p_candidates:result.contacts.length})});
     await databaseRequest("rpc/save_company_contact_channels",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_channels:result.companyContactChannels})});
     if(result.contacts.length===0){

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
+import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { normaliseDiscoveryResult } from "./normalise";
 import { CompanyDiscoveryResultSchema } from "./schemas";
 
@@ -96,6 +97,10 @@ const companyDiscoveryJsonSchema = {
 } as const;
 
 type DiscoverCompaniesInput = {
+  organisationId: string;
+  campaignId: string;
+  schedulerRunId?: string | null;
+  jobId: string;
   campaign: Record<string, unknown>;
   business: Record<string, unknown>;
   customerWebsite?: string | null;
@@ -107,7 +112,11 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
 
   const model = resolveOpenAIModel("analysis").model;
-  const response = await fetch(ENDPOINT, {
+  const startedAt = Date.now();
+  const reservation = await reserveAiRequest({ organisationId: input.organisationId, campaignId: input.campaignId, schedulerRunId: input.schedulerRunId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${input.jobId}:${input.excludedCompanies?.length ?? 0}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_COMPANY_DISCOVERY_ESTIMATED_COST_USD ?? "0.25") });
+  let response: Response;
+  try {
+    response = await fetch(ENDPOINT, {
     method: "POST",
     cache: "no-store",
     signal: AbortSignal.timeout(220_000),
@@ -147,13 +156,19 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
       max_output_tokens: 11_000,
       store: false,
     }),
-  });
+    });
+  } catch (error) {
+    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, errorCode: "NETWORK", errorMessage: error instanceof Error ? error.message : "OpenAI request failed" }).catch(()=>undefined);
+    throw error;
+  }
 
   const json: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const errorResponse = json as { error?: unknown } | null;
+    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), webSearchCalls: 1, durationMs: Date.now()-startedAt, responseId: typeof (json as any)?.id === "string" ? (json as any).id : null, errorCode: `HTTP_${response.status}`, errorMessage: JSON.stringify(errorResponse?.error ?? null) }).catch(()=>undefined);
     throw new Error(`OPENAI_DISCOVERY_FAILED:${response.status}:${JSON.stringify(errorResponse?.error ?? null)}`);
   }
+  await completeAiRequest({ ledgerId: reservation.ledgerId, ok: true, usage: responseUsage(json), webSearchCalls: 1, durationMs: Date.now()-startedAt, responseId: typeof (json as any)?.id === "string" ? (json as any).id : null });
 
   let decodedOutput: unknown;
   try {

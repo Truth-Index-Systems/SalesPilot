@@ -41,6 +41,10 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       `companies?organisation_id=eq.${job.organisation_id}&campaign_id=eq.${job.campaign_id}&select=company_name,canonical_domain&limit=1000`
     );
     const result = await discoverCompanies({
+      organisationId: job.organisation_id,
+      campaignId: job.campaign_id,
+      schedulerRunId: context.schedulerRunId,
+      jobId: job.session_id,
       campaign:{name:campaign.name,objective:campaign.objective,audience:campaign.audience,buyerRoles:campaign.buyer_roles,messageAngle:campaign.message_angle,why:campaign.why,fitScore:campaign.fit_score},
       business,
       customerWebsite:campaign.website_url,

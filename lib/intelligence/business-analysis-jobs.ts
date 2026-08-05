@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 
 type JobStatus = "QUEUED"|"RUNNING"|"COMPLETED"|"FAILED_RETRYABLE"|"FAILED_TERMINAL"|"CANCELLED";
 export type BusinessAnalysisJob = {
-  id:string; website_input:string; canonical_url:string|null; status:JobStatus; stage:string; progress:number;
+  id:string; organisation_id:string|null; website_input:string; canonical_url:string|null; status:JobStatus; stage:string; progress:number;
   attempt_count:number; next_retry_at:string|null; last_error_code:string|null; last_error_message:string|null;
   pages_read:number; analysis_json:unknown|null; created_at:string; updated_at:string;
 };
@@ -30,7 +30,7 @@ export async function createBusinessAnalysisJob(website:string){
 
 export async function getBusinessAnalysisJob(id:string,token:string){
   const hash=hashAnalysisToken(token);
-  const rows=await databaseRequest<BusinessAnalysisJob[]>(`business_analysis_jobs?id=eq.${encodeURIComponent(id)}&access_token_hash=eq.${hash}&select=id,website_input,canonical_url,status,stage,progress,attempt_count,next_retry_at,last_error_code,last_error_message,pages_read,analysis_json,created_at,updated_at&limit=1`);
+  const rows=await databaseRequest<BusinessAnalysisJob[]>(`business_analysis_jobs?id=eq.${encodeURIComponent(id)}&access_token_hash=eq.${hash}&select=id,organisation_id,website_input,canonical_url,status,stage,progress,attempt_count,next_retry_at,last_error_code,last_error_message,pages_read,analysis_json,created_at,updated_at&limit=1`);
   return rows[0]??null;
 }
 

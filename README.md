@@ -81,3 +81,14 @@ Company discovery is deliberately not started in this release.
 ## Genesis G2.4
 
 The Company Discovery milestone is now complete and frozen with verified evidence, progressive persistence, live campaign activity, search and filters, individual and bulk review, review notes, immutable review history, and campaign timeline integration. See `docs/G2.4-REVIEW-QUEUE-FREEZE.md`.
+
+## Genesis Stabilisation S7.1 — AI governance
+
+Apply `supabase/migrations/0026_genesis_stabilisation_s71_ai_governance_cost_control.sql`.
+
+AI calls are disabled unless both gates are enabled:
+
+1. Vercel environment variable: `SALESPILOT_AI_PLATFORM_ENABLED=true`
+2. Workspace autonomy enabled at `/internal/autonomy`
+
+Keep the platform variable unset or false until the migration is applied and workspace limits have been reviewed.
