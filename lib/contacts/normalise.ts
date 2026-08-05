@@ -20,13 +20,23 @@ export function normaliseContactDiscoveryResult(result:ContactDiscoveryResult,co
   return {...contact,fullName:clean(contact.fullName,180),roleTitle:clean(contact.roleTitle,180),department:contact.department?clean(contact.department,180):null,location:contact.location?clean(contact.location,180):null,reasonSelected:clean(contact.reasonSelected,900),confidence:{...contact.confidence,evidenceQuality,overall,label},email:{address:emailStatus==="UNKNOWN"?null:emailAddress,status:emailStatus,confidence:emailStatus==="UNKNOWN"?0:contact.email.confidence,sourceUrl:emailStatus==="UNKNOWN"?null:contact.email.sourceUrl,reason:clean(contact.email.reason,500)},linkedin:{profileUrl:linkedinStatus==="UNKNOWN"?null:profileUrl,status:linkedinStatus,confidence:linkedinStatus==="UNKNOWN"?0:contact.linkedin.confidence,sourceUrl:linkedinStatus==="UNKNOWN"?null:contact.linkedin.sourceUrl,reason:clean(contact.linkedin.reason,500)},unknowns:contact.unknowns.map(v=>clean(v,400)).filter(Boolean),riskFlags:contact.riskFlags.map(v=>clean(v,400)).filter(Boolean),evidence};
  }).filter((contact):contact is DiscoveredContact=>Boolean(contact));
  const seen=new Set<string>();
- const companyContactChannels=result.companyContactChannels.map(channel=>{
-  const emailAddress=validCompanyEmail(channel.emailAddress,domain);if(!emailAddress||seen.has(emailAddress))return null;
+ const companyContactChannels: CompanyContactChannel[]=[];
+ for(const channel of result.companyContactChannels){
+  const emailAddress=validCompanyEmail(channel.emailAddress,domain);if(!emailAddress||seen.has(emailAddress))continue;
   const sourceHost=hostname(channel.sourceUrl);const official=Boolean(domain&&(sourceHost===domain||sourceHost.endsWith(`.${domain}`)));
-  if(channel.verificationStatus==="PUBLIC_VERIFIED"&&!official)return null;
-  if(channel.verificationStatus==="PATTERN_LIKELY"&&channel.confidence<70)return null;
+  if(channel.verificationStatus==="PUBLIC_VERIFIED"&&!official)continue;
+  if(channel.verificationStatus==="PATTERN_LIKELY"&&channel.confidence<70)continue;
   seen.add(emailAddress);
-  return {...channel,emailAddress,department:channel.department?clean(channel.department,180):null,associatedContactName:channel.associatedContactName?clean(channel.associatedContactName,180):null,likelyReader:clean(channel.likelyReader,300),reasonSelected:clean(channel.reasonSelected,600),sourceTitle:channel.sourceTitle?clean(channel.sourceTitle,240):null,evidenceExcerpt:clean(channel.evidenceExcerpt,900)};
- }).filter((channel): channel is CompanyContactChannel => Boolean(channel));
+  companyContactChannels.push({
+   ...channel,
+   emailAddress,
+   department:channel.department?clean(channel.department,180):null,
+   associatedContactName:channel.associatedContactName?clean(channel.associatedContactName,180):null,
+   likelyReader:clean(channel.likelyReader,300),
+   reasonSelected:clean(channel.reasonSelected,600),
+   sourceTitle:channel.sourceTitle?clean(channel.sourceTitle,240):null,
+   evidenceExcerpt:clean(channel.evidenceExcerpt,900),
+  });
+ }
  return{...result,contacts,companyContactChannels};
 }
