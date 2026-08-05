@@ -66,3 +66,10 @@ export async function contactCounts(filters?: Pick<ContactFilters, "campaignId" 
     archived: rows.filter((row) => row.review_status === "ARCHIVED").length,
   };
 }
+
+export async function listContactDiscoveryActivity() {
+  const context = await requireOrganisationContext();
+  return databaseRequest<any[]>(
+    `contact_discovery_sessions?organisation_id=eq.${context.organisationId}&order=updated_at.desc&limit=50`,
+  );
+}
