@@ -52,7 +52,8 @@
     "stabilisation:s101-check": "npm run stabilisation:s10-check && node scripts/validate-genesis-stabilisation-s101.mjs",
     "stabilisation:s102-check": "npm run stabilisation:s101-check && node scripts/validate-genesis-stabilisation-s102.mjs",
     "genesis:g2-intelligence-check": "node scripts/validate-genesis-g2-intelligence-tuning.mjs",
-    "genesis:g35-phase1-check": "node scripts/validate-genesis-g35-phase1.mjs"
+    "genesis:g35-phase1-check": "node scripts/validate-genesis-g35-phase1.mjs",
+    "genesis:g35-phase2-check": "npm run genesis:g35-phase1-check && node scripts/validate-genesis-g35-phase2.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
