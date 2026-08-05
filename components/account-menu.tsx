@@ -32,7 +32,7 @@ export function AccountMenu() {
     setSigningOut(true);
     try {
       await fetch("/api/auth/sign-out", { method: "POST" });
-      router.replace(`/sign-in?next=${encodeURIComponent(pathname || "/")}`);
+      router.replace("/sign-in?next=/");
       router.refresh();
     } finally {
       setSigningOut(false);
