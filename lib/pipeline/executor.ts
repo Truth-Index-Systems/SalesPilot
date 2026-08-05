@@ -13,9 +13,9 @@ export type WorkerExecutionResult = {
   saved?: number;
 };
 
-/**
- * Pure worker executors may only:
- * claim existing eligible work, execute it, persist its result and finish.
- * They may not create downstream work or advance campaign state.
- */
-export type WorkerExecutor = () => Promise<WorkerExecutionResult>;
+export type WorkerExecutionContext = {
+  schedulerRunId: string;
+};
+
+/** Pure workers execute scheduler-assigned work and never create follow-on work. */
+export type WorkerExecutor = (context: WorkerExecutionContext) => Promise<WorkerExecutionResult>;

@@ -8,6 +8,8 @@ import {
   preparePipelineWork,
   releasePipelineSchedulerLease,
   type SchedulerPreparation,
+  recordPipelineSchedulerOutcome,
+  recoverPipelineJobs,
 } from "./repository";
 
 type SettledWorker =
@@ -48,9 +50,12 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
 
   const runId = lease.run_id;
   try {
+    await recoverPipelineJobs(runId);
     const preparation = await preparePipelineWork(runId);
-    const company = await settle(runNextCompanyDiscovery);
-    const contact = await settle(runNextContactDiscovery);
+    const context = { schedulerRunId: runId };
+    const company = await settle(() => runNextCompanyDiscovery(context));
+    const contact = await settle(() => runNextContactDiscovery(context));
+    await recordPipelineSchedulerOutcome(runId, company, contact);
     return { acquired: true, runId, preparation, company, contact };
   } finally {
     await releasePipelineSchedulerLease(runId).catch((error) => {

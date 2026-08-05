@@ -1,12 +1,15 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { discoverContacts } from "@/lib/contacts/openai";
-import type { WorkerExecutionResult } from "@/lib/pipeline/executor";
+import type { WorkerExecutionContext, WorkerExecutionResult } from "@/lib/pipeline/executor";
+import { classifyPipelineError } from "@/lib/pipeline/errors";
+import { createResultSummary } from "@/lib/pipeline/result-summary";
 
 function safeError(error:unknown){const m=error instanceof Error?error.message:"CONTACT_DISCOVERY_FAILED";return m.startsWith("OPENAI_CONTACT_DISCOVERY_FAILED:")?m.slice(0,500):["OPENAI_API_KEY_NOT_CONFIGURED","CONTACT_DISCOVERY_COMPANY_MISMATCH","CONTACT_DISCOVERY_NO_VERIFIED_CONTACTS","CAMPAIGN_NOT_FOUND","COMPANY_NOT_FOUND","BUSINESS_PROFILE_NOT_FOUND"].includes(m)?m:"CONTACT_DISCOVERY_FAILED";}
 
-export async function runNextContactDiscovery():Promise<WorkerExecutionResult> {
-  const claimed=await databaseRequest<Array<{session_id:string;organisation_id:string;campaign_id:string;company_id:string}>>("rpc/claim_contact_discovery",{method:"POST",body:"{}"});
+export async function runNextContactDiscovery(context:WorkerExecutionContext):Promise<WorkerExecutionResult> {
+  const startedAt=Date.now();
+  const claimed=await databaseRequest<Array<{session_id:string;organisation_id:string;campaign_id:string;company_id:string}>>("rpc/claim_contact_discovery",{method:"POST",body:JSON.stringify({p_scheduler_run_id:context.schedulerRunId})});
   const job=claimed[0]; if(!job) return {worker:"CONTACT_DISCOVERY",processed:false,outcome:"NO_JOB"};
   try{
     const companies=await databaseRequest<any[]>(`companies?id=eq.${job.company_id}&campaign_id=eq.${job.campaign_id}&organisation_id=eq.${job.organisation_id}&review_status=eq.APPROVED&limit=1`);
@@ -30,7 +33,7 @@ export async function runNextContactDiscovery():Promise<WorkerExecutionResult> {
       const completed=Number(await databaseRequest<number>("rpc/complete_contact_discovery_without_matches",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_research_summary:result.researchSummary,p_uncertainties:result.uncertainties,p_unresolved_roles:result.unresolvedRoles})}));
       return {worker:"CONTACT_DISCOVERY",processed:true,outcome:"COMPLETED_NO_RESULTS",sessionId:job.session_id,saved:completed};
     }
-    const finalSaved=Number(await databaseRequest<number>("rpc/finalize_contact_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id})}));
+    const finalSaved=Number(await databaseRequest<number>("rpc/finalize_contact_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_result_summary:createResultSummary("COMPLETED_WITH_RESULTS",saved,startedAt)})}));
     return {worker:"CONTACT_DISCOVERY",processed:true,outcome:"COMPLETED_WITH_RESULTS",sessionId:job.session_id,saved:finalSaved};
-  }catch(error){await databaseRequest("rpc/fail_contact_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_error:safeError(error)})}).catch(()=>undefined);throw error;}
+  }catch(error){const classified=classifyPipelineError(error);await databaseRequest("rpc/record_contact_discovery_failure",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_error_code:classified.code,p_error_message:safeError(error),p_retryable:classified.retryable})}).catch(()=>undefined);throw error;}
 }

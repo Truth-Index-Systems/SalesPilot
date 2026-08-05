@@ -2,7 +2,9 @@ import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { discoverCompanies } from "@/lib/discovery/openai";
 import { verifyDiscoveredCompany } from "@/lib/discovery/site-verifier";
-import type { WorkerExecutionResult } from "@/lib/pipeline/executor";
+import type { WorkerExecutionContext, WorkerExecutionResult } from "@/lib/pipeline/executor";
+import { classifyPipelineError } from "@/lib/pipeline/errors";
+import { createResultSummary } from "@/lib/pipeline/result-summary";
 
 function safeWorkerError(error: unknown): string {
   const message = error instanceof Error ? error.message : "Company discovery failed";
@@ -15,8 +17,9 @@ async function activity(sessionId:string,type:string,title:string,description?:s
   await databaseRequest("rpc/record_discovery_activity", {method:"POST",body:JSON.stringify({p_session_id:sessionId,p_activity_type:type,p_title:title,p_description:description??null,p_metadata:metadata})});
 }
 
-export async function runNextCompanyDiscovery(): Promise<WorkerExecutionResult> {
-  const claimed = await databaseRequest<Array<{ session_id: string; organisation_id: string; campaign_id: string }>>("rpc/claim_company_discovery",{ method: "POST", body: "{}" });
+export async function runNextCompanyDiscovery(context: WorkerExecutionContext): Promise<WorkerExecutionResult> {
+  const startedAt = Date.now();
+  const claimed = await databaseRequest<Array<{ session_id: string; organisation_id: string; campaign_id: string }>>("rpc/claim_company_discovery",{ method: "POST", body: JSON.stringify({ p_scheduler_run_id: context.schedulerRunId }) });
   const job = claimed[0];
   if (!job) return { worker: "COMPANY_DISCOVERY", processed: false, outcome: "NO_JOB" };
   try {
@@ -70,7 +73,7 @@ export async function runNextCompanyDiscovery(): Promise<WorkerExecutionResult> 
     // companies after exclusions and verification. Finalise that cycle so the
     // database can apply its exhaustion cooldown instead of treating it as a
     // transient worker failure and immediately reopening it on the next tick.
-    const finalSaved=await databaseRequest<number>("rpc/finalize_company_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id})});
+    const finalSaved=await databaseRequest<number>("rpc/finalize_company_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_result_summary:createResultSummary(Number(saved)>0?"COMPLETED_WITH_RESULTS":"COMPLETED_NO_RESULTS",Number(saved),startedAt)})});
     return {
       worker: "COMPANY_DISCOVERY",
       processed: true,
@@ -80,8 +83,9 @@ export async function runNextCompanyDiscovery(): Promise<WorkerExecutionResult> 
     };
   } catch (error) {
     const safeMessage=safeWorkerError(error);
+    const classified=classifyPipelineError(error);
     await activity(job.session_id,"DISCOVERY_FAILED","Company discovery paused","SalesPilot could not complete this attempt. No unverified recommendations were marked ready.").catch(()=>undefined);
-    await databaseRequest("rpc/fail_company_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_error:safeMessage})}).catch(()=>undefined);
+    await databaseRequest("rpc/record_company_discovery_failure",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_error_code:classified.code,p_error_message:safeMessage,p_retryable:classified.retryable})}).catch(()=>undefined);
     throw error;
   }
 }

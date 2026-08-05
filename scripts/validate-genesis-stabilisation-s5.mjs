@@ -1,0 +1,11 @@
+import fs from "node:fs";
+const read=(p)=>fs.readFileSync(p,"utf8");
+const must=(p,terms)=>{const s=read(p);for(const t of terms)if(!s.includes(t))throw new Error(`${p} missing ${t}`)};
+must("lib/pipeline/errors.ts",["RATE_LIMIT","WORKER_LEASE_EXPIRED","classifyPipelineError"]);
+must("lib/pipeline/retry.ts",["MAX_PIPELINE_ATTEMPTS","retryDelayMinutes","noResultCooldownMinutes"]);
+must("lib/pipeline/autonomy-policy.ts",["DEFAULT_CAMPAIGN_AUTONOMY_POLICY","AUTO_SEND","AUTO_RESPOND","marketLearningEnabled: false"]);
+must("lib/pipeline/scheduler.ts",["recoverPipelineJobs(runId)","schedulerRunId: runId","recordPipelineSchedulerOutcome"]);
+must("features/discovery/company-discovery.service.ts",["p_scheduler_run_id","record_company_discovery_failure","p_result_summary"]);
+must("features/contacts/contact-discovery.service.ts",["p_scheduler_run_id","record_contact_discovery_failure","p_result_summary"]);
+must("supabase/migrations/0023_genesis_stabilisation_s5_retry_lease_recovery.sql",["campaign_autonomy_policies","recover_pipeline_jobs","FAILED_RETRYABLE","FAILED_TERMINAL","record_pipeline_scheduler_outcome","result_summary_json"]);
+console.log("Genesis Stabilisation S5 validation passed");

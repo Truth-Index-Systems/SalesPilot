@@ -37,7 +37,8 @@
     "stabilisation:s1-check": "node scripts/validate-genesis-stabilisation-s1.mjs",
     "stabilisation:s2-check": "node scripts/validate-genesis-stabilisation-s2.mjs",
     "stabilisation:s3-check": "node scripts/validate-genesis-stabilisation-s3.mjs",
-    "stabilisation:s4-check": "node scripts/validate-genesis-stabilisation-s4.mjs"
+    "stabilisation:s4-check": "node scripts/validate-genesis-stabilisation-s4.mjs",
+    "stabilisation:s5-check": "node scripts/validate-genesis-stabilisation-s5.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

@@ -25,8 +25,8 @@ if (route.includes("Promise.all")) {
 }
 
 const scheduler = fs.readFileSync("lib/pipeline/scheduler.ts", "utf8");
-const companyPosition = scheduler.indexOf("settle(runNextCompanyDiscovery)");
-const contactPosition = scheduler.indexOf("settle(runNextContactDiscovery)");
+const companyPosition = scheduler.indexOf("runNextCompanyDiscovery(context)");
+const contactPosition = scheduler.indexOf("runNextContactDiscovery(context)");
 if (companyPosition < 0 || contactPosition < 0 || companyPosition >= contactPosition) {
   throw new Error("Workers are not dispatched sequentially in the intended order");
 }

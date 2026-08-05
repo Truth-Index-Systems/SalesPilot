@@ -31,6 +31,14 @@ export async function releasePipelineSchedulerLease(runId: string): Promise<void
   });
 }
 
+
+export async function recoverPipelineJobs(runId: string): Promise<number> {
+  return Number(await databaseRequest<number>("rpc/recover_pipeline_jobs", {
+    method: "POST",
+    body: JSON.stringify({ p_run_id: runId }),
+  }));
+}
+
 export async function preparePipelineWork(runId: string): Promise<SchedulerPreparation> {
   const result = await databaseRequest<SchedulerPreparation | SchedulerPreparation[]>("rpc/prepare_pipeline_work", {
     method: "POST",
@@ -49,4 +57,12 @@ function emptyPreparation(): SchedulerPreparation {
     expiredCompanyLeasesRecovered: 0,
     expiredContactLeasesRecovered: 0,
   };
+}
+
+
+export async function recordPipelineSchedulerOutcome(runId: string, company: unknown, contact: unknown): Promise<void> {
+  await databaseRequest("rpc/record_pipeline_scheduler_outcome", {
+    method: "POST",
+    body: JSON.stringify({ p_run_id: runId, p_company_result: company, p_contact_result: contact }),
+  });
 }
