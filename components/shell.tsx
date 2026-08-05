@@ -27,10 +27,12 @@ export function AppShell({
   children,
   title = "SalesPilot",
   user,
+  workspaceStats,
 }: {
   children: React.ReactNode;
   title?: string;
   user: SalesPilotUser | null;
+  workspaceStats?: { campaigns: number; companies: number; replies: number; opportunities: number };
 }) {
   return <div className="app-shell">
     <aside className="sidebar">
@@ -51,7 +53,7 @@ export function AppShell({
           </>}
         </div>
       </nav>
-      {user ? <div className="sidebar-footer"><strong>Workspace connected</strong><span>Real campaign progress only</span></div> : <div className="sidebar-footer"><strong>Explore before signing in</strong><span>Your campaign draft stays on this device</span></div>}
+      {user ? workspaceStats ? <div className="sidebar-footer workspace-stats"><div><span>Campaigns</span><strong>{workspaceStats.campaigns}</strong></div><div><span>Companies</span><strong>{workspaceStats.companies}</strong></div><div><span>Replies</span><strong>{workspaceStats.replies}</strong></div><div><span>Opportunities</span><strong>{workspaceStats.opportunities}</strong></div></div> : <div className="sidebar-footer"><strong>Workspace connected</strong><span>Real campaign progress only</span></div> : <div className="sidebar-footer"><strong>Explore before signing in</strong><span>Your campaign draft stays on this device</span></div>}
     </aside>
     <main className="main">
       <header className="topbar">

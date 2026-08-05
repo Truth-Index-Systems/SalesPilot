@@ -30,7 +30,7 @@ export default async function Home() {
 
   const preparing = campaigns.filter(campaign => campaign.status === "PREPARING").length;
 
-  return <AppShell title="Overview" user={user}>
+  return <AppShell title="Overview" user={user} workspaceStats={{ campaigns: campaigns.length, companies: 0, replies: 0, opportunities: 0 }}>
     <PageHeader
       eyebrow="Your sales workspace"
       title={greeting(user.name)}
@@ -38,10 +38,10 @@ export default async function Home() {
       action={<ButtonLink href="/campaigns/new"><Plus size={16}/>New campaign</ButtonLink>}
     />
     <div className="grid cols-4">
-      <Metric label="Campaigns created" value={String(campaigns.length)} foot={storageReady ? "Saved strategies" : "Campaign storage not connected"}/>
-      <Metric label="Preparing" value={String(preparing)} foot="Waiting for company discovery"/>
-      <Metric label="Companies found" value="—" foot="Company discovery not started"/>
-      <Metric label="Pipeline" value="—" foot="Appears after real opportunities"/>
+      <Metric label="Campaigns" value={String(campaigns.length)} foot={storageReady ? (campaigns.length === 1 ? "1 saved outbound sales campaign" : `${campaigns.length} saved outbound sales campaigns`) : "Campaigns are temporarily unavailable"}/>
+      <Metric label="Ready for discovery" value={String(preparing)} foot={preparing ? "Approved campaigns awaiting the next stage" : "No campaigns waiting"}/>
+      <Metric label="Companies" value="—" foot="Available when company discovery begins"/>
+      <Metric label="Pipeline" value="—" foot="Builds from real opportunities"/>
     </div>
     <div className="section hero">
       <div className="eyebrow" style={{ color: "#d8f6ff" }}>Recommended next action</div>
@@ -51,7 +51,7 @@ export default async function Home() {
         <div style={{ marginTop: 18 }}><ButtonLink href="/campaigns/new">Create campaign <ArrowRight size={16}/></ButtonLink></div>
       </> : <>
         <h2>Review your newest campaign</h2>
-        <p>{campaigns[0].name} is saved and {presentCampaignStatus(campaigns[0].status).toLowerCase()}. Company discovery is the next build stage.</p>
+        <p>{campaigns[0].name} is saved and {presentCampaignStatus(campaigns[0].status).toLowerCase()}. Company discovery is the next milestone.</p>
         <div style={{ marginTop: 18 }}><ButtonLink href={`/campaigns/${campaigns[0].id}`}>Open campaign <ArrowRight size={16}/></ButtonLink></div>
       </>}
     </div>

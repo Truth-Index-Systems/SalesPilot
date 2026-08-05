@@ -1,52 +1,128 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/shell";
 import { Card, PageHeader } from "@/components/ui";
-import { CheckCircle2, Circle } from "@/components/icons";
-import { getCampaign } from "@/lib/campaigns/repository";
+import { CheckCircle2, Circle, Target, Users, WandSparkles, ShieldCheck, Rocket, Building2, MessageSquareReply, BriefcaseBusiness } from "@/components/icons";
+import { getCampaign, listCampaigns } from "@/lib/campaigns/repository";
 import { presentCampaignDetail } from "@/lib/campaigns/presenter";
 import { requirePageUser } from "@/lib/auth/page-user";
 
 export const dynamic = "force-dynamic";
 
+function relativeTime(value: string): string {
+  const difference = Math.max(0, Date.now() - new Date(value).getTime());
+  const minutes = Math.floor(difference / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+function humanTimeline(title: string, description: string | null) {
+  const normalised = title.toLowerCase();
+  if (normalised.includes("business profile")) return { title: "Business understood", description: "SalesPilot completed and saved its approved understanding of your business." };
+  if (normalised.includes("strategy selected")) return { title: "Campaign approved", description: "Your chosen outbound sales campaign is now securely in place." };
+  if (normalised.includes("campaign created")) return { title: "Campaign saved", description: "Your outbound sales campaign and its first configuration have been saved." };
+  if (normalised.includes("preparation")) return { title: "Preparation started", description: "SalesPilot is ready for the company discovery stage when it is enabled." };
+  return { title, description };
+}
+
+const journey = [
+  ["Business", "complete"], ["Campaign", "complete"], ["Discovery", "current"],
+  ["Companies", "future"], ["Contacts", "future"], ["Outreach", "future"],
+  ["Replies", "future"], ["Opportunities", "future"],
+] as const;
+
 export default async function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePageUser(`/campaigns/${id}`);
   let record;
-  try { record = await getCampaign(id); } catch (error) { console.error("Campaign detail unavailable", error); }
+  let campaignCount = 1;
+  try {
+    record = await getCampaign(id);
+    campaignCount = (await listCampaigns()).length;
+  } catch (error) {
+    console.error("Campaign detail unavailable", error);
+  }
   if (!record) notFound();
   const campaign = presentCampaignDetail(record);
 
-  return <AppShell title={campaign.name} user={user}>
-    <PageHeader eyebrow={`${campaign.statusLabel} · ${campaign.modeLabel}`} title={campaign.name} subtitle="Your approved strategy, real progress and next stage in one place." action={<span className="badge green">{campaign.matchLabel} · {campaign.fitScore}/100</span>}/>
+  return <AppShell title={campaign.name} user={user} workspaceStats={{ campaigns: campaignCount, companies: 0, replies: 0, opportunities: 0 }}>
+    <PageHeader eyebrow="Outbound sales campaign" title={campaign.name} subtitle="Your approved campaign, current position and next milestone in one place." action={<span className="badge green">{campaign.matchLabel} · {campaign.fitScore}/100</span>}/>
 
-    <div className="hero">
-      <div className="eyebrow" style={{ color: "#d8f6ff" }}>Current progress</div>
-      <h2>{campaign.statusLabel}</h2>
-      <p>SalesPilot has saved the approved business profile and strategy. Company discovery has not started yet.</p>
-      <div className="campaign-progress section">
-        <div><CheckCircle2 size={18}/><span>Business understood</span></div>
-        <div><CheckCircle2 size={18}/><span>Strategy selected</span></div>
-        <div><CheckCircle2 size={18}/><span>Campaign created</span></div>
-        <div className="pending"><Circle size={18}/><span>Preparing company discovery</span></div>
+    <section className="campaign-summary-strip" aria-label="Campaign summary">
+      <div><span>Business</span><strong>{campaign.businessName}</strong></div>
+      <div className="summary-arrow">→</div>
+      <div><span>Audience</span><strong>{campaign.audience}</strong></div>
+      <div className="summary-arrow">→</div>
+      <div><span>Campaign mode</span><strong>{campaign.modeLabel}</strong></div>
+      <div className="summary-arrow">→</div>
+      <div><span>Confidence</span><strong>{campaign.fitScore}/100</strong></div>
+    </section>
+
+    <div className="hero campaign-control-centre">
+      <div className="campaign-control-copy">
+        <div className="eyebrow" style={{ color: "#d8f6ff" }}>Campaign status</div>
+        <h2>Your outbound sales campaign is ready.</h2>
+        <p>Business understanding and campaign approval are complete. SalesPilot is ready for the next stage: company discovery.</p>
+        <div className="campaign-readiness"><span/><strong>3 foundation stages complete</strong><small>Next milestone: Company discovery</small></div>
+      </div>
+      <div className="next-status-panel">
+        <span>Next milestone</span>
+        <strong>Company Discovery</strong>
+        <small>Ready when the discovery engine is connected</small>
+      </div>
+      <div className="campaign-roadmap" aria-label="Sales campaign journey">
+        {journey.map(([label, state], index) => <div className={`roadmap-stage ${state}`} key={label}>
+          <div className="roadmap-marker">{state === "complete" ? <CheckCircle2 size={18}/> : state === "current" ? <span className="roadmap-pulse"/> : <Circle size={16}/>}</div>
+          <span>{label}</span>{index < journey.length - 1 && <i/>}
+        </div>)}
       </div>
     </div>
 
-    <div className="grid cols-2 section">
-      <Card><div className="card-title">Campaign strategy</div><div className="card-subtitle">Version 1 · approved when the campaign was launched.</div>
-        <div className="strategy-row section"><div className="label">Objective</div><div className="value">{campaign.objective}</div></div>
-        <div className="strategy-row"><div className="label">Audience</div><div className="value">{campaign.audience}</div></div>
-        <div className="strategy-row"><div className="label">Buyers</div><div className="value">{campaign.buyerRoles.join(" · ")}</div></div>
-        <div className="strategy-row"><div className="label">Recommended message</div><div className="value">{campaign.messageAngle}</div></div>
+    <div className="grid cols-2 section campaign-primary-grid">
+      <Card className="strategy-card">
+        <div className="section-head"><div><div className="card-title">Campaign strategy</div><div className="card-subtitle">Version 1 · approved and securely saved.</div></div><span className="badge green">{campaign.fitScore}/100 confidence</span></div>
+        <div className="strategy-grid section">
+          <div className="strategy-item"><Target size={18}/><div><span>Objective</span><strong>{campaign.objective}</strong></div></div>
+          <div className="strategy-item"><Building2 size={18}/><div><span>Audience</span><strong>{campaign.audience}</strong></div></div>
+          <div className="strategy-item"><Users size={18}/><div><span>Buyer roles</span><strong>{campaign.buyerRoles.join(" · ")}</strong></div></div>
+          <div className="strategy-item"><WandSparkles size={18}/><div><span>Recommended message</span><strong>{campaign.messageAngle}</strong></div></div>
+          <div className="strategy-item"><ShieldCheck size={18}/><div><span>Campaign mode</span><strong>{campaign.modeLabel}</strong></div></div>
+          <div className="strategy-item"><Rocket size={18}/><div><span>Match quality</span><strong>{campaign.matchLabel}</strong></div></div>
+        </div>
       </Card>
-      <Card><div className="card-title">What happens next</div><div className="card-subtitle">The next build will connect this approved strategy to company discovery.</div>
-        <div className="recommendation section"><h3>Find matching companies</h3><p>SalesPilot will next search for companies that match the approved audience, explain why each one fits and hold uncertain results for review.</p></div>
-        <div className="section"><span className="badge">Not started yet</span></div>
+
+      <Card className="next-milestone-card">
+        <div className="eyebrow">Next milestone</div>
+        <div className="card-title large">Company Discovery</div>
+        <div className="card-subtitle">This stage begins when the company discovery engine is enabled.</div>
+        <div className="milestone-list section">
+          <div><CheckCircle2 size={17}/><span>Find companies matching the approved audience</span></div>
+          <div><CheckCircle2 size={17}/><span>Explain why every recommendation fits</span></div>
+          <div><CheckCircle2 size={17}/><span>Hold uncertain matches for review</span></div>
+          <div><CheckCircle2 size={17}/><span>Provide a confidence score for each result</span></div>
+        </div>
+        <div className="milestone-state"><span className="roadmap-pulse"/><div><strong>Ready for the next stage</strong><small>No company discovery has started yet.</small></div></div>
       </Card>
     </div>
 
     <div className="grid cols-2 section">
-      <Card><div className="card-title">Why this campaign</div>{campaign.why.map((reason, index) => <div className="activity" key={`${index}-${reason}`}><div className="dot"/><div><div className="name">Reason {index + 1}</div><div className="meta">{reason}</div></div></div>)}</Card>
-      <Card><div className="card-title">Campaign timeline</div><div className="card-subtitle">Only useful customer-facing progress is shown.</div>{campaign.timeline.map(entry => <div className="activity" key={entry.id}><div className="dot"/><div><div className="name">{entry.title}</div>{entry.description && <div className="meta">{entry.description}</div>}<div className="activity-time">{new Date(entry.occurredAt).toLocaleString("en-GB")}</div></div></div>)}</Card>
+      <Card>
+        <div className="card-title">Why SalesPilot recommended this strategy</div>
+        <div className="card-subtitle">The recommendation is grounded in evidence from your public website.</div>
+        <div className="recommendation-reasons section">{campaign.why.map((reason, index) => <div key={`${index}-${reason}`}><CheckCircle2 size={19}/><span>{reason}</span></div>)}</div>
+      </Card>
+      <Card>
+        <div className="card-title">Campaign timeline</div>
+        <div className="card-subtitle">Only useful customer-facing progress is shown.</div>
+        <div className="premium-timeline section">{campaign.timeline.map(entry => {
+          const presented = humanTimeline(entry.title, entry.description);
+          const exact = new Date(entry.occurredAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+          return <div className="timeline-entry" key={entry.id}><div className="timeline-icon"><CheckCircle2 size={17}/></div><div><div className="name">{presented.title}</div>{presented.description && <div className="meta">{presented.description}</div>}<time title={exact} dateTime={entry.occurredAt}>{relativeTime(entry.occurredAt)}</time></div></div>;
+        })}</div>
+      </Card>
     </div>
   </AppShell>;
 }
