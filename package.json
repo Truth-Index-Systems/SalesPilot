@@ -18,7 +18,8 @@
     "campaigns:check": "node scripts/validate-campaign-persistence.mjs",
     "auth:draft-check": "node scripts/validate-auth-draft-persistence.mjs",
     "auth:boundary-check": "node scripts/auth-boundary-check.mjs",
-    "landing:check": "node scripts/validate-public-landing.mjs"
+    "landing:check": "node scripts/validate-public-landing.mjs",
+    "analysis-progress:check": "node scripts/validate-analysis-progress.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

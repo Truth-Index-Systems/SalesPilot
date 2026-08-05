@@ -58,6 +58,16 @@ const CAMPAIGN_DRAFT_KEY = "salespilot:campaign-draft:v2";
 const LEGACY_CAMPAIGN_DRAFT_KEY = "salespilot:campaign-draft:v1";
 const CAMPAIGN_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+const ANALYSIS_STAGES = [
+  { label: "Website reached", detail: "Connecting securely to the public website." },
+  { label: "Reading your website", detail: "Reviewing services, products and sector pages." },
+  { label: "Understanding what you sell", detail: "Identifying the offer, proof points and positioning." },
+  { label: "Finding your ideal buyers", detail: "Looking for customer language and buying signals." },
+  { label: "Building your Business DNA", detail: "Structuring the strongest commercial understanding." },
+  { label: "Designing outbound sales campaigns", detail: "Creating and ranking focused campaign options." },
+  { label: "Preparing recommendations", detail: "Checking confidence before opening your review." },
+] as const;
+
 type CampaignDraft = {
   version: 2;
   savedAt: number;
@@ -117,6 +127,8 @@ export function CampaignWizard() {
     useState<AiEnvelope<BusinessDnaPayload> | null>(null);
   const [pagesRead, setPagesRead] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [analysisStage, setAnalysisStage] = useState(0);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
   const [error, setError] = useState<DiscoveryError | null>(null);
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState<LaunchError | null>(null);
@@ -138,6 +150,25 @@ export function CampaignWizard() {
     localStorage.setItem(CAMPAIGN_DRAFT_KEY, JSON.stringify(draft));
     sessionStorage.removeItem(LEGACY_CAMPAIGN_DRAFT_KEY);
   }, []);
+
+  useEffect(() => {
+    if (!loading) return;
+
+    setAnalysisStage(0);
+    setAnalysisComplete(false);
+
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const nextStage = Math.min(
+        ANALYSIS_STAGES.length - 1,
+        Math.floor(elapsed / 3200),
+      );
+      setAnalysisStage(nextStage);
+    }, 350);
+
+    return () => window.clearInterval(timer);
+  }, [loading]);
 
   useEffect(() => {
     if (!result || !result.payload.campaigns[selected]) return;
@@ -236,6 +267,10 @@ export function CampaignWizard() {
         });
         return;
       }
+
+      setAnalysisStage(ANALYSIS_STAGES.length - 1);
+      setAnalysisComplete(true);
+      await new Promise(resolve => window.setTimeout(resolve, 650));
 
       setUrl(data.canonicalUrl);
       setResult(data.analysis);
@@ -449,23 +484,62 @@ export function CampaignWizard() {
             </div>
           </div>
 
-          <div className="hero">
-            <div
-              className="eyebrow"
-              style={{ color: "#d8f6ff" }}
-            >
-              One input. A complete strategy.
-            </div>
+          <div className={`hero analysis-panel ${loading ? "is-analysing" : ""}`}>
+            {loading ? (
+              <div className="analysis-progress" aria-live="polite">
+                <div className="analysis-progress-head">
+                  <div>
+                    <div className="eyebrow" style={{ color: "#d8f6ff" }}>
+                      Understanding your business
+                    </div>
+                    <h2>{analysisComplete ? "Business understood" : "SalesPilot is analysing your website"}</h2>
+                  </div>
+                  <span className="analysis-percent">
+                    {analysisComplete ? 100 : Math.min(92, 12 + analysisStage * 13)}%
+                  </span>
+                </div>
 
-            <h2>
-              Your first campaign should not start with forms.
-            </h2>
+                <div className="analysis-track" aria-hidden="true">
+                  <span style={{ width: `${analysisComplete ? 100 : Math.min(92, 12 + analysisStage * 13)}%` }} />
+                </div>
 
-            <p>
-              SalesPilot first learns the business, then proposes
-              the answer. You stay in control while the complexity
-              remains in the background.
-            </p>
+                <div className="analysis-stage-list">
+                  {ANALYSIS_STAGES.map((stage, index) => {
+                    const complete = analysisComplete || index < analysisStage;
+                    const active = !analysisComplete && index === analysisStage;
+
+                    return (
+                      <div
+                        key={stage.label}
+                        className={`analysis-stage ${complete ? "complete" : ""} ${active ? "active" : ""}`}
+                      >
+                        <span className="analysis-stage-icon">
+                          {complete ? <CheckCircle2 size={18} /> : active ? <Sparkles size={17} /> : <span />}
+                        </span>
+                        <div>
+                          <strong>{stage.label}</strong>
+                          {(active || complete) && <p>{stage.detail}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <p className="analysis-privacy">
+                  SalesPilot only analyses information that is publicly available on your website.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="eyebrow" style={{ color: "#d8f6ff" }}>
+                  One input. A complete strategy.
+                </div>
+                <h2>Your first campaign should not start with forms.</h2>
+                <p>
+                  SalesPilot first learns the business, then proposes the answer. You stay in control while the complexity remains in the background.
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}
