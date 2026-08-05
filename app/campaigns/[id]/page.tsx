@@ -31,12 +31,6 @@ function humanTimeline(title: string, description: string | null) {
   return { title, description };
 }
 
-const journey = [
-  ["Business", "complete"], ["Campaign", "complete"], ["Discovery", "current"],
-  ["Companies", "future"], ["Contacts", "future"], ["Outreach", "future"],
-  ["Replies", "future"], ["Opportunities", "future"],
-] as const;
-
 export default async function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePageUser(`/campaigns/${id}`);
@@ -61,6 +55,13 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const discoveryFailed = discovery?.status === "FAILED";
   const progress = Number(discovery?.progress ?? 0);
   const stageLabel = ({PREPARING:"Preparing company discovery",SEARCHING:"Searching for matching companies",ANALYSING:"Analysing company fit",VALIDATING:"Validating evidence",SAVING:"Saving recommendations",COMPLETE:"Companies ready for review"} as Record<string,string>)[discovery?.stage] ?? "Preparing company discovery";
+  const journey = [
+    ["Business", "complete"], ["Campaign", "complete"],
+    ["Discovery", discoveryComplete ? "complete" : "current"],
+    ["Companies", discoveryComplete ? "current" : "future"],
+    ["Contacts", "future"], ["Outreach", "future"],
+    ["Replies", "future"], ["Opportunities", "future"],
+  ] as const;
 
   return <AppShell title={campaign.name} user={user} workspaceStats={{ campaigns: campaignCount, companies: companyCount, replies: 0, opportunities: 0 }}>
     <PageHeader eyebrow="Outbound sales campaign" title={campaign.name} subtitle="Your approved campaign, current position and next milestone in one place." action={<span className="badge green">{campaign.matchLabel} · {campaign.fitScore}/100</span>}/>
@@ -86,9 +87,9 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         <DiscoveryActivityTicker campaignId={id} initialDiscovery={discovery} initialActivities={discoveryActivities} initialCompanyCount={companyCount}/>
       </div>
       <div className="next-status-panel">
-        <span>Next milestone</span>
-        <strong>{discoveryComplete ? "Companies ready" : "Company Discovery"}</strong>
-        <small>{discoveryComplete ? `${companyCount} recommendations available` : stageLabel}</small>
+        <span>{discoveryComplete ? "Next autonomous stage" : "Next milestone"}</span>
+        <strong>{discoveryComplete ? "Company Review" : "Company Discovery"}</strong>
+        <small>{discoveryComplete ? `${companyCount} recommendations ready for your decision` : stageLabel}</small>
       </div>
       <div className="campaign-roadmap" aria-label="Sales campaign journey">
         {journey.map(([label, state], index) => <div className={`roadmap-stage ${state}`} key={label}>
@@ -112,9 +113,9 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       </Card>
 
       <Card className="next-milestone-card">
-        <div className="eyebrow">Next milestone</div>
-        <div className="card-title large">Company Discovery</div>
-        <div className="card-subtitle">{discoveryComplete ? "Evidence-backed recommendations are ready for review." : "SalesPilot has started this stage automatically from your approved campaign."}</div>
+        <div className="eyebrow">{discoveryComplete ? "Current autonomous stage" : "Next milestone"}</div>
+        <div className="card-title large">{discoveryComplete ? "Company Review" : "Company Discovery"}</div>
+        <div className="card-subtitle">{discoveryComplete ? "Review the evidence-backed recommendations and approve the strongest commercial matches." : "SalesPilot has started this stage automatically from your approved campaign."}</div>
         <div className="milestone-list section">
           <div><CheckCircle2 size={17}/><span>Find companies matching the approved audience</span></div>
           <div><CheckCircle2 size={17}/><span>Explain why every recommendation fits</span></div>

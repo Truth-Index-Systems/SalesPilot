@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle2, ShieldCheck } from "@/components/icons";
 
 type CompanyRow = {
   id: string;
@@ -19,7 +20,17 @@ type CompanyRow = {
 };
 
 function statusLabel(value: string) {
-  return ({ PENDING_REVIEW: "Awaiting review", APPROVED: "Approved", REJECTED: "Rejected", ARCHIVED: "Archived" } as Record<string, string>)[value] ?? "Awaiting review";
+  return ({ PENDING_REVIEW: "Awaiting review", APPROVED: "Approved", REJECTED: "Not selected", ARCHIVED: "Archived" } as Record<string, string>)[value] ?? "Awaiting review";
+}
+
+function matchTone(value: string) {
+  if (value === "Strongest match") return "strongest";
+  if (value === "Strong match") return "strong";
+  return "good";
+}
+
+function confidenceStars(score: number) {
+  return Math.max(1, Math.min(5, Math.round(score / 20)));
 }
 
 export function CompanyReviewQueue({ rows }: { rows: CompanyRow[] }) {
@@ -62,14 +73,25 @@ export function CompanyReviewQueue({ rows }: { rows: CompanyRow[] }) {
       <button className="button secondary" disabled={!selected.length || !!busy} onClick={() => review("REJECTED")}>{busy === "REJECTED" ? "Saving…" : "Reject selected"}</button>
     </div>
     {error && <p className="review-error" role="alert">{error}</p>}
-    <div className="company-card-grid">{rows.map(row => <article className={`card company-result-card reviewable ${selectedSet.has(row.id) ? "selected" : ""}`} key={row.id}>
-      <label className="company-select"><input type="checkbox" checked={selectedSet.has(row.id)} onChange={() => toggle(row.id)} aria-label={`Select ${row.company_name}`} /></label>
-      <Link href={`/companies/${row.id}`} className="company-card-link">
-        <div className="company-result-head"><div><span className="eyebrow">{row.campaign_name}</span><h3>{row.company_name}</h3></div><span className="badge green">Verified · {row.confidence}/100</span></div>
-        <p>{row.summary}</p>
-        <div className="company-result-meta"><span>{row.industry || "Industry not confirmed"}</span><span>{row.country || "Location not confirmed"}</span><span>{row.evidence_count} verified source{Number(row.evidence_count) === 1 ? "" : "s"}</span><span>Evidence {row.evidence_quality ?? "—"}/100</span></div>
-        <div className="company-result-footer"><span className={`review-status ${row.review_status.toLowerCase()}`}>{statusLabel(row.review_status)}</span><strong>{row.match_label}</strong></div>
-      </Link>
-    </article>)}</div>
+    <div className="company-card-grid">{rows.map(row => {
+      const evidenceQuality = row.evidence_quality ?? 0;
+      return <article className={`card company-result-card reviewable ${selectedSet.has(row.id) ? "selected" : ""}`} key={row.id}>
+        <label className="company-select"><input type="checkbox" checked={selectedSet.has(row.id)} onChange={() => toggle(row.id)} aria-label={`Select ${row.company_name}`} /></label>
+        <Link href={`/companies/${row.id}`} className="company-card-link">
+          <div className="company-result-head">
+            <div className="company-title-block"><span className="eyebrow">{row.campaign_name}</span><h3>{row.company_name}</h3><div className={`match-chip ${matchTone(row.match_label)}`}>{row.match_label}</div></div>
+            <div className="confidence-panel" aria-label={`${row.confidence} out of 100 confidence`}>
+              <div className="confidence-stars" aria-hidden="true">{"★".repeat(confidenceStars(row.confidence))}{"☆".repeat(5 - confidenceStars(row.confidence))}</div>
+              <strong>{row.confidence}/100</strong>
+              <span><ShieldCheck size={13}/> Verified</span>
+            </div>
+          </div>
+          <p className="company-summary-card">{row.summary}</p>
+          <div className="company-result-meta"><span>{row.industry || "Industry not confirmed"}</span><span>{row.country || "Location not confirmed"}</span><span><CheckCircle2 size={13}/> {row.evidence_count} official source{Number(row.evidence_count) === 1 ? "" : "s"}</span></div>
+          <div className="evidence-meter"><div><span>Evidence quality</span><strong>{evidenceQuality}/100</strong></div><div className="evidence-meter-track"><span style={{ width: `${evidenceQuality}%` }}/></div></div>
+          <div className="company-result-footer"><span className={`review-status ${row.review_status.toLowerCase()}`}>{statusLabel(row.review_status)}</span><span className="open-report">Open company report →</span></div>
+        </Link>
+      </article>;
+    })}</div>
   </>;
 }

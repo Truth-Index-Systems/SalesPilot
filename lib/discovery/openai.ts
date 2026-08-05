@@ -9,22 +9,14 @@ const ENDPOINT = "https://api.openai.com/v1/responses";
 function outputText(value: unknown): string {
   const data = value as {
     output_text?: unknown;
-    output?: Array<{
-      content?: Array<{
-        text?: unknown;
-      }>;
-    }>;
+    output?: Array<{ content?: Array<{ text?: unknown }> }>;
   };
 
-  if (typeof data.output_text === "string") {
-    return data.output_text;
-  }
+  if (typeof data.output_text === "string") return data.output_text;
 
   for (const item of data.output ?? []) {
     for (const part of item.content ?? []) {
-      if (typeof part.text === "string") {
-        return part.text;
-      }
+      if (typeof part.text === "string") return part.text;
     }
   }
 
@@ -42,13 +34,8 @@ const companyDiscoveryJsonSchema = {
   additionalProperties: false,
   required: ["schemaVersion", "searchSummary", "companies"],
   properties: {
-    schemaVersion: {
-      type: "string",
-      enum: ["company-discovery/v2"],
-    },
-    searchSummary: {
-      type: "string",
-    },
+    schemaVersion: { type: "string", enum: ["company-discovery/v2"] },
+    searchSummary: { type: "string" },
     companies: {
       type: "array",
       minItems: 1,
@@ -57,54 +44,25 @@ const companyDiscoveryJsonSchema = {
         type: "object",
         additionalProperties: false,
         required: [
-          "name",
-          "websiteUrl",
-          "country",
-          "industry",
-          "summary",
-          "confidence",
-          "matchLabel",
-          "fitBreakdown",
-          "why",
-          "uncertainties",
-          "riskFlags",
-          "evidence",
+          "name", "websiteUrl", "country", "industry", "summary",
+          "confidence", "matchLabel", "fitBreakdown", "why",
+          "uncertainties", "riskFlags", "evidence",
         ],
         properties: {
-          name: {
-            type: "string",
-          },
-          websiteUrl: {
-            type: "string",
-          },
-          country: {
-            type: "string",
-          },
-          industry: {
-            type: "string",
-          },
-          summary: {
-            type: "string",
-          },
+          name: { type: "string" },
+          websiteUrl: { type: "string" },
+          country: { type: "string" },
+          industry: { type: "string" },
+          summary: { type: "string" },
           confidence: scoreSchema,
           matchLabel: {
             type: "string",
-            enum: [
-              "Strongest match",
-              "Strong match",
-              "Good match",
-            ],
+            enum: ["Strongest match", "Strong match", "Good match"],
           },
           fitBreakdown: {
             type: "object",
             additionalProperties: false,
-            required: [
-              "industryFit",
-              "audienceFit",
-              "operationalFit",
-              "geographyFit",
-              "commercialFit",
-            ],
+            required: ["industryFit", "audienceFit", "operationalFit", "geographyFit", "commercialFit"],
             properties: {
               industryFit: scoreSchema,
               audienceFit: scoreSchema,
@@ -113,49 +71,21 @@ const companyDiscoveryJsonSchema = {
               commercialFit: scoreSchema,
             },
           },
-          why: {
-            type: "array",
-            items: {
-              type: "string",
-            },
-          },
-          uncertainties: {
-            type: "array",
-            items: {
-              type: "string",
-            },
-          },
-          riskFlags: {
-            type: "array",
-            items: {
-              type: "string",
-            },
-          },
+          why: { type: "array", items: { type: "string" } },
+          uncertainties: { type: "array", items: { type: "string" } },
+          riskFlags: { type: "array", items: { type: "string" } },
           evidence: {
             type: "array",
             minItems: 1,
             items: {
               type: "object",
               additionalProperties: false,
-              required: [
-                "claim",
-                "sourceUrl",
-                "sourceTitle",
-                "excerpt",
-              ],
+              required: ["claim", "sourceUrl", "sourceTitle", "excerpt"],
               properties: {
-                claim: {
-                  type: "string",
-                },
-                sourceUrl: {
-                  type: "string",
-                },
-                sourceTitle: {
-                  type: ["string", "null"],
-                },
-                excerpt: {
-                  type: ["string", "null"],
-                },
+                claim: { type: "string" },
+                sourceUrl: { type: "string" },
+                sourceTitle: { type: ["string", "null"] },
+                excerpt: { type: ["string", "null"] },
               },
             },
           },
@@ -171,21 +101,11 @@ type DiscoverCompaniesInput = {
   customerWebsite?: string | null;
 };
 
-type OpenAIErrorResponse = {
-  error?: unknown;
-};
-
-export async function discoverCompanies(
-  input: DiscoverCompaniesInput,
-) {
+export async function discoverCompanies(input: DiscoverCompaniesInput) {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
-
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
-  }
+  if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
 
   const model = resolveOpenAIModel("analysis").model;
-
   const response = await fetch(ENDPOINT, {
     method: "POST",
     cache: "no-store",
@@ -211,12 +131,7 @@ export async function discoverCompanies(
         approvedBusinessUnderstanding: input.business,
         customerWebsite: input.customerWebsite ?? null,
       }),
-      tools: [
-        {
-          type: "web_search_preview",
-          search_context_size: "medium",
-        },
-      ],
+      tools: [{ type: "web_search_preview", search_context_size: "medium" }],
       text: {
         format: {
           type: "json_schema",
@@ -231,30 +146,18 @@ export async function discoverCompanies(
   });
 
   const json: unknown = await response.json().catch(() => null);
-
   if (!response.ok) {
-    const errorResponse = json as OpenAIErrorResponse | null;
-
-    throw new Error(
-      `OPENAI_DISCOVERY_FAILED:${response.status}:${JSON.stringify(
-        errorResponse?.error ?? null,
-      )}`,
-    );
+    const errorResponse = json as { error?: unknown } | null;
+    throw new Error(`OPENAI_DISCOVERY_FAILED:${response.status}:${JSON.stringify(errorResponse?.error ?? null)}`);
   }
 
-  const rawOutput = outputText(json);
-
   let decodedOutput: unknown;
-
   try {
-    decodedOutput = JSON.parse(rawOutput);
+    decodedOutput = JSON.parse(outputText(json));
   } catch {
     throw new Error("DISCOVERY_RESPONSE_INVALID_JSON");
   }
 
   const parsed = CompanyDiscoveryResultSchema.parse(decodedOutput);
-
-  return normaliseDiscoveryResult(parsed, {
-    customerWebsite: input.customerWebsite,
-  });
+  return normaliseDiscoveryResult(parsed, { customerWebsite: input.customerWebsite });
 }
