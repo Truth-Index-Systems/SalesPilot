@@ -19,6 +19,7 @@ function classify(error:unknown){
 export async function runBusinessAnalysisJob(id:string,token:string){
   const job=await claimBusinessAnalysisJob(id,token);
   if(!job)return {claimed:false as const};
+  if(typeof job.website_input!=="string"||!job.website_input.trim())return {claimed:false as const};
   const started=Date.now();
   try{
     const website=await readWebsite(job.website_input);

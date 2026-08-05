@@ -1,5 +1,6 @@
 import { promises as dns } from "node:dns";
 import { isIP } from "node:net";
+import { safeText } from "@/lib/shared/text";
 
 export type WebsiteSource = { url: string; title: string; text: string };
 export type WebsiteReadErrorCode =
@@ -23,8 +24,8 @@ const MAX_CHARS_PER_PAGE = 12000;
 const MAX_REDIRECTS = 5;
 const BLOCKED_HOSTS = new Set(["localhost", "0.0.0.0", "127.0.0.1", "::1"]);
 
-export function normalizeWebsiteUrl(input: string): URL {
-  const raw = input.trim();
+export function normalizeWebsiteUrl(input: string | null | undefined): URL {
+  const raw = safeText(input);
   if (!raw) throw new WebsiteReadError("INVALID_URL", "A website address is required.");
 
   try {

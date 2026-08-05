@@ -35,8 +35,13 @@ export async function getBusinessAnalysisJob(id:string,token:string){
 }
 
 export async function claimBusinessAnalysisJob(id:string,token:string){
-  const rows=await databaseRequest<BusinessAnalysisJob[]|BusinessAnalysisJob>("rpc/claim_business_analysis_job",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_lease_seconds:240})});
-  return Array.isArray(rows)?rows[0]??null:rows;
+  const rows=await databaseRequest<BusinessAnalysisJob[]|BusinessAnalysisJob|null>("rpc/claim_business_analysis_job",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_lease_seconds:240})});
+  const claimed=Array.isArray(rows)?rows[0]??null:rows;
+  // PostgreSQL composite-returning functions can serialise an unmatched row as
+  // an object whose fields are all null. Treat that as "not claimed".
+  if(!claimed||typeof claimed.id!=="string"||!claimed.id)return null;
+  if(typeof claimed.website_input!=="string"||!claimed.website_input.trim())return null;
+  return claimed;
 }
 export async function updateBusinessAnalysisProgress(id:string,token:string,stage:string,progress:number,canonicalUrl?:string,pagesRead?:number){
   await databaseRequest("rpc/update_business_analysis_progress",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_stage:stage,p_progress:progress,p_canonical_url:canonicalUrl??null,p_pages_read:pagesRead??null})});

@@ -335,7 +335,8 @@ export function CampaignWizard() {
       const saved = { jobId: data.job.id, accessToken: data.accessToken, savedAt: Date.now() } satisfies SavedAnalysisJob;
       localStorage.setItem(ANALYSIS_JOB_KEY, JSON.stringify(saved));
       setAnalysisJob(data.job);
-      void runAnalysisJob(data.job.id, data.accessToken);
+      // monitorAnalysisJob owns the single worker dispatch. Starting it here as
+      // well caused two concurrent claim attempts for the same persisted job.
       await monitorAnalysisJob(data.job.id, data.accessToken);
     } catch (reason) {
       console.error("Website analysis request failed", reason);
