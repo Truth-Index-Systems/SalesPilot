@@ -4,7 +4,7 @@ import { Card, PageHeader } from "@/components/ui";
 import { ContactReviewQueue } from "@/components/contact-review-queue";
 import { ContactAutoRefresh } from "@/components/contact-auto-refresh";
 import { requirePageUser } from "@/lib/auth/page-user";
-import { contactCounts, listContacts, listContactDiscoveryActivity, type ContactFilters } from "@/lib/contacts/repository";
+import { contactCounts, listContacts, listContactDiscoveryActivity, listCompanyContactChannels, type ContactFilters } from "@/lib/contacts/repository";
 import { companyCounts, listCompanies } from "@/lib/discovery/repository";
 import { listCampaigns } from "@/lib/campaigns/repository";
 import { Activity, ArrowRight, CheckCircle2, Search, ShieldCheck, Mail, ExternalLink } from "@/components/icons";
@@ -20,8 +20,8 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
   const status = ["PENDING_REVIEW","APPROVED","REJECTED","HOLD","ARCHIVED"].includes(search.status ?? "") ? search.status as ContactFilters["status"] : undefined;
   const confidence = ["HIGH","MEDIUM","LOW","VERIFIED","LIKELY","POSSIBLE","UNKNOWN"].includes(search.confidence ?? "") ? search.confidence as ContactFilters["confidence"] : undefined;
   const filters: ContactFilters = { status, campaignId: search.campaign, query: search.q?.trim(), confidence };
-  const [rows, counts, allCounts, companies, companyRows, campaigns, activity] = await Promise.all([
-    listContacts(filters), contactCounts({ campaignId: search.campaign }), contactCounts(), companyCounts(), listCompanies({ status: "APPROVED" }), listCampaigns(), listContactDiscoveryActivity(),
+  const [rows, counts, allCounts, companies, companyRows, campaigns, activity, companyChannels] = await Promise.all([
+    listContacts(filters), contactCounts({ campaignId: search.campaign }), contactCounts(), companyCounts(), listCompanies({ status: "APPROVED" }), listCampaigns(), listContactDiscoveryActivity(), listCompanyContactChannels({ campaignId: search.campaign }),
   ]);
   const companyById = new Map(companyRows.map(row => [row.id, row.company_name]));
   const activeSessions = activity.filter(row => ["QUEUED","RUNNING"].includes(row.status));
@@ -35,6 +35,9 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
   const likelyEmails = rows.filter(row => row.email_status === "LIKELY").length;
   const linkedInProfiles = rows.filter(row => Boolean(row.linkedin_profile_url)).length;
   const reachableApproved = rows.filter(row => row.review_status === "APPROVED" && (row.email_address || row.linkedin_profile_url)).length;
+  const primaryRoutes = companyChannels.filter(row => row.is_primary);
+  const publicVerifiedRoutes = companyChannels.filter(row => row.verification_status === "PUBLIC_VERIFIED").length;
+  const companiesWithRoutes = new Set(companyChannels.map(row => row.company_id)).size;
 
   return <AppShell title="Contacts" user={user} workspaceStats={{ campaigns: campaigns.length, companies: companies.total, replies: 0, opportunities: 0 }}>
     <ContactAutoRefresh active={researching > 0}/><PageHeader eyebrow="Autonomous contact discovery" title="Decision-maker review" subtitle="SalesPilot researches the right people inside approved companies, verifies the evidence, and pauses for human judgement before outreach." />
@@ -68,6 +71,7 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
 
     <Card className="company-review-summary contact-review-summary"><div><span>Awaiting review</span><strong>{counts.pending}</strong></div><div><span>Approved</span><strong>{counts.approved}</strong></div><div><span>Verified emails</span><strong>{verifiedEmails}</strong><small>{likelyEmails} likely</small></div><div><span>LinkedIn profiles</span><strong>{linkedInProfiles}</strong></div></Card>
     <Card className="contact-channel-summary"><div className="section-head"><div><div className="card-title">Outreach channel readiness</div><div className="card-subtitle">SalesPilot only exposes contact methods supported by transparent evidence.</div></div><ShieldCheck size={20}/></div><div className="channel-readiness-grid section"><div><Mail size={17}/><span>Email coverage</span><strong>{verifiedEmails + likelyEmails}</strong><small>{verifiedEmails} verified · {likelyEmails} likely</small></div><div><ExternalLink size={17}/><span>LinkedIn coverage</span><strong>{linkedInProfiles}</strong><small>Matched public profiles</small></div><div><CheckCircle2 size={17}/><span>Approved and reachable</span><strong>{reachableApproved}</strong><small>Ready for G4 channel selection</small></div></div></Card>
+    <Card className="company-route-card"><div className="section-head"><div><div className="card-title">Best routes into each business</div><div className="card-subtitle">SalesPilot searches every official company email route, ranks who is most likely to read and respond, and remembers what works.</div></div><Mail size={20}/></div><div className="company-route-summary section"><div><span>Companies with a route</span><strong>{companiesWithRoutes}</strong></div><div><span>Publicly verified emails</span><strong>{publicVerifiedRoutes}</strong></div><div><span>Primary routes selected</span><strong>{primaryRoutes.length}</strong></div></div>{primaryRoutes.length?<div className="company-route-list section">{primaryRoutes.slice(0,6).map(route=><div className="company-route-item" key={route.id}><div className="company-route-rank">{route.routing_score}</div><div><strong>{route.email_address}</strong><span>{companyById.get(route.company_id)??"Approved company"} · {route.likely_reader}</span><small>{route.reason_selected}</small></div><span className={`route-status ${route.verification_status.toLowerCase()}`}>{route.verification_status.replaceAll("_"," ").toLowerCase()}</span><a href={route.source_url} target="_blank" rel="noreferrer" aria-label="Open email evidence"><ExternalLink size={15}/></a></div>)}</div>:<div className="contact-activity-empty section"><Search size={18}/><span>Company email routes will appear as autonomous research completes.</span></div>}</Card>
     <form className="company-search-controls" action="/contacts" method="get">
       <input name="q" defaultValue={search.q} placeholder="Search name, role, company or location" aria-label="Search contacts" />
       <select name="campaign" defaultValue={search.campaign ?? ""}><option value="">All campaigns</option>{campaigns.map(c => <option value={c.id} key={c.id}>{c.name}</option>)}</select>

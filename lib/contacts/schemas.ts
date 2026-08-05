@@ -53,9 +53,27 @@ export const DiscoveredContactSchema = z.object({
   evidence: z.array(ContactEvidenceSchema).min(1).max(14),
 });
 
+export const CompanyContactChannelSchema = z.object({
+  emailAddress: z.string().email().max(320),
+  channelType: z.enum(["NAMED", "DEPARTMENTAL", "GENERAL"]),
+  department: z.string().max(180).optional().nullable(),
+  associatedContactName: z.string().max(180).optional().nullable(),
+  likelyReader: z.string().min(1).max(300),
+  reasonSelected: z.string().min(1).max(600),
+  verificationStatus: z.enum(["PUBLIC_VERIFIED", "PATTERN_LIKELY"]),
+  confidence: z.number().int().min(0).max(100),
+  routingScore: z.number().int().min(0).max(100),
+  responseLikelihood: z.number().int().min(0).max(100),
+  campaignRelevance: z.number().int().min(0).max(100),
+  sourceUrl: z.string().url(),
+  sourceTitle: z.string().max(240).optional().nullable(),
+  evidenceExcerpt: z.string().min(1).max(900),
+});
+
 export const ContactDiscoveryResultSchema = z.object({
-  schemaVersion: z.literal("contact-discovery/v2"), companyId: z.string().uuid(),
+  schemaVersion: z.literal("contact-discovery/v3"), companyId: z.string().uuid(),
   researchSummary: z.string().min(1).max(900), contacts: z.array(DiscoveredContactSchema).max(20),
+  companyContactChannels: z.array(CompanyContactChannelSchema).max(30),
   unresolvedRoles: z.array(z.string().min(1).max(180)).max(20), uncertainties: z.array(z.string().min(1).max(500)).max(12),
 });
 
@@ -66,4 +84,5 @@ export type ContactLinkedInStatus = z.infer<typeof ContactLinkedInStatusSchema>;
 export type ContactEvidence = z.infer<typeof ContactEvidenceSchema>;
 export type ContactConfidence = z.infer<typeof ContactConfidenceSchema>;
 export type DiscoveredContact = z.infer<typeof DiscoveredContactSchema>;
+export type CompanyContactChannel = z.infer<typeof CompanyContactChannelSchema>;
 export type ContactDiscoveryResult = z.infer<typeof ContactDiscoveryResultSchema>;

@@ -73,3 +73,11 @@ export async function listContactDiscoveryActivity() {
     `contact_discovery_sessions?organisation_id=eq.${context.organisationId}&order=updated_at.desc&limit=50`,
   );
 }
+
+export async function listCompanyContactChannels(filters?: { campaignId?: string; companyId?: string }) {
+  const context = await requireOrganisationContext();
+  let path = `company_contact_channels?organisation_id=eq.${context.organisationId}&order=is_primary.desc,routing_score.desc,created_at.desc`;
+  if (filters?.campaignId) path += `&campaign_id=eq.${encodeURIComponent(filters.campaignId)}`;
+  if (filters?.companyId) path += `&company_id=eq.${encodeURIComponent(filters.companyId)}`;
+  return databaseRequest<any[]>(path);
+}

@@ -19,6 +19,7 @@ export async function runNextContactDiscovery():Promise<{processed:boolean;sessi
     await databaseRequest("rpc/update_contact_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"RESEARCHING",p_progress:30})});
     const result=await discoverContacts({company,campaign:{name:campaign.name,objective:campaign.objective,audience:campaign.audience,buyerRoles:campaign.buyer_roles,messageAngle:campaign.message_angle},business});
     await databaseRequest("rpc/update_contact_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"VALIDATING",p_progress:72,p_candidates:result.contacts.length})});
+    await databaseRequest("rpc/save_company_contact_channels",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_channels:result.companyContactChannels})});
     if(result.contacts.length===0){
       const completed=Number(await databaseRequest<number>("rpc/complete_contact_discovery_without_matches",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_research_summary:result.researchSummary,p_uncertainties:result.uncertainties,p_unresolved_roles:result.unresolvedRoles})}));
       return {processed:true,sessionId:job.session_id,saved:completed};

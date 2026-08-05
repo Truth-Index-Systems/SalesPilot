@@ -8,10 +8,11 @@ const score={type:"integer",minimum:0,maximum:100} as const;
 const nullableString={type:["string","null"]} as const;
 const schema={
   type:"object",additionalProperties:false,
-  required:["schemaVersion","companyId","researchSummary","contacts","unresolvedRoles","uncertainties"],
+  required:["schemaVersion","companyId","researchSummary","contacts","companyContactChannels","unresolvedRoles","uncertainties"],
   properties:{
-    schemaVersion:{type:"string",enum:["contact-discovery/v2"]}, companyId:{type:"string"}, researchSummary:{type:"string"},
+    schemaVersion:{type:"string",enum:["contact-discovery/v3"]}, companyId:{type:"string"}, researchSummary:{type:"string"},
     unresolvedRoles:{type:"array",items:{type:"string"}}, uncertainties:{type:"array",items:{type:"string"}},
+    companyContactChannels:{type:"array",maxItems:30,items:{type:"object",additionalProperties:false,required:["emailAddress","channelType","department","associatedContactName","likelyReader","reasonSelected","verificationStatus","confidence","routingScore","responseLikelihood","campaignRelevance","sourceUrl","sourceTitle","evidenceExcerpt"],properties:{emailAddress:{type:"string"},channelType:{type:"string",enum:["NAMED","DEPARTMENTAL","GENERAL"]},department:nullableString,associatedContactName:nullableString,likelyReader:{type:"string"},reasonSelected:{type:"string"},verificationStatus:{type:"string",enum:["PUBLIC_VERIFIED","PATTERN_LIKELY"]},confidence:score,routingScore:score,responseLikelihood:score,campaignRelevance:score,sourceUrl:{type:"string"},sourceTitle:nullableString,evidenceExcerpt:{type:"string"}}}},
     contacts:{type:"array",maxItems:20,items:{type:"object",additionalProperties:false,
       required:["fullName","roleTitle","department","location","reasonSelected","confidence","email","linkedin","unknowns","riskFlags","evidence"],
       properties:{
@@ -39,13 +40,16 @@ export async function discoverContacts(input:{company:Record<string,unknown>;cam
       "Never use people-search databases, scraped personal databases, data brokers, random directories, or unverifiable snippets.",
       "Never invent a person, title, department, location, email address, LinkedIn profile, source, quote, or employment status.",
       "A contact must have independent evidence for both identity and current role. Return uncertainty instead of guessing.",
-      "For email: VERIFIED requires the exact personal address on an official source. LIKELY is permitted only when an official company-domain email convention is explicitly supported by official evidence; explain the pattern and never label it verified. Otherwise return UNKNOWN with null address.",
+      "For a named person email: VERIFIED requires the exact personal address on an official source. LIKELY is permitted only when an official company-domain convention is explicitly supported by official evidence; explain the pattern and never label it verified. Otherwise return UNKNOWN with null address.",
+      "Separately search the company website and other official public sources for every useful company-domain business email route: named, departmental and general inboxes. Rank each route for this campaign using likely reader, operational relevance, response likelihood and routing score.",
+      "A PUBLIC_VERIFIED company channel must show the exact email on the cited official page. PATTERN_LIKELY may only be returned when the official source explicitly demonstrates the company naming convention. Never manufacture an address from a name alone.",
+      "Prefer operational, commercial, projects, manufacturing, logistics, warehouse, enquiries and other monitored routes over generic info addresses when evidence supports them. Include generic routes when they are the only legitimate path into the company.",
       "For LinkedIn: only return a direct linkedin.com/in profile URL when the name, employer, and role match the contact. VERIFIED requires direct strong matching evidence; HIGH_CONFIDENCE is allowed when the match is strong but not independently confirmed. Otherwise return UNKNOWN with null URL.",
       "Provide EMAIL and LINKEDIN evidence entries whenever a channel is returned. The evidence must support the stated status.",
       "Prioritise operational buying roles relevant to the approved campaign. Only return supported roles. Use British English."
     ].join(" "),
     input:JSON.stringify(input),tools:[{type:"web_search_preview",search_context_size:"high"}],
-    text:{format:{type:"json_schema",name:"salespilot_contact_discovery_v2",strict:true,schema}},max_output_tokens:15000,store:false
+    text:{format:{type:"json_schema",name:"salespilot_contact_discovery_v3",strict:true,schema}},max_output_tokens:15000,store:false
   })});
   const json:unknown=await response.json().catch(()=>null);
   if(!response.ok)throw new Error(`OPENAI_CONTACT_DISCOVERY_FAILED:${response.status}:${JSON.stringify((json as any)?.error??null)}`);

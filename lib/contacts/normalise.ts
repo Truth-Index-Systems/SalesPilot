@@ -1,4 +1,4 @@
-import type { ContactDiscoveryResult, DiscoveredContact } from "./schemas";
+import type { ContactDiscoveryResult, DiscoveredContact, CompanyContactChannel } from "./schemas";
 function clean(value:string|null|undefined,max=900){return(value??"").replace(/\s+/g," ").trim().slice(0,max)}
 function hostname(value:string){try{return new URL(value).hostname.toLowerCase().replace(/^www\./,"")}catch{return""}}
 function companyDomain(value:string|null|undefined){if(!value)return"";try{return new URL(value).hostname.toLowerCase().replace(/^www\./,"")}catch{return value.toLowerCase().replace(/^www\./,"").split("/")[0]}}
@@ -19,5 +19,14 @@ export function normaliseContactDiscoveryResult(result:ContactDiscoveryResult,co
   const label=overall>=85&&contact.confidence.identity>=85&&contact.confidence.role>=85?"VERIFIED":overall>=70?"LIKELY":overall>=50?"POSSIBLE":"UNKNOWN";
   return {...contact,fullName:clean(contact.fullName,180),roleTitle:clean(contact.roleTitle,180),department:contact.department?clean(contact.department,180):null,location:contact.location?clean(contact.location,180):null,reasonSelected:clean(contact.reasonSelected,900),confidence:{...contact.confidence,evidenceQuality,overall,label},email:{address:emailStatus==="UNKNOWN"?null:emailAddress,status:emailStatus,confidence:emailStatus==="UNKNOWN"?0:contact.email.confidence,sourceUrl:emailStatus==="UNKNOWN"?null:contact.email.sourceUrl,reason:clean(contact.email.reason,500)},linkedin:{profileUrl:linkedinStatus==="UNKNOWN"?null:profileUrl,status:linkedinStatus,confidence:linkedinStatus==="UNKNOWN"?0:contact.linkedin.confidence,sourceUrl:linkedinStatus==="UNKNOWN"?null:contact.linkedin.sourceUrl,reason:clean(contact.linkedin.reason,500)},unknowns:contact.unknowns.map(v=>clean(v,400)).filter(Boolean),riskFlags:contact.riskFlags.map(v=>clean(v,400)).filter(Boolean),evidence};
  }).filter((contact):contact is DiscoveredContact=>Boolean(contact));
- return{...result,contacts};
+ const seen=new Set<string>();
+ const companyContactChannels=result.companyContactChannels.map(channel=>{
+  const emailAddress=validCompanyEmail(channel.emailAddress,domain);if(!emailAddress||seen.has(emailAddress))return null;
+  const sourceHost=hostname(channel.sourceUrl);const official=Boolean(domain&&(sourceHost===domain||sourceHost.endsWith(`.${domain}`)));
+  if(channel.verificationStatus==="PUBLIC_VERIFIED"&&!official)return null;
+  if(channel.verificationStatus==="PATTERN_LIKELY"&&channel.confidence<70)return null;
+  seen.add(emailAddress);
+  return {...channel,emailAddress,department:channel.department?clean(channel.department,180):null,associatedContactName:channel.associatedContactName?clean(channel.associatedContactName,180):null,likelyReader:clean(channel.likelyReader,300),reasonSelected:clean(channel.reasonSelected,600),sourceTitle:channel.sourceTitle?clean(channel.sourceTitle,240):null,evidenceExcerpt:clean(channel.evidenceExcerpt,900)};
+ }).filter((channel): channel is CompanyContactChannel => Boolean(channel));
+ return{...result,contacts,companyContactChannels};
 }
