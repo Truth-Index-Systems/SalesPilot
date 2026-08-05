@@ -2,7 +2,7 @@ import { z } from "zod";
 import { AiEnvelopeSchema } from "@/lib/ai/contracts";
 import { BusinessDnaPayloadSchema } from "@/lib/ai/schemas/business-dna";
 
-export const CampaignStatusSchema = z.enum(["DRAFT", "PREPARING", "READY", "FAILED", "ARCHIVED"]);
+export const CampaignStatusSchema = z.enum(["DRAFT", "PREPARING", "READY", "PAUSED", "FAILED", "ARCHIVED"]);
 export const AutomationModeSchema = z.enum(["autopilot", "approval", "assisted"]);
 
 export const LaunchCampaignRequestSchema = z.object({

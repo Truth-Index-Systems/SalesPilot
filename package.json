@@ -25,7 +25,8 @@
     "g21:check": "node scripts/validate-g21-hardening.mjs",
     "g22:check": "node scripts/validate-g22-progressive.mjs",
     "g23:check": "node scripts/validate-g23-evidence.mjs",
-    "g24:check": "node scripts/validate-g24-review-queue.mjs"
+    "g24:check": "node scripts/validate-g24-review-queue.mjs",
+    "g2:controls-check": "node scripts/validate-g2-controls.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
