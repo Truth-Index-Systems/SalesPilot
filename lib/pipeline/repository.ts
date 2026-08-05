@@ -60,6 +60,32 @@ function emptyPreparation(): SchedulerPreparation {
 }
 
 
+
+export type ContactFoundationSync = {
+  companiesInspected: number;
+  sessionsCreated: number;
+  sessionsRequeued: number;
+  sessionsCancelled: number;
+};
+
+export async function syncContactDiscoveryFoundations(runId: string): Promise<ContactFoundationSync> {
+  const result = await databaseRequest<ContactFoundationSync | ContactFoundationSync[]>(
+    "rpc/sync_contact_discovery_foundations",
+    {
+      method: "POST",
+      body: JSON.stringify({ p_scheduler_run_id: runId }),
+    },
+  );
+
+  const row = Array.isArray(result) ? result[0] : result;
+  return row ?? {
+    companiesInspected: 0,
+    sessionsCreated: 0,
+    sessionsRequeued: 0,
+    sessionsCancelled: 0,
+  };
+}
+
 export type ContactDispatchPlan = {
   dispatch_count: number;
   campaign_id: string | null;

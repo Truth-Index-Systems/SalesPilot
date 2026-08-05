@@ -27,13 +27,13 @@ export default async function EngagementPage() {
   const sent = rows.filter(row => row.status === "SENT").length;
 
   return <AppShell title="Engagement" user={user}>
-    <PageHeader eyebrow="Opportunity engagement" title="Approved opportunities, ready for the next move" subtitle="SalesPilot converts an approved opportunity into one engagement record with the strongest buyer, best supported route, campaign policy and full audit trail. G4 will generate and send the outreach from here." />
+    <PageHeader eyebrow="Opportunity engagement" title="Approved opportunities, ready for the next move" subtitle="SalesPilot converts an approved opportunity into one engagement record with the strongest buyer, best supported route, campaign policy and full audit trail. G4 Phase 1 now provides the production engagement domain, history and versioning foundation. No outreach is generated or sent yet." />
 
     <div className="grid cols-4">
       <Metric label="Ready for draft" value={String(ready)} foot="Reachable opportunities prepared" tone={ready ? "positive" : undefined}/>
       <Metric label="Needs a route" value={String(needsRoute)} foot="Opportunity remains visible"/>
       <Metric label="In engagement flow" value={String(queued)} foot="Draft, approval or send queue"/>
-      <Metric label="Sent" value={String(sent)} foot="Full journey will continue in G4"/>
+      <Metric label="Sent" value={String(sent)} foot="Reserved for later G4 phases"/>
     </div>
 
     <Card className="opportunity-review-flow section">
@@ -67,6 +67,6 @@ export default async function EngagementPage() {
         <Link href={`/opportunities/${row.opportunity_id}`} className="button secondary">Open opportunity</Link>
         {row.route_source_url && <a href={row.route_source_url} target="_blank" rel="noreferrer" className="button text">Route evidence <ExternalLink size={14}/></a>}
       </div>
-    </Card>)}</div> : <Card className="section"><div className="empty"><h3>No approved opportunities have entered Engagement yet</h3><p>Approve an opportunity and the scheduler will prepare its strongest supported route automatically. No email is sent during G3.5.</p><Link href="/opportunities" className="button primary">Review opportunities</Link></div></Card>}
+    </Card>)}</div> : <Card className="section"><div className="empty"><h3>No approved opportunities have entered Engagement yet</h3><p>Approve an opportunity and the scheduler will prepare its strongest supported route automatically. No email is sent during G3.5. No outreach is generated or sent during G4 Phase 1.</p><Link href="/opportunities" className="button primary">Review opportunities</Link></div></Card>}
   </AppShell>;
 }

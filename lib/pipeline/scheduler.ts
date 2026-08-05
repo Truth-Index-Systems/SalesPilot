@@ -16,6 +16,8 @@ import {
   recordPipelineSchedulerOutcome,
   recoverPipelineJobs,
   planContactDiscoveryDispatch,
+  syncContactDiscoveryFoundations,
+  type ContactFoundationSync,
 } from "./repository";
 
 type SettledWorker =
@@ -27,6 +29,7 @@ export type PipelineSchedulerResult = {
   runId: string | null;
   preparation: SchedulerPreparation | null;
   company: SettledWorker | null;
+  contactFoundation: ContactFoundationSync | null;
   contact: SettledWorker | SettledWorker[] | null;
   opportunity: OpportunitySyncSummary | null;
   opportunityScoring: OpportunityScoringSummary | null;
@@ -53,7 +56,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null };
+    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null };
   }
 
   const runId = lease.run_id;
@@ -62,6 +65,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     const preparation = await preparePipelineWork(runId);
     const context = { schedulerRunId: runId };
     const company = await settle(() => runNextCompanyDiscovery(context));
+    const contactFoundation = await syncContactDiscoveryFoundations(runId);
     const contactPlan = await planContactDiscoveryDispatch(runId);
     const burstCampaignId = contactPlan.campaign_id;
     const contact = contactPlan.dispatch_count === 0
@@ -76,8 +80,8 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     const opportunity = await syncOpportunityFoundations(runId);
     const opportunityScoring = await scoreOpportunityIntelligence(runId);
     const engagement = await syncOpportunityEngagementBridge(runId);
-    await recordPipelineSchedulerOutcome(runId, company, contact, { foundation: opportunity, scoring: opportunityScoring, engagement });
-    return { acquired: true, runId, preparation, company, contact, opportunity, opportunityScoring, engagement };
+    await recordPipelineSchedulerOutcome(runId, company, contact, { contactFoundation, foundation: opportunity, scoring: opportunityScoring, engagement });
+    return { acquired: true, runId, preparation, company, contactFoundation, contact, opportunity, opportunityScoring, engagement };
   } finally {
     await releasePipelineSchedulerLease(runId).catch((error) => {
       console.error("Failed to release pipeline scheduler lease", error);
