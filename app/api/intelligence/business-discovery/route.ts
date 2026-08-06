@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createBusinessAnalysisJob, getBusinessAnalysisJob } from "@/lib/intelligence/business-analysis-jobs";
 import { normaliseBusinessAnalysis } from "@/lib/intelligence/fit-score";
+import { consumeRequestLimit } from "@/lib/security/request-guard";
+import { getCurrentUser } from "@/lib/auth/current-user";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,6 +59,13 @@ function publicJob(job: Awaited<ReturnType<typeof getBusinessAnalysisJob>>) {
 export async function POST(request: Request) {
   try {
     const input = StartSchema.parse(await request.json());
+    const user = await getCurrentUser();
+    if (!user) {
+      const allowed = await consumeRequestLimit(request, "PUBLIC_BUSINESS_ANALYSIS", 5, 24 * 60 * 60);
+      if (!allowed) {
+        return NextResponse.json({ ok: false, error: { code: "ANALYSIS_LIMIT_REACHED", title: "Analysis limit reached", message: "This connection has reached the public analysis limit for today.", hint: "Sign in to continue working in your SalesPilot workspace." } }, { status: 429 });
+      }
+    }
     const created = await createBusinessAnalysisJob(input.website);
     return NextResponse.json({ ok: true, job: publicJob(created.job), accessToken: created.accessToken }, { status: 202 });
   } catch (error) {

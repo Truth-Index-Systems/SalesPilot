@@ -22,6 +22,7 @@ export class WebsiteReadError extends Error {
 const MAX_PAGES = 5;
 const MAX_CHARS_PER_PAGE = 12000;
 const MAX_REDIRECTS = 5;
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const BLOCKED_HOSTS = new Set(["localhost", "0.0.0.0", "127.0.0.1", "::1"]);
 
 export function normalizeWebsiteUrl(input: string | null | undefined): URL {
@@ -34,6 +35,12 @@ export function normalizeWebsiteUrl(input: string | null | undefined): URL {
     if (!["http:", "https:"].includes(url.protocol)) {
       throw new WebsiteReadError("INVALID_URL", "Only public HTTP and HTTPS websites are supported.");
     }
+    if (url.username || url.password) {
+      throw new WebsiteReadError("INVALID_URL", "Website addresses containing credentials are not supported.");
+    }
+    if ((url.protocol === "http:" && url.port && url.port !== "80") || (url.protocol === "https:" && url.port && url.port !== "443")) {
+      throw new WebsiteReadError("UNSAFE_ADDRESS", "Only standard public web ports are supported.");
+    }
     url.hash = "";
     return url;
   } catch (error) {
@@ -43,10 +50,40 @@ export function normalizeWebsiteUrl(input: string | null | undefined): URL {
 }
 
 function isPrivateIp(address: string): boolean {
-  if (address.startsWith("10.") || address.startsWith("127.") || address.startsWith("192.168.")) return true;
-  const parts = address.split(".").map(Number);
-  if (parts.length === 4 && parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-  return address === "::1" || address.startsWith("fc") || address.startsWith("fd") || address.startsWith("fe80:");
+  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
+  if (normalized.startsWith("::ffff:")) return isPrivateIp(normalized.slice(7));
+
+  if (isIP(normalized) === 4) {
+    const [a, b] = normalized.split(".").map(Number);
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 0) ||
+      (a === 192 && b === 168) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      a >= 224
+    );
+  }
+
+  if (isIP(normalized) === 6) {
+    return (
+      normalized === "::" ||
+      normalized === "::1" ||
+      normalized.startsWith("fc") ||
+      normalized.startsWith("fd") ||
+      normalized.startsWith("fe8") ||
+      normalized.startsWith("fe9") ||
+      normalized.startsWith("fea") ||
+      normalized.startsWith("feb") ||
+      normalized.startsWith("ff")
+    );
+  }
+
+  return false;
 }
 
 async function assertPublicHost(url: URL) {
@@ -72,6 +109,41 @@ async function assertPublicHost(url: URL) {
     }
     throw new WebsiteReadError("WEBSITE_UNAVAILABLE", "The website could not be reached.", { cause: error });
   }
+}
+
+async function readLimitedHtml(response: Response): Promise<string> {
+  const declaredLength = Number(response.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
+    throw new WebsiteReadError("UNSUPPORTED_CONTENT", "The web page is too large to analyse safely.");
+  }
+
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw new WebsiteReadError("UNSUPPORTED_CONTENT", "The web page is too large to analyse safely.");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const combined = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(combined);
 }
 
 function decodeEntities(value: string) {
@@ -126,7 +198,14 @@ async function fetchHtml(initialUrl: URL) {
         if (!location || redirectCount === MAX_REDIRECTS) {
           throw new WebsiteReadError("WEBSITE_UNAVAILABLE", "The website redirected too many times.");
         }
-        url = new URL(location, url);
+        const redirected = new URL(location, url);
+        if (!["http:", "https:"].includes(redirected.protocol) || redirected.username || redirected.password) {
+          throw new WebsiteReadError("UNSAFE_ADDRESS", "The website redirected to an unsupported address.");
+        }
+        if ((redirected.protocol === "http:" && redirected.port && redirected.port !== "80") || (redirected.protocol === "https:" && redirected.port && redirected.port !== "443")) {
+          throw new WebsiteReadError("UNSAFE_ADDRESS", "The website redirected to a non-standard port.");
+        }
+        url = redirected;
         continue;
       }
 
@@ -138,7 +217,7 @@ async function fetchHtml(initialUrl: URL) {
         throw new WebsiteReadError("UNSUPPORTED_CONTENT", "The address did not return a public web page.");
       }
 
-      return { html: await response.text(), finalUrl: url };
+      return { html: await readLimitedHtml(response), finalUrl: url };
     } catch (error) {
       if (error instanceof WebsiteReadError) throw error;
       if (error instanceof Error && error.name === "AbortError") {
