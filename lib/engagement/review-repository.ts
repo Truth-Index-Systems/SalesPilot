@@ -26,3 +26,11 @@ export async function bulkReviewEngagements(ids: string[], action: "APPROVED" | 
   if (context.role === "VIEWER") throw new Error("ENGAGEMENT_REVIEW_FORBIDDEN");
   return databaseRequest<number>("rpc/bulk_review_engagement_drafts", { method:"POST", body:JSON.stringify({p_organisation_id:context.organisationId,p_engagement_ids:ids,p_user_id:context.userId,p_action:action,p_note:note??null}) });
 }
+
+export async function recordEngagementExecution(id: string, action: "COPIED" | "OPENED" | "STARTED" | "COMPLETED" | "RESET", metadata?: Record<string, unknown>) {
+  const context = await requireOrganisationContext();
+  if (context.role === "VIEWER") throw new Error("ENGAGEMENT_EXECUTION_FORBIDDEN");
+  return databaseRequest("rpc/record_engagement_execution", { method: "POST", body: JSON.stringify({
+    p_organisation_id: context.organisationId, p_engagement_id: id, p_user_id: context.userId, p_action: action, p_metadata: metadata ?? {},
+  }) });
+}

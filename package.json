@@ -77,7 +77,8 @@
     "sql:hardening-check": "node scripts/validate-genesis-sql-hardening.mjs",
     "genesis:g43-check": "node scripts/validate-genesis-g43-route-scoring.mjs",
     "genesis:g461-check": "node scripts/validate-genesis-g461.mjs",
-    "genesis:g462-check": "node scripts/validate-genesis-g462.mjs"
+    "genesis:g462-check": "node scripts/validate-genesis-g462.mjs",
+    "genesis:g463-check": "node scripts/validate-g463-execution.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
