@@ -49,7 +49,7 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.band);
 
   return <AppShell title="Opportunities" user={user} workspaceStats={{ campaigns: campaigns.length, companies: new Set(allRows.map(row => row.company_id)).size, replies: 0, opportunities: allRows.length }}>
-    <PageHeader eyebrow="Opportunity intelligence" title="Your next best sales opportunities" subtitle="SalesPilot combines company fit, buying authority, contactability and evidence into one ranked recommendation. Nothing discovered is hidden because of a low score." action={<span className="badge green"><ShieldCheck size={14}/> Evidence-led ranking</span>} />
+    <PageHeader eyebrow="Opportunities" title="Your next best sales opportunities" subtitle="SalesPilot combines company fit, buying authority, contactability and evidence into one ranked recommendation. Nothing discovered is hidden because of a low score." action={<span className="badge green"><ShieldCheck size={14}/> Evidence-led ranking</span>} />
 
     <Card className="opportunity-philosophy">
       <div><span className="eyebrow">SalesPilot&apos;s recommendation model</span><h2>That&apos;s a great opportunity because there&apos;s a decision-maker I can reach with a strong reason to buy.</h2><p>Companies and contacts remain the intelligence foundation. This is the commercial decision layer built from both.</p></div>
@@ -64,11 +64,11 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
     </div>
 
     <Card className="opportunity-review-flow section">
-      <div><Target size={18}/><span>Company fit</span></div><i>→</i><div><ContactRound size={18}/><span>Best buying contact</span></div><i>→</i><div><ShieldCheck size={18}/><span>Reachability and evidence</span></div><i>→</i><div className="active"><CheckCircle2 size={18}/><span>Opportunity review</span></div>
+      <div><Target size={18}/><span>Company fit</span></div><i>→</i><div><ContactRound size={18}/><span>Best access route</span></div><i>→</i><div><ShieldCheck size={18}/><span>Reachability and evidence</span></div><i>→</i><div className="active"><CheckCircle2 size={18}/><span>Opportunity review</span></div>
     </Card>
 
     <form className="company-search-controls" action="/opportunities" method="get">
-      <input name="q" defaultValue={search.q} placeholder="Search company, buyer, role or market" aria-label="Search opportunities" />
+      <input name="q" defaultValue={search.q} placeholder="Search company, route, role or market" aria-label="Search opportunities" />
       <select name="campaign" defaultValue={search.campaign ?? ""}><option value="">All campaigns</option>{campaigns.map(campaign => <option value={campaign.id} key={campaign.id}>{campaign.name}</option>)}</select>
       <select name="status" defaultValue={search.status ?? ""}><option value="">All decisions</option><option value="READY">Awaiting decision</option><option value="APPROVED">Approved</option><option value="REJECTED">Not selected</option><option value="NEEDS_CONTACT">Needs contact</option><option value="NEEDS_EVIDENCE">Needs evidence</option><option value="LOW_PRIORITY">Low priority</option></select>
       {search.band && <input type="hidden" name="band" value={search.band}/>}<button className="button secondary">Apply filters</button>{hasFilters && <Link className="button text" href="/opportunities">Clear</Link>}

@@ -61,14 +61,19 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
         const score = row.opportunity_score ?? 0;
         const channel = row.primary_contact_email || row.primary_route_email;
         return <article className={`card opportunity-review-card ${selectedSet.has(row.id) ? "selected" : ""}`} key={row.id}>
-          <label className="company-select"><input type="checkbox" checked={selectedSet.has(row.id)} onChange={() => setSelected(current => current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id])} aria-label={`Select ${row.company_name}`} /></label>
-          <Link href={`/opportunities/${row.id}`} className="opportunity-card-link">
+          <div className="opportunity-card-main">
             <div className="opportunity-card-head">
-              <div><span className="eyebrow">#{row.rank} · {row.campaign_name}</span><h3>{row.company_name}</h3><span>{row.company_industry || "Industry not confirmed"}{row.company_country ? ` · ${row.company_country}` : ""}</span></div>
-              <div className="opportunity-score"><strong>{score}</strong><span>Opportunity score</span></div>
+              <Link href={`/opportunities/${row.id}`} className="opportunity-card-title-link">
+                <span className="eyebrow">#{row.rank} · {row.campaign_name}</span><h3>{row.company_name}</h3><span>{row.company_industry || "Industry not confirmed"}{row.company_country ? ` · ${row.company_country}` : ""}</span>
+              </Link>
+              <div className="opportunity-card-head-actions">
+                <label className="opportunity-select"><input type="checkbox" checked={selectedSet.has(row.id)} onChange={() => setSelected(current => current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id])} aria-label={`Select ${row.company_name}`} /><span>Select</span></label>
+                <div className="opportunity-score"><strong>{score}</strong><span>Opportunity score</span></div>
+              </div>
             </div>
+            <Link href={`/opportunities/${row.id}`} className="opportunity-card-link">
             <div className="opportunity-contact">
-              <ContactRound size={18}/><div><span>Strongest buying contact</span><strong>{row.primary_contact_name || "Still researching"}</strong><small>{row.primary_contact_role || "No supported decision-maker yet"}</small></div>
+              <ContactRound size={18}/><div><span>Best access route</span><strong>{row.primary_contact_name || "Research in progress"}</strong><small>{row.primary_contact_role || "SalesPilot is identifying the strongest commercial route into this organisation."}</small></div>
             </div>
             <div className="opportunity-reason"><span>Why this is an opportunity</span><p>{row.buying_reason || row.company_summary || "SalesPilot is still assembling the recommendation."}</p></div>
             <div className="opportunity-score-grid">
@@ -82,12 +87,15 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
               <div className={row.primary_contact_linkedin_url ? "available" : "unknown"}><ExternalLink size={15}/><span>{row.primary_contact_linkedin_url ? "LinkedIn matched" : "LinkedIn unknown"}</span></div>
               <div><ShieldCheck size={15}/><span>{Number(row.company_evidence_count) + Number(row.contact_evidence_count)} evidence sources</span></div>
             </div>
-            <div className="opportunity-card-footer">
+            </Link>
+          </div>
+          <div className="opportunity-card-footer">
+            <div className="opportunity-card-statuses">
               <span className={`review-status ${state.className}`}>{state.label}</span>
-              <span className={reachable(row) ? "opportunity-ready" : "opportunity-limited"}>{reachable(row) ? <><CheckCircle2 size={14}/> Reachable</> : "Contact route incomplete"}</span>
-              <span className="open-report">Open opportunity intelligence →</span>
+              <span className={reachable(row) ? "opportunity-ready" : "opportunity-limited"}>{reachable(row) ? <><CheckCircle2 size={14}/> Reachable</> : "Route incomplete"}</span>
             </div>
-          </Link>
+            <Link className="button primary opportunity-view-button" href={`/opportunities/${row.id}`}>View Opportunity →</Link>
+          </div>
         </article>;
       })}
     </div>

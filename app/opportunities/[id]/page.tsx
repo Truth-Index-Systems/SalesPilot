@@ -29,7 +29,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
   const limitations = explanation?.limitations ?? [];
 
   return <AppShell title={opportunity.company_name} user={user} workspaceStats={{ campaigns: campaigns.length, companies: new Set(all.map(row => row.company_id)).size, replies: 0, opportunities: all.length }}>
-    <PageHeader eyebrow={`Opportunity #${opportunity.rank} · ${opportunity.campaign_name}`} title={opportunity.company_name} subtitle="One commercial recommendation combining the business match, the strongest buying contact, reachability and transparent evidence." action={<span className="badge green"><ShieldCheck size={14}/> {statusLabel(opportunity.status)}</span>} />
+    <PageHeader eyebrow={`Opportunity #${opportunity.rank} · ${opportunity.campaign_name}`} title={opportunity.company_name} subtitle="One commercial recommendation combining the business match, the best access route, reachability and transparent evidence." action={<span className="badge green"><ShieldCheck size={14}/> {statusLabel(opportunity.status)}</span>} />
 
     <Card className="opportunity-detail-hero">
       <div>
@@ -48,8 +48,8 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
         <p className="company-summary">{opportunity.company_summary}</p>
       </Card>
       <Card>
-        <div className="card-title">The decision-maker</div><div className="card-subtitle">The strongest currently supported buying sponsor.</div>
-        {opportunity.primary_contact_name ? <div className="opportunity-person section"><ContactRound size={24}/><div><strong>{opportunity.primary_contact_name}</strong><span>{opportunity.primary_contact_role}</span><small>{opportunity.contact_reason_selected}</small></div></div> : <div className="verified-empty section"><span>No supported decision-maker is linked yet. The opportunity remains visible while research continues.</span></div>}
+        <div className="card-title">Best access route</div><div className="card-subtitle">The strongest currently supported commercial route into this organisation.</div>
+        {opportunity.primary_contact_name ? <div className="opportunity-person section"><ContactRound size={24}/><div><strong>{opportunity.primary_contact_name}</strong><span>{opportunity.primary_contact_role}</span><small>{opportunity.contact_reason_selected}</small></div></div> : <div className="verified-empty section"><span>Research in progress. SalesPilot is identifying the strongest commercial route into this organisation.</span></div>}
         <div className="contact-channel-strip section"><div className={route ? "contact-channel verified" : "contact-channel unknown"}><Mail size={14}/><div><span>Best email route</span><strong>{route || "Unknown"}</strong><small>{opportunity.primary_contact_email_status || opportunity.primary_route_verification_status || "Not found"}</small></div></div><div className={opportunity.primary_contact_linkedin_url ? "contact-channel verified" : "contact-channel unknown"}><ExternalLink size={14}/><div><span>LinkedIn</span><strong>{opportunity.primary_contact_linkedin_url ? "Profile matched" : "Unknown"}</strong><small>{opportunity.primary_contact_linkedin_url ? "Public profile available" : "Not found"}</small></div></div></div>
       </Card>
     </div>
