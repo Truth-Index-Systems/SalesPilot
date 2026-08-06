@@ -21,3 +21,12 @@ export async function recordEngagementStage(input: { engagementId: string; sched
 export async function reconcileEngagementFailures(schedulerRunId: string): Promise<number> {
   return Number(await databaseRequest<number>("rpc/reconcile_engagement_pipeline_failures", { method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }) }));
 }
+
+export type EngagementLearningGuidanceResult = { updated: number; mature: number };
+
+export async function syncEngagementLearningGuidance(schedulerRunId: string): Promise<EngagementLearningGuidanceResult> {
+  const rows = await databaseRequest<EngagementLearningGuidanceResult[]>("rpc/sync_engagement_learning_guidance", {
+    method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }),
+  });
+  return rows[0] ?? { updated: 0, mature: 0 };
+}

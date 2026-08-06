@@ -26,7 +26,12 @@ async function run(request: Request) {
   const contactFailed = Array.isArray(scheduler.contact)
     ? scheduler.contact.some(result => result.ok === false)
     : scheduler.contact?.ok === false;
-  const workerFailed = scheduler.company?.ok === false || contactFailed;
+  const engagementWorkerFailed = [
+    scheduler.commercialReasoning,
+    scheduler.outreachGeneration,
+    scheduler.engagementSelfReview,
+  ].some(result => result?.outcome === "FAILED_RETRYABLE");
+  const workerFailed = scheduler.company?.ok === false || contactFailed || engagementWorkerFailed;
   return NextResponse.json(
     { ok: !workerFailed, skipped: false, scheduler },
     { status: workerFailed ? 207 : 200 },
