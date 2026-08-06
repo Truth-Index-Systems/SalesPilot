@@ -6,7 +6,8 @@ type Campaign={id:string;organisation_id:string;name:string;status:string;create
 type Organisation={id:string;name:string};
 type VersionRow={id:string;prompt_version:string|null};
 type TimelineRow={id:string;organisation_id:string;campaign_id:string;event_type:string;title:string;description:string|null;occurred_at:string};
-type CountRow={id:string;status?:string;review_status?:string;job_state?:string;created_at?:string};
+type CountRow={id:string;organisation_id?:string;campaign_id?:string;status?:string;review_status?:string;job_state?:string;created_at?:string;updated_at?:string};
+type LearningRow={id:string;organisation_id:string;campaign_id:string;engagement_id:string;opportunity_id:string;queue_outcome:string;engagement_score:number|null;confidence:number|null;human_action:string|null;edit_distance:number|null;actual_cost_usd:number;estimated_cost_usd:number;total_input_tokens:number;total_output_tokens:number;total_latency_ms:number;commercial_prompt_version:string|null;generation_prompt_version:string|null;review_prompt_version:string|null;commercial_model:string|null;generation_model:string|null;review_model:string|null;created_at:string};
 
 const stageLabels:Record<string,string>={BUSINESS_ANALYSIS:"Business Analysis",COMPANY_DISCOVERY:"Company Intelligence",CONTACT_DISCOVERY:"Buyer Intelligence",OPPORTUNITY_ANALYSIS:"Opportunity Intelligence",COMMERCIAL_REASONING:"Commercial Reasoning",OUTREACH:"Outreach Generation",SELF_REVIEW:"AI Self Review",REPLY_INTELLIGENCE:"Reply Intelligence"};
 const effectiveCost=(row:UsageRow)=>Number(row.status==="SUCCEEDED"?row.actual_cost_usd:row.estimated_cost_usd);
@@ -24,10 +25,10 @@ export async function getFounderDashboard(rangeDays=7){
     databaseRequest<TimelineRow[]>(`campaign_timeline?select=id,organisation_id,campaign_id,event_type,title,description,occurred_at&order=occurred_at.desc&limit=20`),
     databaseRequest<CountRow[]>(`companies?select=id,review_status&limit=10000`),
     databaseRequest<CountRow[]>(`contacts?select=id,review_status&limit=10000`),
-    databaseRequest<CountRow[]>(`opportunities?select=id,status&limit=10000`),
-    databaseRequest<CountRow[]>(`opportunity_engagements?select=id,status&limit=10000`),
+    databaseRequest<CountRow[]>(`opportunities?select=id,organisation_id,campaign_id,status,created_at,updated_at&limit=10000`),
+    databaseRequest<CountRow[]>(`opportunity_engagements?select=id,organisation_id,campaign_id,status,created_at,updated_at&limit=10000`),
     databaseRequest<CountRow[]>(`engagement_send_queue?select=id,status&limit=10000`),
-    databaseRequest<CountRow[]>(`engagement_learning_records?select=id,created_at&limit=10000`),
+    databaseRequest<LearningRow[]>(`engagement_learning_records?select=id,organisation_id,campaign_id,engagement_id,opportunity_id,queue_outcome,engagement_score,confidence,human_action,edit_distance,actual_cost_usd,estimated_cost_usd,total_input_tokens,total_output_tokens,total_latency_ms,commercial_prompt_version,generation_prompt_version,review_prompt_version,commercial_model,generation_model,review_model,created_at&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=10000`),
   ]);
   const campaignMap=new Map(campaigns.map(r=>[r.id,r]));
   const orgMap=new Map(organisations.map(r=>[r.id,r.name]));
@@ -65,11 +66,50 @@ export async function getFounderDashboard(rangeDays=7){
   const daily=[] as {date:string;cost:number;calls:number;tokens:number}[];
   for(let offset=rangeDays-1;offset>=0;offset--){const d=new Date(Date.now()-offset*86400000).toISOString().slice(0,10);const items=rows.filter(r=>dayKey(r.created_at)===d);daily.push({date:d,cost:items.reduce((n,r)=>n+r.cost,0),calls:items.length,tokens:items.reduce((n,r)=>n+(r.input_tokens??0)+(r.output_tokens??0),0)});}
   const optimisation=stages.slice(0,3).map(stage=>({stage:stage.stage,signal:stage.tokens/Math.max(1,stage.calls),message:stage.calls?`Average ${Math.round(stage.tokens/stage.calls).toLocaleString("en-GB")} tokens per call. Prioritise context compaction here first.`:"No calls recorded yet."}));
+
+  const rangeOpportunities=opportunities.filter(r=>r.created_at && r.created_at>=since);
+  const completedOpportunities=rangeOpportunities.filter(r=>["APPROVED","ENGAGED"].includes(r.status??""));
+  const rangeEngagements=engagements.filter(r=>r.created_at && r.created_at>=since);
+  const reviewReadyEngagements=rangeEngagements.filter(r=>["DRAFT_REVIEW","APPROVED_TO_SEND","QUEUED_FOR_SEND","SENT"].includes(r.status??""));
+  const completedJourneys=learning.length;
+  const learningActualCost=learning.reduce((n,r)=>n+Number(r.actual_cost_usd||0),0);
+  const learningEstimatedCost=learning.reduce((n,r)=>n+Number(r.estimated_cost_usd||0),0);
+  const attributedJourneyCost=learningActualCost>0?learningActualCost:learningEstimatedCost;
+  const costPerOpportunity=totalCost/Math.max(1,completedOpportunities.length);
+  const costPerReviewReady=totalCost/Math.max(1,reviewReadyEngagements.length);
+  const costPerCompletedJourney=attributedJourneyCost/Math.max(1,completedJourneys);
+  const opportunitiesPerDollar=completedOpportunities.length/Math.max(totalCost,0.000001);
+  const reviewReadyPerDollar=reviewReadyEngagements.length/Math.max(totalCost,0.000001);
+  const completedJourneysPerDollar=completedJourneys/Math.max(attributedJourneyCost,0.000001);
+
+  const campaignEconomics=campaigns.map(campaign=>{
+    const campaignRows=rows.filter(r=>r.campaign_id===campaign.id);
+    const campaignSpend=campaignRows.reduce((n,r)=>n+r.cost,0);
+    const campaignOpportunities=completedOpportunities.filter(r=>r.campaign_id===campaign.id).length;
+    const campaignReviewReady=reviewReadyEngagements.filter(r=>r.campaign_id===campaign.id).length;
+    const campaignLearning=learning.filter(r=>r.campaign_id===campaign.id);
+    return {id:campaign.id,name:campaign.name,organisation:orgMap.get(campaign.organisation_id)??"Unknown workspace",spend:campaignSpend,requests:campaignRows.length,opportunities:campaignOpportunities,reviewReady:campaignReviewReady,completedJourneys:campaignLearning.length,costPerOpportunity:campaignOpportunities?campaignSpend/campaignOpportunities:null,costPerReviewReady:campaignReviewReady?campaignSpend/campaignReviewReady:null};
+  }).filter(r=>r.spend>0||r.opportunities>0||r.reviewReady>0).sort((a,b)=>b.spend-a.spend).slice(0,20);
+
+  const successfulWithCost=successful.filter(r=>r.actual_cost_usd!=null && Number(r.actual_cost_usd)>=0).length;
+  const miniOnly=rows.length>0 && rows.every(r=>r.model.toLowerCase().includes("gpt-5-mini"));
+  const versionedG4=rows.filter(r=>["COMMERCIAL_REASONING","OUTREACH","SELF_REVIEW"].includes(r.job_type));
+  const promptCoverage=versionedG4.length?versionedG4.filter(r=>r.promptVersion!=="Legacy / unversioned").length/versionedG4.length:1;
+  const releaseGate=[
+    {key:"journey",label:"Completed production journey recorded",passed:completedJourneys>0,detail:completedJourneys?`${completedJourneys} immutable learning snapshot${completedJourneys===1?"":"s"}`:"Complete one approval-to-queue journey"},
+    {key:"cost",label:"Every successful request has cost telemetry",passed:successful.length>0&&successfulWithCost===successful.length,detail:`${successfulWithCost}/${successful.length} successful requests costed`},
+    {key:"model",label:"All production calls use GPT-5 mini",passed:miniOnly,detail:rows.length?`${new Set(rows.map(r=>r.model)).size} model${new Set(rows.map(r=>r.model)).size===1?"":"s"} observed`:"No requests in period"},
+    {key:"prompt",label:"G4 prompt versions are attributable",passed:promptCoverage===1,detail:`${Math.round(promptCoverage*100)}% prompt-version coverage`},
+    {key:"economics",label:"Cost per completed journey is measurable",passed:completedJourneys>0&&costPerCompletedJourney>=0,detail:completedJourneys?`$${costPerCompletedJourney.toFixed(4)} per completed journey`:"Awaiting completed journey"},
+  ];
+
   return {
     generatedAt:new Date().toISOString(),rangeDays,
     totals:{todayCost:today.reduce((n,r)=>n+r.cost,0),todayRequests:today.length,totalCost,requests:rows.length,totalTokens,avgCost:totalCost/Math.max(1,successful.length),avgTokens:Math.round(totalTokens/Math.max(1,successful.length)),avgLatency:Math.round(successful.reduce((n,r)=>n+(r.duration_ms??0),0)/Math.max(1,successful.filter(r=>r.duration_ms!=null).length)),webSearches:rows.reduce((n,r)=>n+r.web_search_calls,0)},
     pipeline:{workspaces:organisations.length,campaigns:campaigns.filter(r=>r.status!=="ARCHIVED").length,companies:companies.length,approvedCompanies:companies.filter(r=>r.review_status==="APPROVED").length,contacts:contacts.length,approvedContacts:contacts.filter(r=>r.review_status==="APPROVED").length,opportunities:opportunities.length,approvedOpportunities:opportunities.filter(r=>r.status==="APPROVED"||r.status==="ENGAGED").length,engagements:engagements.length,queued:queue.filter(r=>r.status==="READY"||r.status==="QUEUED").length,learning:learning.length},
     stages,campaignCosts,prompts,models,daily,optimisation,
+    economics:{completedOpportunities:completedOpportunities.length,reviewReadyEngagements:reviewReadyEngagements.length,completedJourneys,costPerOpportunity,costPerReviewReady,costPerCompletedJourney,opportunitiesPerDollar,reviewReadyPerDollar,completedJourneysPerDollar,projectedOpportunitiesForFive:opportunitiesPerDollar*5,projectedReviewReadyForFive:reviewReadyPerDollar*5,projectedCompletedJourneysForFive:completedJourneysPerDollar*5,attributedJourneyCost},
+    campaignEconomics,releaseGate,releaseReady:releaseGate.every(item=>item.passed),
     highest:[...rows].sort((a,b)=>b.cost-a.cost).slice(0,12),
     timeline:timeline.map(row=>({...row,campaignName:campaignMap.get(row.campaign_id)?.name??"Unknown campaign",organisationName:orgMap.get(row.organisation_id)??"Unknown workspace"}))
   };

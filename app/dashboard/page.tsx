@@ -35,6 +35,32 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
         <article><span>Web searches</span><strong>{number(data.totals.webSearches)}</strong><small>provider research calls</small></article>
       </section>
 
+
+      <section className="founder-metric-grid founder-economics-grid">
+        <article><span>Cost / opportunity</span><strong>{money(data.economics.costPerOpportunity)}</strong><small>{data.economics.completedOpportunities} approved or engaged</small></article>
+        <article><span>Cost / review-ready</span><strong>{money(data.economics.costPerReviewReady)}</strong><small>{data.economics.reviewReadyEngagements} engagements reached review</small></article>
+        <article><span>Cost / completed journey</span><strong>{money(data.economics.costPerCompletedJourney)}</strong><small>{data.economics.completedJourneys} immutable learning snapshots</small></article>
+        <article><span>Projected from $1</span><strong>{data.economics.completedJourneysPerDollar.toFixed(1)}</strong><small>completed journeys at observed cost</small></article>
+        <article><span>Projected from $5</span><strong>{data.economics.projectedCompletedJourneysForFive.toFixed(1)}</strong><small>completed journeys at observed cost</small></article>
+      </section>
+
+      <section className="founder-grid founder-grid-main">
+        <article className="founder-panel">
+          <div className="founder-panel-head"><div><span>Unit economics</span><h2>Production cost projection</h2></div><strong>{money(data.economics.attributedJourneyCost)}</strong></div>
+          <div className="founder-projection-grid">
+            <div><span>Per $1</span><strong>{data.economics.opportunitiesPerDollar.toFixed(1)}</strong><small>approved opportunities</small></div>
+            <div><span>Per $1</span><strong>{data.economics.reviewReadyPerDollar.toFixed(1)}</strong><small>review-ready engagements</small></div>
+            <div><span>Per $5</span><strong>{data.economics.projectedOpportunitiesForFive.toFixed(1)}</strong><small>approved opportunities</small></div>
+            <div><span>Per $5</span><strong>{data.economics.projectedReviewReadyForFive.toFixed(1)}</strong><small>review-ready engagements</small></div>
+          </div>
+          <p className="founder-method-note">Projection uses observed production spend for the selected period. Completed-journey cost uses immutable G4 learning snapshots and therefore excludes unfinished work.</p>
+        </article>
+        <article className="founder-panel founder-release-gate">
+          <div className="founder-panel-head"><div><span>Release gate</span><h2>Production economics readiness</h2></div><b className={data.releaseReady?"founder-ready-badge":"founder-hold-badge"}>{data.releaseReady?"Ready":"Observing"}</b></div>
+          <div className="founder-gate-list">{data.releaseGate.map(item=><div key={item.key}><i className={item.passed?"pass":"hold"}>{item.passed?"✓":"!"}</i><div><strong>{item.label}</strong><small>{item.detail}</small></div></div>)}</div>
+        </article>
+      </section>
+
       <section className="founder-grid founder-grid-main">
         <article className="founder-panel founder-spend-panel">
           <div className="founder-panel-head"><div><span>AI spend</span><h2>Production cost trend</h2></div><strong>{money(data.totals.totalCost)}</strong></div>
@@ -65,6 +91,12 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
       <section className="founder-panel">
         <div className="founder-panel-head"><div><span>Request ledger</span><h2>Most expensive requests</h2></div></div>
         <div className="founder-table-wrap"><table className="founder-table"><thead><tr><th>Time</th><th>Workspace / campaign</th><th>Stage</th><th>Model</th><th>Prompt</th><th>Tokens</th><th>Latency</th><th>Cost</th></tr></thead><tbody>{data.highest.map(row=><tr key={row.id}><td>{new Date(row.created_at).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</td><td><strong>{row.campaignName}</strong><small>{row.organisationName}</small></td><td>{row.stage}</td><td><code>{row.model}</code></td><td><span className="founder-prompt">{row.promptVersion}</span></td><td>{number((row.input_tokens??0)+(row.output_tokens??0))}</td><td>{latency(row.duration_ms??0)}</td><td><strong>{money(row.cost)}</strong></td></tr>)}</tbody></table></div>
+      </section>
+
+
+      <section className="founder-panel">
+        <div className="founder-panel-head"><div><span>Campaign economics</span><h2>Cost to commercial outcome</h2></div></div>
+        <div className="founder-table-wrap"><table className="founder-table"><thead><tr><th>Campaign</th><th>Requests</th><th>Spend</th><th>Opportunities</th><th>Review-ready</th><th>Completed journeys</th><th>Cost / opportunity</th><th>Cost / review-ready</th></tr></thead><tbody>{data.campaignEconomics.map(row=><tr key={row.id}><td><strong>{row.name}</strong><small>{row.organisation}</small></td><td>{row.requests}</td><td><strong>{money(row.spend)}</strong></td><td>{row.opportunities}</td><td>{row.reviewReady}</td><td>{row.completedJourneys}</td><td>{row.costPerOpportunity===null?"—":money(row.costPerOpportunity)}</td><td>{row.costPerReviewReady===null?"—":money(row.costPerReviewReady)}</td></tr>)}</tbody></table></div>
       </section>
 
       <section className="founder-grid founder-grid-equal">
