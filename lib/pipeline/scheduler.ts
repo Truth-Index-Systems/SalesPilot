@@ -12,6 +12,8 @@ import { runNextCommercialReasoning, type CommercialReasoningWorkerResult } from
 import { runNextOutreachGeneration, type OutreachGenerationWorkerResult } from "@/lib/engagement/outreach-generation";
 import { runNextEngagementSelfReview, type EngagementSelfReviewWorkerResult } from "@/lib/engagement/self-review";
 import { buildEngagementSendQueue, type EngagementQueueBuilderResult } from "@/lib/engagement/queue-builder";
+import { buildEngagementLearning } from "@/lib/learning/service";
+import type { EngagementLearningBuilderResult } from "@/lib/learning/types";
 import {
   acquirePipelineSchedulerLease,
   preparePipelineWork,
@@ -42,6 +44,7 @@ export type PipelineSchedulerResult = {
   outreachGeneration: OutreachGenerationWorkerResult | null;
   engagementSelfReview: EngagementSelfReviewWorkerResult | null;
   engagementQueue: EngagementQueueBuilderResult | null;
+  engagementLearning: EngagementLearningBuilderResult | null;
 };
 
 async function settle(work: () => Promise<WorkerExecutionResult>): Promise<SettledWorker> {
@@ -64,7 +67,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, commercialReasoning: null, outreachGeneration: null, engagementSelfReview: null, engagementQueue: null };
+    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, commercialReasoning: null, outreachGeneration: null, engagementSelfReview: null, engagementQueue: null, engagementLearning: null };
   }
 
   const runId = lease.run_id;
@@ -94,8 +97,9 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     const outreachGeneration = await runNextOutreachGeneration(runId);
     const engagementSelfReview = await runNextEngagementSelfReview(runId);
     const engagementQueue = await buildEngagementSendQueue(runId);
-    await recordPipelineSchedulerOutcome(runId, company, contact, { contactFoundation, foundation: opportunity, scoring: opportunityScoring, engagement, commercialReasoning, outreachGeneration, engagementSelfReview, engagementQueue });
-    return { acquired: true, runId, preparation, company, contactFoundation, contact, opportunity, opportunityScoring, engagement, commercialReasoning, outreachGeneration, engagementSelfReview, engagementQueue };
+    const engagementLearning = await buildEngagementLearning(runId);
+    await recordPipelineSchedulerOutcome(runId, company, contact, { contactFoundation, foundation: opportunity, scoring: opportunityScoring, engagement, commercialReasoning, outreachGeneration, engagementSelfReview, engagementQueue, engagementLearning });
+    return { acquired: true, runId, preparation, company, contactFoundation, contact, opportunity, opportunityScoring, engagement, commercialReasoning, outreachGeneration, engagementSelfReview, engagementQueue, engagementLearning };
   } finally {
     await releasePipelineSchedulerLease(runId).catch((error) => {
       console.error("Failed to release pipeline scheduler lease", error);
