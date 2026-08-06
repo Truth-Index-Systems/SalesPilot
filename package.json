@@ -80,7 +80,8 @@
     "genesis:g462-check": "node scripts/validate-genesis-g462.mjs",
     "genesis:g463-check": "node scripts/validate-g463-execution.mjs",
     "genesis:g464-check": "node scripts/validate-g464-learning.mjs",
-    "genesis:g465-check": "node scripts/validate-genesis-g465.mjs"
+    "genesis:g465-check": "node scripts/validate-genesis-g465.mjs",
+    "genesis:ai-gateway-check": "node scripts/validate-structured-ai-gateway.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

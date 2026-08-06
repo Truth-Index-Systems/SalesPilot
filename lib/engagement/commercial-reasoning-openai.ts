@@ -2,11 +2,10 @@ import "server-only";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
+import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 import { CommercialReasoningSchema, commercialReasoningJsonSchema, type CommercialReasoning } from "./commercial-reasoning-schema";
 
 const ENDPOINT="https://api.openai.com/v1/responses";
-function outputText(value:unknown){const data=value as {output_text?:unknown;output?:Array<{content?:Array<{text?:unknown}>}>};if(typeof data.output_text==="string"&&data.output_text)return data.output_text;for(const item of data.output??[])for(const part of item.content??[])if(typeof part.text==="string")return part.text;throw new Error("COMMERCIAL_REASONING_RESPONSE_EMPTY");}
-
 export async function reasonAboutEngagement(input:{organisationId:string;campaignId:string;schedulerRunId:string;analysisId:string;context:Record<string,unknown>}):Promise<{result:CommercialReasoning;model:string}>{
   const apiKey=process.env.OPENAI_API_KEY?.trim(); if(!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model=resolveOpenAIModel("analysis").model; const compactContext=compactForAi(input.context,{evidenceLimit:6,depth:6}) as Record<string,unknown>; const fingerprint=stableFingerprint({prompt:"commercial-reasoning/v2-route-strategy",model,compactContext}); const startedAt=Date.now();
@@ -27,6 +26,6 @@ export async function reasonAboutEngagement(input:{organisationId:string;campaig
   catch(error){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:"NETWORK",errorMessage:error instanceof Error?error.message:"OpenAI request failed"}).catch(()=>undefined);throw error;}
   const json:unknown=await response.json().catch(()=>null);
   if(!response.ok){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null,errorCode:`HTTP_${response.status}`,errorMessage:JSON.stringify((json as any)?.error??null)}).catch(()=>undefined);throw new Error(`OPENAI_COMMERCIAL_REASONING_FAILED:${response.status}`);}
-  let parsed:CommercialReasoning; try{parsed=CommercialReasoningSchema.parse(JSON.parse(outputText(json)));}catch(error){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),durationMs:Date.now()-startedAt,errorCode:"INVALID_STRUCTURED_OUTPUT",errorMessage:error instanceof Error?error.message:"Invalid output"}).catch(()=>undefined);throw error;}
+  let parsed:CommercialReasoning; try{parsed=(await parseStructuredAiResponse({response:json,schema:CommercialReasoningSchema,jsonSchema:commercialReasoningJsonSchema,schemaName:"salespilot_commercial_reasoning_v2_route_strategy",apiKey,model})).value;}catch(error){const safe=safeStructuredAiError(error);await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),durationMs:Date.now()-startedAt,errorCode:safe.code,errorMessage:safe.message}).catch(()=>undefined);throw error;}
   await completeAiRequest({ledgerId:reservation.ledgerId,ok:true,usage:responseUsage(json),durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null}); return {result:parsed,model};
 }

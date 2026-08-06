@@ -12,7 +12,7 @@ function classify(error:unknown){
   if(/timeout|abort/i.test(message))return {code:"TIMEOUT",message,retryable:true};
   if(/AI_GOVERNANCE_BLOCKED/i.test(message))return {code:"AI_GOVERNANCE_BLOCKED",message,retryable:false};
   if(/not configured|authentication|401/i.test(message))return {code:"CONFIGURATION",message,retryable:false};
-  if(/JSON|structured output|invalid response/i.test(message))return {code:"INVALID_AI_OUTPUT",message,retryable:true};
+  if(/STRUCTURED_AI_OUTPUT|JSON|structured output|invalid response/i.test(message))return {code:"INVALID_AI_OUTPUT",message:"SalesPilot received an incomplete structured response. This stage can be retried safely.",retryable:true};
   return {code:"ANALYSIS_FAILED",message,retryable:true};
 }
 

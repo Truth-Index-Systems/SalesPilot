@@ -6,6 +6,7 @@ import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { normaliseBusinessAnalysis } from "@/lib/intelligence/fit-score";
+import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 const envelopeSchema = AiEnvelopeSchema(BusinessDnaPayloadSchema);
@@ -16,23 +17,6 @@ function getConfig() {
 
   const resolved = resolveOpenAIModel("strategy");
   return { apiKey, model: resolved.model, modelSource: resolved.source };
-}
-
-function extractOutputText(response: unknown): string {
-  if (!response || typeof response !== "object") throw new Error("OpenAI returned an invalid response.");
-  const data = response as { output_text?: unknown; output?: unknown };
-  if (typeof data.output_text === "string" && data.output_text.trim()) return data.output_text;
-  if (Array.isArray(data.output)) {
-    for (const item of data.output) {
-      if (!item || typeof item !== "object") continue;
-      const content = (item as { content?: unknown }).content;
-      if (!Array.isArray(content)) continue;
-      for (const part of content) {
-        if (part && typeof part === "object" && typeof (part as { text?: unknown }).text === "string") return (part as { text: string }).text;
-      }
-    }
-  }
-  throw new Error("OpenAI returned no structured output.");
 }
 
 export async function analyseBusiness(params: { organisationId:string|null; jobId:string; website: string; sources: WebsiteSource[] }): Promise<AiEnvelope<BusinessDnaPayload>> {
@@ -79,12 +63,13 @@ export async function analyseBusiness(params: { organisationId:string|null; jobI
         const message = json && typeof json === "object" && "error" in json ? JSON.stringify((json as { error: unknown }).error) : `HTTP ${response.status}`;
         throw new Error(`OpenAI request failed: ${message}`);
       }
-      const parsed = JSON.parse(extractOutputText(json));
-      const result = normaliseBusinessAnalysis(envelopeSchema.parse(parsed));
+      const parsed = await parseStructuredAiResponse({ response: json, schema: envelopeSchema, jsonSchema: businessDiscoveryJsonSchema, schemaName: "salespilot_business_discovery", apiKey, model });
+      const result = normaliseBusinessAnalysis(parsed.value);
       await completeAiRequest({ ledgerId: reservation.ledgerId, ok: true, usage: responseUsage(json), durationMs: Date.now()-startedAt, responseId: typeof (json as any)?.id === "string" ? (json as any).id : null });
       return result;
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error("Business analysis failed.");
+      const safe = safeStructuredAiError(error);
+      lastError = error instanceof Error ? error : new Error(safe.message);
     }
   }
   await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, errorCode: "ANALYSIS_FAILED", errorMessage: lastError?.message ?? "Business analysis failed" }).catch(()=>undefined);

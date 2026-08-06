@@ -4,6 +4,7 @@ import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/gov
 import { ContactDiscoveryResultSchema } from "./schemas";
 import { normaliseContactDiscoveryResult } from "./normalise";
 import { compactContactDiscoveryInput, stableFingerprint } from "@/lib/ai/cost-optimisation";
+import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 
 const ENDPOINT="https://api.openai.com/v1/responses";
 const score={type:"integer",minimum:0,maximum:100} as const;
@@ -28,8 +29,6 @@ const schema={
     }}
   }
 } as const;
-
-function outputText(value:unknown){const data=value as {output_text?:unknown;output?:Array<{content?:Array<{text?:unknown}>}>};if(typeof data.output_text==="string")return data.output_text;for(const item of data.output??[])for(const part of item.content??[])if(typeof part.text==="string")return part.text;throw new Error("CONTACT_DISCOVERY_RESPONSE_EMPTY");}
 
 export async function discoverContacts(input:{organisationId:string;campaignId:string;schedulerRunId?:string|null;jobId:string;company:Record<string,unknown>;campaign:Record<string,unknown>;business:Record<string,unknown>}){
   const apiKey=process.env.OPENAI_API_KEY?.trim();if(!apiKey)throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
@@ -61,8 +60,9 @@ export async function discoverContacts(input:{organisationId:string;campaignId:s
   })});}catch(error){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:"NETWORK",errorMessage:error instanceof Error?error.message:"OpenAI request failed"}).catch(()=>undefined);throw error;}
   const json:unknown=await response.json().catch(()=>null);
   if(!response.ok){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null,errorCode:`HTTP_${response.status}`,errorMessage:JSON.stringify((json as any)?.error??null)}).catch(()=>undefined);throw new Error(`OPENAI_CONTACT_DISCOVERY_FAILED:${response.status}:${JSON.stringify((json as any)?.error??null)}`);}
+  let parsed:ReturnType<typeof ContactDiscoveryResultSchema.parse>;
+  try{const gateway=await parseStructuredAiResponse({response:json,schema:ContactDiscoveryResultSchema,jsonSchema:schema,schemaName:"salespilot_contact_discovery_v3",apiKey,model});parsed=gateway.value;}catch(error){const safe=safeStructuredAiError(error);await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null,errorCode:safe.code,errorMessage:safe.message}).catch(()=>undefined);throw new Error(`CONTACT_DISCOVERY_RESPONSE_${safe.code}`);}
+  if(parsed.companyId!==String(input.company.id))throw new Error("CONTACT_DISCOVERY_COMPANY_MISMATCH");
   await completeAiRequest({ledgerId:reservation.ledgerId,ok:true,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null});
-  let decoded:unknown;try{decoded=JSON.parse(outputText(json));}catch{throw new Error("CONTACT_DISCOVERY_RESPONSE_INVALID_JSON");}
-  const parsed=ContactDiscoveryResultSchema.parse(decoded);if(parsed.companyId!==String(input.company.id))throw new Error("CONTACT_DISCOVERY_COMPANY_MISMATCH");
   return normaliseContactDiscoveryResult(parsed,String(input.company.website_url??""));
 }

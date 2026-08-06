@@ -2,18 +2,12 @@ import "server-only";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
+import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 import { OutreachGenerationSchema, outreachGenerationJsonSchema, type OutreachGeneration } from "./outreach-generation-schema";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 
 type Usage = { input_tokens?: number; output_tokens?: number; total_tokens?: number };
-
-function outputText(value: unknown) {
-  const data = value as { output_text?: unknown; output?: Array<{ content?: Array<{ text?: unknown }> }> };
-  if (typeof data.output_text === "string" && data.output_text) return data.output_text;
-  for (const item of data.output ?? []) for (const part of item.content ?? []) if (typeof part.text === "string") return part.text;
-  throw new Error("OUTREACH_GENERATION_RESPONSE_EMPTY");
-}
 
 export async function generateOutreach(input: {
   organisationId: string;
@@ -85,7 +79,7 @@ export async function generateOutreach(input: {
 
   let parsed: OutreachGeneration;
   try {
-    parsed = OutreachGenerationSchema.parse(JSON.parse(outputText(json)));
+    parsed = (await parseStructuredAiResponse({ response: json, schema: OutreachGenerationSchema, jsonSchema: outreachGenerationJsonSchema, schemaName: "salespilot_channel_content_v1", apiKey, model })).value;
     const strategyChannel = String(((compactContext.engagement as Record<string, unknown> | undefined)?.primaryChannel) ?? "").toUpperCase();
     if (strategyChannel && parsed.channel !== strategyChannel) throw new Error(`CHANNEL_STRATEGY_MISMATCH:${strategyChannel}:${parsed.channel}`);
     const c = parsed.content;
@@ -97,7 +91,7 @@ export async function generateOutreach(input: {
       : Boolean(c.referralRequest || c.introductionMessage);
     if (!valid) throw new Error(`CHANNEL_CONTENT_MISSING:${parsed.channel}`);
   } catch (error) {
-    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage, durationMs: Date.now() - startedAt, responseId, errorCode: "INVALID_STRUCTURED_OUTPUT", errorMessage: error instanceof Error ? error.message : "Invalid output" }).catch(() => undefined);
+    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage, durationMs: Date.now() - startedAt, responseId, errorCode: safeStructuredAiError(error).code, errorMessage: safeStructuredAiError(error).message }).catch(() => undefined);
     throw error;
   }
 

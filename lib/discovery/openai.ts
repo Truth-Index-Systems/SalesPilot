@@ -5,25 +5,9 @@ import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/gov
 import { normaliseDiscoveryResult } from "./normalise";
 import { CompanyDiscoveryResultSchema } from "./schemas";
 import { compactCompanyDiscoveryInput, stableFingerprint } from "@/lib/ai/cost-optimisation";
+import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
-
-function outputText(value: unknown): string {
-  const data = value as {
-    output_text?: unknown;
-    output?: Array<{ content?: Array<{ text?: unknown }> }>;
-  };
-
-  if (typeof data.output_text === "string") return data.output_text;
-
-  for (const item of data.output ?? []) {
-    for (const part of item.content ?? []) {
-      if (typeof part.text === "string") return part.text;
-    }
-  }
-
-  throw new Error("DISCOVERY_RESPONSE_EMPTY");
-}
 
 const scoreSchema = {
   type: "integer",
@@ -192,38 +176,14 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
     throw new Error(`OPENAI_DISCOVERY_INCOMPLETE:${incompleteReason ?? "UNKNOWN"}`);
   }
 
-  let decodedOutput: unknown;
-  try {
-    decodedOutput = JSON.parse(outputText(json));
-  } catch (error) {
-    await completeAiRequest({
-      ledgerId: reservation.ledgerId,
-      ok: false,
-      usage: responseUsage(json),
-      webSearchCalls: 1,
-      durationMs: Date.now()-startedAt,
-      responseId,
-      errorCode: "INVALID_JSON",
-      errorMessage: error instanceof Error ? error.message : "Company discovery returned invalid JSON",
-    }).catch(()=>undefined);
-    throw new Error("DISCOVERY_RESPONSE_INVALID_JSON");
-  }
-
   let parsed: ReturnType<typeof CompanyDiscoveryResultSchema.parse>;
   try {
-    parsed = CompanyDiscoveryResultSchema.parse(decodedOutput);
+    const gateway = await parseStructuredAiResponse({ response: json, schema: CompanyDiscoveryResultSchema, jsonSchema: companyDiscoveryJsonSchema, schemaName: "salespilot_company_discovery_v2", apiKey, model });
+    parsed = gateway.value;
   } catch (error) {
-    await completeAiRequest({
-      ledgerId: reservation.ledgerId,
-      ok: false,
-      usage: responseUsage(json),
-      webSearchCalls: 1,
-      durationMs: Date.now()-startedAt,
-      responseId,
-      errorCode: "INVALID_SCHEMA",
-      errorMessage: error instanceof Error ? error.message.slice(0, 1000) : "Company discovery failed schema validation",
-    }).catch(()=>undefined);
-    throw new Error("DISCOVERY_RESPONSE_INVALID_SCHEMA");
+    const safe = safeStructuredAiError(error);
+    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), webSearchCalls: 1, durationMs: Date.now()-startedAt, responseId, errorCode: safe.code, errorMessage: safe.message }).catch(()=>undefined);
+    throw new Error(`DISCOVERY_RESPONSE_${safe.code}`);
   }
 
   await completeAiRequest({
