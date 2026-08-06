@@ -43,6 +43,12 @@ function publicJob(job: Awaited<ReturnType<typeof getBusinessAnalysisJob>>) {
           hint: "Review today's usage and limits in Settings → AI governance.",
         };
       }
+      if (job.last_error_code === "INVALID_AI_OUTPUT") return {
+        code: "INVALID_AI_OUTPUT",
+        title: job.status === "FAILED_TERMINAL" ? "SalesPilot could not complete this analysis" : "Analysis paused safely",
+        message: "SalesPilot received an incomplete AI response while building the strategy.",
+        hint: job.status === "FAILED_RETRYABLE" ? "The saved job can retry this stage without repeating the website research." : "Start the analysis again. No incomplete AI output has been saved.",
+      };
       return {
         code: job.last_error_code,
         title: job.status === "FAILED_TERMINAL" ? "SalesPilot could not complete this analysis" : "Analysis paused before completion",

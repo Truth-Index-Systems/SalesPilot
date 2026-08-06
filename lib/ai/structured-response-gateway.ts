@@ -89,7 +89,7 @@ async function requestRepair<T>(params: {
       ].join(" "),
       input: params.raw.slice(0, 30_000),
       text: { format: { type: "json_schema", name: `${params.schemaName}_repair`, strict: true, schema: params.jsonSchema } },
-      max_output_tokens: 6_000,
+      max_output_tokens: 9_000,
       store: false,
     }),
   });
@@ -112,7 +112,9 @@ export async function parseStructuredAiResponse<T>(params: {
   let parsedJson = false;
   for (let index = 0; index < candidates.length; index += 1) {
     try {
-      return { value: parseCandidate(candidates[index], params.schema), recovery: index === 0 ? "NONE" : "DETERMINISTIC" };
+      const recovery = index === 0 ? "NONE" : "DETERMINISTIC" as const;
+      if (recovery !== "NONE") console.info("Structured AI response recovered", { schemaName: params.schemaName, recovery });
+      return { value: parseCandidate(candidates[index], params.schema), recovery };
     } catch (error) {
       if (!(error instanceof SyntaxError)) parsedJson = true;
     }
@@ -120,8 +122,13 @@ export async function parseStructuredAiResponse<T>(params: {
   if (params.allowRepair !== false) {
     try {
       const value = await requestRepair(params);
+      console.info("Structured AI response recovered", { schemaName: params.schemaName, recovery: "MODEL_REPAIR" });
       return { value, recovery: "MODEL_REPAIR" };
-    } catch {
+    } catch (repairError) {
+      console.warn("Structured AI response repair failed", {
+        schemaName: params.schemaName,
+        code: repairError instanceof StructuredAiOutputError ? repairError.code : "REPAIR_REQUEST_FAILED",
+      });
       // The caller's stage-local retry/dead-letter policy remains authoritative.
     }
   }

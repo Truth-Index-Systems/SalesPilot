@@ -2,17 +2,21 @@ import "server-only";
 import { analyseBusiness } from "@/lib/intelligence/openai";
 import { readWebsite, WebsiteReadError } from "@/lib/intelligence/website-reader";
 import { claimBusinessAnalysisJob, completeBusinessAnalysisJob, failBusinessAnalysisJob, updateBusinessAnalysisProgress } from "@/lib/intelligence/business-analysis-jobs";
+import { StructuredAiOutputError } from "@/lib/ai/structured-response-gateway";
 
 function classify(error:unknown){
   if(error instanceof WebsiteReadError){
     return {code:error.code,message:error.message,retryable:["WEBSITE_TIMEOUT","WEBSITE_UNAVAILABLE"].includes(error.code)};
+  }
+  if(error instanceof StructuredAiOutputError){
+    return {code:"INVALID_AI_OUTPUT",message:error.safeMessage,retryable:true};
   }
   const message=error instanceof Error?error.message:"Business analysis failed";
   if(/429|rate limit/i.test(message))return {code:"RATE_LIMIT",message,retryable:true};
   if(/timeout|abort/i.test(message))return {code:"TIMEOUT",message,retryable:true};
   if(/AI_GOVERNANCE_BLOCKED/i.test(message))return {code:"AI_GOVERNANCE_BLOCKED",message,retryable:false};
   if(/not configured|authentication|401/i.test(message))return {code:"CONFIGURATION",message,retryable:false};
-  if(/STRUCTURED_AI_OUTPUT|JSON|structured output|invalid response/i.test(message))return {code:"INVALID_AI_OUTPUT",message:"SalesPilot received an incomplete structured response. This stage can be retried safely.",retryable:true};
+  if(/STRUCTURED_AI_OUTPUT|JSON|structured output|invalid response|unterminated string|unexpected end/i.test(message))return {code:"INVALID_AI_OUTPUT",message:"SalesPilot received an incomplete structured response. This stage can be retried safely.",retryable:true};
   return {code:"ANALYSIS_FAILED",message,retryable:true};
 }
 

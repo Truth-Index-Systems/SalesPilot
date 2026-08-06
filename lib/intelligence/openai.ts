@@ -39,7 +39,10 @@ export async function analyseBusiness(params: { organisationId:string|null; jobI
         schema: businessDiscoveryJsonSchema,
       },
     },
-    max_output_tokens: 4500,
+    // This schema contains Business DNA plus several complete campaign proposals.
+    // GPT-5 reasoning tokens share this allowance with the final JSON, so a
+    // smaller cap can truncate otherwise valid structured output mid-string.
+    max_output_tokens: 9_000,
     store: false,
   };
 
@@ -69,7 +72,10 @@ export async function analyseBusiness(params: { organisationId:string|null; jobI
       return result;
     } catch (error) {
       const safe = safeStructuredAiError(error);
-      lastError = error instanceof Error ? error : new Error(safe.message);
+      // Never allow a raw JSON parser exception to escape this boundary.
+      lastError = safe.code === "INVALID_STRUCTURED_OUTPUT" || safe.code === "INVALID_JSON" || safe.code === "INVALID_SCHEMA" || safe.code === "REPAIR_FAILED" || safe.code === "EMPTY"
+        ? new Error(`STRUCTURED_AI_OUTPUT_${safe.code}:${safe.message}`)
+        : error instanceof Error ? error : new Error(safe.message);
     }
   }
   await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, errorCode: "ANALYSIS_FAILED", errorMessage: lastError?.message ?? "Business analysis failed" }).catch(()=>undefined);
