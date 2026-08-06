@@ -116,15 +116,15 @@ begin
     where s.campaign_id=v_campaign_id and s.status='QUEUED' and coalesce(s.job_state,'QUEUED')='QUEUED'
       and s.attempt_count=0 and coalesce(s.next_attempt_at,s.next_retry_at,now())<=now();
 
-  select count(*),coalesce(sum(case when status='SUCCEEDED' then actual_cost_usd else estimated_cost_usd end),0)
+  select count(*),coalesce(sum(case when l.status='SUCCEEDED' then l.actual_cost_usd else l.estimated_cost_usd end),0)
     into v_requests,v_cost
-  from public.ai_usage_ledger
-  where organisation_id=v_org_id and created_at>=date_trunc('day',now())
-    and status in ('RESERVED','SUCCEEDED','FAILED');
+  from public.ai_usage_ledger l
+  where l.organisation_id=v_org_id and l.created_at>=date_trunc('day',now())
+    and l.status in ('RESERVED','SUCCEEDED','FAILED');
 
-  select count(*) into v_campaign_requests from public.ai_usage_ledger
-  where campaign_id=v_campaign_id and created_at>=date_trunc('day',now())
-    and status in ('RESERVED','SUCCEEDED','FAILED');
+  select count(*) into v_campaign_requests from public.ai_usage_ledger l
+  where l.campaign_id=v_campaign_id and l.created_at>=date_trunc('day',now())
+    and l.status in ('RESERVED','SUCCEEDED','FAILED');
 
   v_request_slots:=greatest(v_policy.daily_request_limit-v_requests,0);
   v_campaign_slots:=greatest(v_policy.campaign_daily_request_limit-v_campaign_requests,0);

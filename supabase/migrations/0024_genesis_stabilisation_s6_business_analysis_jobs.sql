@@ -50,25 +50,25 @@ create or replace function public.claim_business_analysis_job(
 language plpgsql security definer set search_path=public as $$
 declare v_job public.business_analysis_jobs%rowtype;
 begin
-  update public.business_analysis_jobs
+  update public.business_analysis_jobs as baj
   set
     status='RUNNING',
     stage='READING_WEBSITE',
     progress=8,
-    attempt_count=attempt_count+1,
+    attempt_count=baj.attempt_count+1,
     claimed_at=now(),
     lease_expires_at=now()+make_interval(secs => greatest(60,least(p_lease_seconds,600))),
     next_retry_at=null,
     last_error_code=null,
     last_error_message=null,
-    started_at=coalesce(started_at,now()),
+    started_at=coalesce(baj.started_at,now()),
     updated_at=now()
-  where id=p_job_id
-    and access_token_hash=p_access_token_hash
+  where baj.id=p_job_id
+    and baj.access_token_hash=p_access_token_hash
     and (
-      status='QUEUED'
-      or (status='FAILED_RETRYABLE' and coalesce(next_retry_at,now())<=now())
-      or (status='RUNNING' and lease_expires_at<now())
+      baj.status='QUEUED'
+      or (baj.status='FAILED_RETRYABLE' and coalesce(baj.next_retry_at,now())<=now())
+      or (baj.status='RUNNING' and baj.lease_expires_at<now())
     )
   returning * into v_job;
   return v_job;
@@ -84,14 +84,14 @@ create or replace function public.update_business_analysis_progress(
 ) returns boolean
 language plpgsql security definer set search_path=public as $$
 begin
-  update public.business_analysis_jobs set
+  update public.business_analysis_jobs as baj set
     stage=p_stage,
     progress=greatest(0,least(p_progress,99)),
-    canonical_url=coalesce(p_canonical_url,canonical_url),
-    pages_read=coalesce(p_pages_read,pages_read),
+    canonical_url=coalesce(p_canonical_url,baj.canonical_url),
+    pages_read=coalesce(p_pages_read,baj.pages_read),
     lease_expires_at=now()+interval '4 minutes',
     updated_at=now()
-  where id=p_job_id and access_token_hash=p_access_token_hash and status='RUNNING';
+  where baj.id=p_job_id and baj.access_token_hash=p_access_token_hash and baj.status='RUNNING';
   return found;
 end $$;
 
@@ -105,14 +105,14 @@ create or replace function public.complete_business_analysis_job(
 ) returns boolean
 language plpgsql security definer set search_path=public as $$
 begin
-  update public.business_analysis_jobs set
+  update public.business_analysis_jobs as baj set
     status='COMPLETED', stage='COMPLETE', progress=100,
     canonical_url=p_canonical_url, pages_read=p_pages_read,
     analysis_json=p_analysis,
     result_summary_json=coalesce(p_result_summary,'{}'::jsonb),
     claimed_at=null, lease_expires_at=null, next_retry_at=null,
     completed_at=now(), updated_at=now()
-  where id=p_job_id and access_token_hash=p_access_token_hash and status='RUNNING';
+  where baj.id=p_job_id and baj.access_token_hash=p_access_token_hash and baj.status='RUNNING';
   return found;
 end $$;
 
@@ -126,10 +126,10 @@ create or replace function public.fail_business_analysis_job(
 language plpgsql security definer set search_path=public as $$
 declare v_attempt integer;
 begin
-  select attempt_count into v_attempt from public.business_analysis_jobs
-  where id=p_job_id and access_token_hash=p_access_token_hash for update;
+  select baj.attempt_count into v_attempt from public.business_analysis_jobs baj
+  where baj.id=p_job_id and baj.access_token_hash=p_access_token_hash for update;
   if not found then return false; end if;
-  update public.business_analysis_jobs set
+  update public.business_analysis_jobs as baj set
     status=case when p_retryable and v_attempt<5 then 'FAILED_RETRYABLE' else 'FAILED_TERMINAL' end,
     stage='FAILED', progress=0,
     last_error_code=p_error_code,
@@ -142,7 +142,7 @@ begin
       else now()+interval '2 hours'
     end,
     claimed_at=null, lease_expires_at=null, updated_at=now()
-  where id=p_job_id and access_token_hash=p_access_token_hash;
+  where baj.id=p_job_id and baj.access_token_hash=p_access_token_hash;
   return true;
 end $$;
 

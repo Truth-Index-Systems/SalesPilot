@@ -151,27 +151,27 @@ begin
     if v_draft_id is null then
       insert into public.engagement_queue_holds(organisation_id,campaign_id,engagement_id,opportunity_id,reason_code,reason_message,last_checked_at)
       values(v.organisation_id,v.campaign_id,v.id,v.opportunity_id,'DRAFT_MISSING','Approved engagement has no completed draft.',now())
-      on conflict(engagement_id,reason_code) do update set last_checked_at=now(),resolved_at=null;
+      on conflict on constraint engagement_queue_holds_engagement_id_reason_code_key do update set last_checked_at=now(),resolved_at=null;
       v_held:=v_held+1; continue;
     end if;
     v_address:=case when v.channel_type='EMAIL' then nullif(trim(coalesce(v.recipient_email,'')),'') when v.channel_type='LINKEDIN' then nullif(trim(coalesce(v.linkedin_profile_url,'')),'') else null end;
     if v.channel_type not in ('EMAIL','LINKEDIN') then
       insert into public.engagement_queue_holds(organisation_id,campaign_id,engagement_id,opportunity_id,reason_code,reason_message,last_checked_at)
       values(v.organisation_id,v.campaign_id,v.id,v.opportunity_id,'UNSUPPORTED_CHANNEL','Approved engagement does not have a supported sending channel.',now())
-      on conflict(engagement_id,reason_code) do update set last_checked_at=now(),resolved_at=null;
+      on conflict on constraint engagement_queue_holds_engagement_id_reason_code_key do update set last_checked_at=now(),resolved_at=null;
       v_held:=v_held+1; continue;
     end if;
     if v_address is null then
       insert into public.engagement_queue_holds(organisation_id,campaign_id,engagement_id,opportunity_id,reason_code,reason_message,last_checked_at)
       values(v.organisation_id,v.campaign_id,v.id,v.opportunity_id,'MISSING_ROUTE','Approved engagement no longer has a usable recipient route.',now())
-      on conflict(engagement_id,reason_code) do update set last_checked_at=now(),resolved_at=null;
+      on conflict on constraint engagement_queue_holds_engagement_id_reason_code_key do update set last_checked_at=now(),resolved_at=null;
       v_held:=v_held+1; continue;
     end if;
     select * into v_tz from public.resolve_engagement_timezone(v.contact_location,v.company_country) limit 1;
     if v_tz.timezone_name is null then
       insert into public.engagement_queue_holds(organisation_id,campaign_id,engagement_id,opportunity_id,reason_code,reason_message,metadata_json,last_checked_at)
       values(v.organisation_id,v.campaign_id,v.id,v.opportunity_id,'TIMEZONE_UNCERTAIN','Recipient timezone could not be established with sufficient confidence.',jsonb_build_object('contactLocation',v.contact_location,'companyCountry',v.company_country),now())
-      on conflict(engagement_id,reason_code) do update set metadata_json=excluded.metadata_json,last_checked_at=now(),resolved_at=null;
+      on conflict on constraint engagement_queue_holds_engagement_id_reason_code_key do update set metadata_json=excluded.metadata_json,last_checked_at=now(),resolved_at=null;
       v_held:=v_held+1; continue;
     end if;
     v_scheduled:=public.next_recipient_send_time(v_tz.timezone_name,now());
