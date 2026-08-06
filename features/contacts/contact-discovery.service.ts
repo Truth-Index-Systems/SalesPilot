@@ -4,8 +4,9 @@ import { discoverContacts } from "@/lib/contacts/openai";
 import type { WorkerExecutionContext, WorkerExecutionResult } from "@/lib/pipeline/executor";
 import { classifyPipelineError } from "@/lib/pipeline/errors";
 import { createResultSummary } from "@/lib/pipeline/result-summary";
+import { safePipelineFailureReason } from "@/lib/pipeline/safe-error";
 
-function safeError(error:unknown){const m=error instanceof Error?error.message:"CONTACT_DISCOVERY_FAILED";return m.startsWith("OPENAI_CONTACT_DISCOVERY_FAILED:")?m.slice(0,500):["OPENAI_API_KEY_NOT_CONFIGURED","CONTACT_DISCOVERY_COMPANY_MISMATCH","CONTACT_DISCOVERY_NO_VERIFIED_CONTACTS","CAMPAIGN_NOT_FOUND","COMPANY_NOT_FOUND","BUSINESS_PROFILE_NOT_FOUND"].includes(m)?m:"CONTACT_DISCOVERY_FAILED";}
+function safeError(error:unknown){return safePipelineFailureReason(error,"Route research encountered a technical interruption and will retry safely.");}
 
 export type ContactDiscoveryExecutionOptions={campaignId?:string|null;freshOnly?:boolean};
 

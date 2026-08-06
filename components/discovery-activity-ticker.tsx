@@ -39,7 +39,6 @@ export function DiscoveryActivityTicker({campaignId,initialDiscovery,initialActi
   const refreshStatus=async()=>{
    if(requestInFlight||cancelled)return;
    requestInFlight=true;
-   window.dispatchEvent(new CustomEvent("salespilot:api-start",{detail:{method:"GET",url:`/api/campaigns/${campaignId}/discovery/status`}}));
    try{
     const response=await fetch(`/api/campaigns/${campaignId}/discovery/status`,{cache:"no-store"});
     if(!response.ok)return;
@@ -57,7 +56,6 @@ export function DiscoveryActivityTicker({campaignId,initialDiscovery,initialActi
     if(changed||retryDue) router.refresh();
    }catch{}finally{
     requestInFlight=false;
-    window.dispatchEvent(new CustomEvent("salespilot:api-finish",{detail:{method:"GET",url:`/api/campaigns/${campaignId}/discovery/status`}}));
    }
   };
 

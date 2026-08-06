@@ -2,6 +2,7 @@ import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { generateOutreach } from "./outreach-generation-openai";
 import { recordEngagementStage } from "./strategy";
+import { safePipelineFailureReason } from "@/lib/pipeline/safe-error";
 
 export type OutreachGenerationWorkerResult = {
   processed: boolean;
@@ -53,10 +54,11 @@ export async function runNextOutreachGeneration(schedulerRunId: string): Promise
     await recordEngagementStage({ engagementId: job.engagement_id, schedulerRunId, stage: "AI_QUALITY_REVIEW", state: "READY", reason: "Channel content generated and ready for independent review.", worker: "channel-content-generation" });
     return { processed: true, outcome: "COMPLETED", draftId: job.draft_id, engagementId: job.engagement_id };
   } catch (error) {
-    await recordEngagementStage({ engagementId: job.engagement_id, schedulerRunId, stage: "CHANNEL_CONTENT_GENERATION", state: "RETRYING", reason: error instanceof Error ? error.message : "OUTREACH_GENERATION_FAILED", worker: "channel-content-generation" }).catch(() => undefined);
+    const safeReason = safePipelineFailureReason(error, "Channel content generation encountered a technical interruption and will retry safely.");
+    await recordEngagementStage({ engagementId: job.engagement_id, schedulerRunId, stage: "CHANNEL_CONTENT_GENERATION", state: "RETRYING", reason: safeReason, worker: "channel-content-generation" }).catch(() => undefined);
     await databaseRequest("rpc/fail_engagement_outreach_generation", {
       method: "POST",
-      body: JSON.stringify({ p_draft_id: job.draft_id, p_error: error instanceof Error ? error.message : "OUTREACH_GENERATION_FAILED" }),
+      body: JSON.stringify({ p_draft_id: job.draft_id, p_error: safeReason }),
     }).catch(() => undefined);
     return { processed: true, outcome: "FAILED_RETRYABLE", draftId: job.draft_id, engagementId: job.engagement_id };
   }

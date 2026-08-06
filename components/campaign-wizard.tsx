@@ -23,19 +23,6 @@ type DiscoveryError = {
   hint: string;
 };
 
-type DiscoveryResponse =
-  | {
-      ok: true;
-      analysis: AiEnvelope<BusinessDnaPayload>;
-      pagesRead: number;
-      canonicalUrl: string;
-    }
-  | {
-      ok: false;
-      error: DiscoveryError;
-    };
-
-
 type AnalysisJob = {
   id: string;
   website: string;
@@ -192,17 +179,19 @@ export function CampaignWizard() {
 
   useEffect(() => {
     if (result) return;
-    const raw = localStorage.getItem(ANALYSIS_JOB_KEY);
+    // Remove the superseded persistent token copy from older builds.
+    localStorage.removeItem(ANALYSIS_JOB_KEY);
+    const raw = sessionStorage.getItem(ANALYSIS_JOB_KEY);
     if (!raw) return;
     try {
       const saved = JSON.parse(raw) as SavedAnalysisJob;
       if (!saved.jobId || !saved.accessToken || Date.now() - saved.savedAt > CAMPAIGN_DRAFT_MAX_AGE_MS) {
-        localStorage.removeItem(ANALYSIS_JOB_KEY);
+        sessionStorage.removeItem(ANALYSIS_JOB_KEY);
         return;
       }
       void monitorAnalysisJob(saved.jobId, saved.accessToken, true);
     } catch {
-      localStorage.removeItem(ANALYSIS_JOB_KEY);
+      sessionStorage.removeItem(ANALYSIS_JOB_KEY);
     }
   // Resume once on mount. monitorAnalysisJob intentionally uses stable browser APIs only.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -247,7 +236,12 @@ export function CampaignWizard() {
   }
 
   async function fetchAnalysisJob(jobId: string, accessToken: string) {
-    const response = await fetch(`/api/intelligence/business-discovery?jobId=${encodeURIComponent(jobId)}&accessToken=${encodeURIComponent(accessToken)}`, { cache: "no-store" });
+    const response = await fetch("/api/intelligence/business-discovery/status", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jobId, accessToken }),
+    });
     const data = (await response.json()) as AnalysisJobResponse;
     if (!data.ok) throw new Error(data.error.message);
     return data.job;
@@ -285,7 +279,7 @@ export function CampaignWizard() {
           setUrl(job.canonicalUrl);
           setSelected(0);
           setStep(1);
-          localStorage.removeItem(ANALYSIS_JOB_KEY);
+          sessionStorage.removeItem(ANALYSIS_JOB_KEY);
           return;
         }
         if (job.status === "FAILED_TERMINAL" || job.status === "CANCELLED") {
@@ -334,7 +328,7 @@ export function CampaignWizard() {
         return;
       }
       const saved = { jobId: data.job.id, accessToken: data.accessToken, savedAt: Date.now() } satisfies SavedAnalysisJob;
-      localStorage.setItem(ANALYSIS_JOB_KEY, JSON.stringify(saved));
+      sessionStorage.setItem(ANALYSIS_JOB_KEY, JSON.stringify(saved));
       setAnalysisJob(data.job);
       // monitorAnalysisJob owns the single worker dispatch. Starting it here as
       // well caused two concurrent claim attempts for the same persisted job.

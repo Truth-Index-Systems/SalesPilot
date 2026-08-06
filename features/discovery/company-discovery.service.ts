@@ -6,12 +6,10 @@ import { verifyDiscoveredCompanyDetailed, type CompanyVerificationReason } from 
 import type { WorkerExecutionContext, WorkerExecutionResult } from "@/lib/pipeline/executor";
 import { classifyPipelineError } from "@/lib/pipeline/errors";
 import { createResultSummary } from "@/lib/pipeline/result-summary";
+import { safePipelineFailureReason } from "@/lib/pipeline/safe-error";
 
 function safeWorkerError(error: unknown): string {
-  const message = error instanceof Error ? error.message : "Company discovery failed";
-  if (message.startsWith("OPENAI_DISCOVERY_FAILED:")) return message.slice(0, 500);
-  if (["CAMPAIGN_NOT_FOUND", "BUSINESS_PROFILE_NOT_FOUND", "DISCOVERY_NO_VERIFIED_COMPANIES", "OPENAI_API_KEY_NOT_CONFIGURED"].includes(message)) return message;
-  return "COMPANY_DISCOVERY_FAILED";
+  return safePipelineFailureReason(error, "Company Discovery encountered a technical interruption and will retry safely.");
 }
 
 async function activity(sessionId:string,type:string,title:string,description?:string,metadata:Record<string,unknown>={}) {

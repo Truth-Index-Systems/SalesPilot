@@ -18,6 +18,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     console.error("Pipeline observation action failed", error);
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "PIPELINE_OBSERVATION_FAILED" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "PIPELINE_OBSERVATION_FAILED" }, { status: 400 });
   }
 }

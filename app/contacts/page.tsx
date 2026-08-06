@@ -47,7 +47,7 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
   const companiesWithRoutes = new Set(companyChannels.map(row => row.company_id)).size;
 
   return <AppShell title="Contacts" user={user} workspaceStats={{ campaigns: campaigns.length, companies: companies.total, replies: 0, opportunities: 0 }}>
-    <ContactAutoRefresh active={activeSessions.length > 0 || retrySessions.length > 0}/><PageHeader eyebrow="Supporting buyer intelligence" title="Buyer intelligence" subtitle="SalesPilot researches the right people inside approved companies, verifies the evidence, and pauses for human judgement before outreach." />
+    <ContactAutoRefresh active={activeSessions.length > 0 || retrySessions.length > 0}/><PageHeader eyebrow="Commercial access" title="Routes" subtitle="SalesPilot identifies and verifies the strongest practical ways into approved companies, then pauses for human judgement before engagement." />
 
     <Card className="autonomous-flow-card">
       <div className="flow-stage complete"><span>1</span><div><small>Approved companies</small><strong>{companies.approved}</strong></div></div><i>→</i>
@@ -93,7 +93,7 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
       <Link className={`filter-chip ${search.status === "HOLD" ? "active" : ""}`} href={queryString({...search,status:"HOLD"})}>Held · {counts.hold}</Link>
       <Link className={`filter-chip ${search.status === "REJECTED" ? "active" : ""}`} href={queryString({...search,status:"REJECTED"})}>Not selected · {counts.rejected}</Link>
     </div>
-    {rows.length ? <ContactReviewQueue rows={rows}/> : <Card><div className="empty"><h3>{hasFilters ? "No contacts match these filters" : researching ? "SalesPilot is researching decision-makers" : "No contacts yet"}</h3><p>{hasFilters ? "Adjust or clear the filters." : researching ? "Verified contacts will appear here as research completes." : "Approve companies to begin autonomous contact discovery."}</p></div></Card>}
+    {rows.length ? <ContactReviewQueue rows={rows}/> : <Card><div className="empty"><h3>{hasFilters ? "No contacts match these filters" : researching ? "SalesPilot is researching decision-makers" : "No contacts yet"}</h3><p>{hasFilters ? "Adjust or clear the filters." : researching ? "Verified contacts will appear here as research completes." : "Approve companies to begin autonomous route research."}</p></div></Card>}
 
     <Card className="contact-next-stage"><div><span className="eyebrow">Next autonomous stage</span><h3>Outreach</h3><p>Approved contacts automatically become available for evidence-led, personalised outreach in G4.</p></div><div className="next-stage-count"><strong>{reachableApproved}</strong><span>approved and reachable</span></div><ArrowRight size={22}/></Card>
   </AppShell>;

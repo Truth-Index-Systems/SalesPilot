@@ -1,19 +1,18 @@
 import fs from "node:fs";
 
-const lifecycle = fs.readFileSync("components/api-lifecycle-refresh.tsx", "utf8");
 const ticker = fs.readFileSync("components/discovery-activity-ticker.tsx", "utf8");
 const layout = fs.readFileSync("app/layout.tsx", "utf8");
 
 const checks = [
-  [layout.includes("<ApiLifecycleRefresh />"), "Root layout mounts API lifecycle refresh"],
-  [lifecycle.includes('new Set(["POST", "PUT", "PATCH", "DELETE"])'), "Mutating API methods are observed"],
-  [lifecycle.includes('salespilot:api-start'), "API-start lifecycle event exists"],
-  [lifecycle.includes('salespilot:api-finish'), "API-finish lifecycle event exists"],
-  [lifecycle.includes("router.refresh()"), "Lifecycle refresh invokes router.refresh"],
+  [!layout.includes("ApiLifecycleRefresh"), "Obsolete global fetch monkey-patch is not mounted"],
+  [!fs.existsSync("components/api-lifecycle-refresh.tsx"), "Obsolete lifecycle component removed"],
   [ticker.includes("latestSnapshot"), "Discovery polling tracks complete snapshots"],
   [ticker.includes("next_retry_at"), "Retry-time changes are included"],
   [ticker.includes("progress"), "Progress changes are included"],
   [ticker.includes("activities.slice(0,8)"), "Activity changes are included"],
+  [ticker.includes('window.addEventListener("focus"'), "Focus refresh installed"],
+  [ticker.includes('document.addEventListener("visibilitychange"'), "Visibility refresh installed"],
+  [ticker.includes("router.refresh()"), "Database-state changes refresh the server view"],
 ];
 
 for (const [ok, label] of checks) {

@@ -52,7 +52,7 @@ function publicJob(job: Awaited<ReturnType<typeof getBusinessAnalysisJob>>) {
       return {
         code: job.last_error_code,
         title: job.status === "FAILED_TERMINAL" ? "SalesPilot could not complete this analysis" : "Analysis paused before completion",
-        message: job.last_error_message ?? "The analysis did not complete.",
+        message: "SalesPilot encountered a technical interruption. No partial result was exposed.",
         hint: job.status === "FAILED_RETRYABLE" ? "SalesPilot has saved the job. Retry it when the scheduled time arrives." : "Check the website and configuration before trying again.",
       };
     })() : null,
@@ -73,26 +73,12 @@ export async function POST(request: Request) {
       }
     }
     const created = await createBusinessAnalysisJob(input.website);
-    return NextResponse.json({ ok: true, job: publicJob(created.job), accessToken: created.accessToken }, { status: 202 });
+    return NextResponse.json({ ok: true, job: publicJob(created.job), accessToken: created.accessToken }, { status: 202, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
   } catch (error) {
     console.error("Business analysis job creation failed", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ ok: false, error: { code: "INVALID_REQUEST", title: "Check the website address", message: "Please enter a valid company website.", hint: "Enter an address such as yourcompany.com." } }, { status: 400 });
     }
     return NextResponse.json({ ok: false, error: { code: "SERVICE_UNAVAILABLE", title: "Analysis could not be started", message: "SalesPilot could not save the analysis job.", hint: "Please try again in a moment." } }, { status: 503 });
-  }
-}
-
-export async function GET(request: Request) {
-  try {
-    const url = new URL(request.url);
-    const jobId = z.string().uuid().parse(url.searchParams.get("jobId"));
-    const accessToken = z.string().min(20).parse(url.searchParams.get("accessToken"));
-    const job = await getBusinessAnalysisJob(jobId, accessToken);
-    if (!job) return NextResponse.json({ ok: false, error: { code: "JOB_NOT_FOUND", title: "Analysis job not found", message: "This saved analysis could not be found.", hint: "Start a new analysis." } }, { status: 404 });
-    return NextResponse.json({ ok: true, job: publicJob(job) });
-  } catch (error) {
-    console.error("Business analysis status failed", error);
-    return NextResponse.json({ ok: false, error: { code: "INVALID_JOB", title: "Analysis could not be loaded", message: "The saved analysis reference is invalid.", hint: "Start a new analysis." } }, { status: 400 });
   }
 }

@@ -6,18 +6,22 @@ import { StructuredAiOutputError } from "@/lib/ai/structured-response-gateway";
 
 function classify(error:unknown){
   if(error instanceof WebsiteReadError){
-    return {code:error.code,message:error.message,retryable:["WEBSITE_TIMEOUT","WEBSITE_UNAVAILABLE"].includes(error.code)};
+    const retryable=["WEBSITE_TIMEOUT","WEBSITE_UNAVAILABLE"].includes(error.code);
+    return {code:error.code,message:retryable?"The public website could not be read completely. This analysis can retry safely.":"The supplied website could not be verified as a supported public source.",retryable};
   }
   if(error instanceof StructuredAiOutputError){
     return {code:"INVALID_AI_OUTPUT",message:error.safeMessage,retryable:true};
   }
-  const message=error instanceof Error?error.message:"Business analysis failed";
-  if(/429|rate limit/i.test(message))return {code:"RATE_LIMIT",message,retryable:true};
-  if(/timeout|abort/i.test(message))return {code:"TIMEOUT",message,retryable:true};
-  if(/AI_GOVERNANCE_BLOCKED/i.test(message))return {code:"AI_GOVERNANCE_BLOCKED",message,retryable:false};
-  if(/not configured|authentication|401/i.test(message))return {code:"CONFIGURATION",message,retryable:false};
+  const message=error instanceof Error?error.message:"";
+  if(/429|rate limit/i.test(message))return {code:"RATE_LIMIT",message:"The AI provider temporarily rate-limited this request. This analysis can retry safely.",retryable:true};
+  if(/timeout|abort/i.test(message))return {code:"TIMEOUT",message:"An external research request timed out. This analysis can retry safely.",retryable:true};
+  if(/AI_GOVERNANCE_BLOCKED/i.test(message)){
+    const reason=["PLATFORM_DISABLED","AUTONOMY_DISABLED","REQUEST_LIMIT","COST_LIMIT","CAMPAIGN_LIMIT"].find(value=>message.includes(value))??"LIMIT_REACHED";
+    return {code:"AI_GOVERNANCE_BLOCKED",message:`AI_GOVERNANCE_BLOCKED:${reason}`,retryable:false};
+  }
+  if(/not configured|authentication|401/i.test(message))return {code:"CONFIGURATION",message:"The protected AI service configuration is incomplete.",retryable:false};
   if(/STRUCTURED_AI_OUTPUT|JSON|structured output|invalid response|unterminated string|unexpected end/i.test(message))return {code:"INVALID_AI_OUTPUT",message:"SalesPilot received an incomplete structured response. This stage can be retried safely.",retryable:true};
-  return {code:"ANALYSIS_FAILED",message,retryable:true};
+  return {code:"ANALYSIS_FAILED",message:"Business analysis encountered a technical interruption. No partial result was exposed.",retryable:true};
 }
 
 export async function runBusinessAnalysisJob(id:string,token:string){
