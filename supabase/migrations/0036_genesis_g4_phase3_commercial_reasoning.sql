@@ -103,7 +103,7 @@ begin
   join public.opportunities o on o.id=e.opportunity_id and o.status='APPROVED'
   join public.ai_governance_policies g on g.organisation_id=e.organisation_id and g.autonomy_enabled=true
   where e.status='READY_FOR_DRAFT'
-  on conflict(engagement_id) do nothing;
+  on conflict on constraint engagement_commercial_analyses_engagement_id_key do nothing;
 
   select a.id into v_id from public.engagement_commercial_analyses a
   join public.opportunity_engagements e on e.id=a.engagement_id and e.status='READY_FOR_DRAFT'

@@ -70,7 +70,8 @@
     "founder:dashboard-check": "npm run cost:release-a-check && node scripts/validate-founder-dashboard.mjs",
     "cost:release-b-check": "node scripts/check-cost-release-b.mjs",
     "cost:release-c-check": "node scripts/check-cost-release-c.mjs",
-    "company-discovery:first-attempt-check": "node scripts/validate-company-discovery-first-attempt-hotfix.mjs"
+    "company-discovery:first-attempt-check": "node scripts/validate-company-discovery-first-attempt-hotfix.mjs",
+    "g4:commercial-reasoning-claim-hotfix-check": "node scripts/validate-commercial-reasoning-claim-hotfix.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
