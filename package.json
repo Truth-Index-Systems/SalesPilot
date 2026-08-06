@@ -66,7 +66,8 @@
     "genesis:g4-phase6-check": "npm run genesis:g4-phase5-check && node scripts/validate-genesis-g4-phase6.mjs",
     "genesis:g4-phase7-check": "npm run genesis:g4-phase6-check && node scripts/validate-genesis-g4-phase7.mjs",
     "genesis:g4-phase8-check": "npm run genesis:g4-phase7-check && node scripts/validate-genesis-g4-phase8.mjs",
-    "cost:release-a-check": "npm run genesis:g4-phase8-check && node scripts/validate-ai-cost-release-a.mjs"
+    "cost:release-a-check": "npm run genesis:g4-phase8-check && node scripts/validate-ai-cost-release-a.mjs",
+    "founder:dashboard-check": "npm run cost:release-a-check && node scripts/validate-founder-dashboard.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
