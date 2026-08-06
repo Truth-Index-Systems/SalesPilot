@@ -91,6 +91,8 @@ type DiscoverCompaniesInput = {
   business: Record<string, unknown>;
   customerWebsite?: string | null;
   excludedCompanies?: Array<{ name: string; domain: string }>;
+  searchPass?: number;
+  searchStrategy?: string;
 };
 
 export async function discoverCompanies(input: DiscoverCompaniesInput) {
@@ -124,6 +126,9 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
         "Score industry fit, audience fit, operational fit, geography fit, and commercial fit independently.",
         "Record genuine uncertainties and risk flags instead of hiding them.",
         "Return 5–8 high-confidence matches when supported; quality is more important than volume.",
+        input.searchPass && input.searchPass > 1
+          ? `This is search pass ${input.searchPass}. The earlier search retained too few supported companies. Broaden intelligently using this strategy: ${input.searchStrategy ?? "ALTERNATIVE_LANGUAGE"}. Keep the approved commercial problem and evidence threshold unchanged.`
+          : "Start with the approved audience, buyer language and strongest direct commercial fit.",
         "For each company, include only the 1–4 strongest official-site evidence items and keep explanations concise.",
         "Use British English.",
       ].join(" "),

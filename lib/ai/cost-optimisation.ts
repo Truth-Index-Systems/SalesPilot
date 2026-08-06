@@ -68,12 +68,14 @@ export function stableFingerprint(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(stable(value))).digest("hex");
 }
 
-export function compactCompanyDiscoveryInput(input: { campaign: Record<string, unknown>; business: Record<string, unknown>; customerWebsite?: string | null; excludedCompanies?: Array<{name:string;domain:string}> }) {
+export function compactCompanyDiscoveryInput(input: { campaign: Record<string, unknown>; business: Record<string, unknown>; customerWebsite?: string | null; excludedCompanies?: Array<{name:string;domain:string}>; searchPass?: number; searchStrategy?: string }) {
   return compactForAi({
     campaign: input.campaign,
     business: input.business,
     customerWebsite: input.customerWebsite ?? null,
     excludedCompanies: (input.excludedCompanies ?? []).slice(0, 100),
+    searchPass: input.searchPass ?? 1,
+    searchStrategy: input.searchStrategy ?? "PRIMARY",
   }, { evidenceLimit: 6, depth: 5 });
 }
 

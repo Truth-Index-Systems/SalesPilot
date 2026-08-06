@@ -30,7 +30,7 @@ const schema={
   }
 } as const;
 
-export async function discoverContacts(input:{organisationId:string;campaignId:string;schedulerRunId?:string|null;jobId:string;company:Record<string,unknown>;campaign:Record<string,unknown>;business:Record<string,unknown>}){
+export async function discoverContacts(input:{organisationId:string;campaignId:string;schedulerRunId?:string|null;jobId:string;company:Record<string,unknown>;campaign:Record<string,unknown>;business:Record<string,unknown>;routeExpansionPass?:number}){
   const apiKey=process.env.OPENAI_API_KEY?.trim();if(!apiKey)throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model=resolveOpenAIModel("analysis").model;
   const compactInput=compactContactDiscoveryInput(input);
@@ -53,7 +53,8 @@ export async function discoverContacts(input:{organisationId:string;campaignId:s
       "Prefer operational, commercial, projects, manufacturing, logistics, warehouse, enquiries and other monitored routes over generic info addresses when evidence supports them. Include generic routes when they are the only legitimate path into the company.",
       "For LinkedIn: only return a direct linkedin.com/in profile URL when the name, employer, and role match the contact. VERIFIED requires direct strong matching evidence; HIGH_CONFIDENCE is allowed when the match is strong but not independently confirmed. Otherwise return UNKNOWN with null URL.",
       "Provide EMAIL and LINKEDIN evidence entries whenever a channel is returned. The evidence must support the stated status.",
-      "Prioritise the strongest operational buying roles relevant to the approved campaign. Return at most 5 well-supported people and the best 5 routes. Use British English."
+      "Prioritise the strongest operational buying roles relevant to the approved campaign. Return at most 5 well-supported people and the best 5 routes. Use British English.",
+      input.routeExpansionPass===0?"This is the first route-research pass. Establish the strongest directly executable route and an independent fallback where official evidence supports both.":input.routeExpansionPass===1?"This is expansion pass two. Search role-title synonyms, adjacent operational buyers, direct email and LinkedIn evidence not covered in the first pass.":input.routeExpansionPass===2?"This is expansion pass three. Check departmental and monitored company inboxes, regional leadership, procurement and executive-assistant paths using official sources.":"This is the final safe expansion pass. Re-check all official access paths and return uncertainty rather than inventing a route."
     ].join(" "),
     input:JSON.stringify(compactInput),tools:[{type:"web_search_preview",search_context_size:"low"}],
     text:{format:{type:"json_schema",name:"salespilot_contact_discovery_v3",strict:true,schema}},max_output_tokens:7500,store:false

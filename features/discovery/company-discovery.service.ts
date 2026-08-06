@@ -23,7 +23,24 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
   const job = claimed[0];
   if (!job) return { worker: "COMPANY_DISCOVERY", processed: false, outcome: "NO_JOB" };
   try {
-    await activity(job.session_id,"DISCOVERY_STARTED","Company discovery started","SalesPilot is preparing a search from the approved campaign.");
+    const sessionRows = await databaseRequest<Array<{ expansion_pass_count?: number | null; minimum_supported_companies?: number | null; max_expansion_passes?: number | null }>>(
+      `discovery_sessions?id=eq.${job.session_id}&organisation_id=eq.${job.organisation_id}&select=expansion_pass_count,minimum_supported_companies,max_expansion_passes&limit=1`
+    );
+    const expansionPassCount = Number(sessionRows[0]?.expansion_pass_count ?? 0);
+    const searchPass = expansionPassCount + 1;
+    const minimumSupportedCompanies = Number(sessionRows[0]?.minimum_supported_companies ?? 3);
+    const maxExpansionPasses = Number(sessionRows[0]?.max_expansion_passes ?? 4);
+    const searchStrategies = ["PRIMARY", "ALTERNATIVE_BUYER_LANGUAGE", "ADJACENT_OPERATIONAL_SECTORS", "BROADER_GEOGRAPHY_AND_SIZE"] as const;
+    const searchStrategy = searchStrategies[Math.min(expansionPassCount, searchStrategies.length - 1)];
+    await activity(
+      job.session_id,
+      searchPass > 1 ? "DISCOVERY_EXPANSION_STARTED" : "DISCOVERY_STARTED",
+      searchPass > 1 ? `Expanding company search · pass ${searchPass}` : "Company discovery started",
+      searchPass > 1
+        ? "SalesPilot is exploring another evidence-backed commercial angle because the earlier search retained too few strong matches."
+        : "SalesPilot is preparing a search from the approved campaign.",
+      { searchPass, searchStrategy, minimumSupportedCompanies, maxExpansionPasses },
+    );
     const campaigns = await databaseRequest<any[]>(`campaign_detail?id=eq.${job.campaign_id}&organisation_id=eq.${job.organisation_id}&limit=1`);
     const campaign = campaigns[0];
     if (!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
@@ -49,10 +66,20 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       business,
       customerWebsite:campaign.website_url,
       excludedCompanies:existingCompanies.map(company=>({name:company.company_name,domain:company.canonical_domain})),
+      searchPass,
+      searchStrategy,
     });
 
     await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"VALIDATING",p_progress:72,p_candidates:result.companies.length})});
-    await activity(job.session_id,"CANDIDATES_FOUND",`${result.companies.length} potential matches found`,"Each company is now being checked against official-site evidence.",{candidateCount:result.companies.length});
+    await activity(
+      job.session_id,
+      "CANDIDATES_FOUND",
+      result.companies.length > 0 ? `${result.companies.length} potential matches found` : "Search pass completed",
+      result.companies.length > 0
+        ? "Each company is now being checked against official-site evidence."
+        : "No supported candidates were returned on this pass. SalesPilot will decide whether to expand the search automatically.",
+      { candidateCount: result.companies.length, searchPass, searchStrategy },
+    );
 
     let saved=0;
     let verified=0;
@@ -86,10 +113,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       // COMPANY_VERIFIED quality gate completed before the persisted COMPANY_SAVED activity.
       await activity(job.session_id,"COMPANY_SAVED",`${company.name} verified and added`,`${company.matchLabel} · ${company.confidence}/100 confidence · ${company.evidenceQuality}/100 evidence quality`,{companyName:company.name,confidence:company.confidence,evidenceQuality:company.evidenceQuality,savedCount:saved});
     }
-    // A valid search can legitimately produce no new unique, evidence-backed
-    // companies after exclusions and verification. Finalise that cycle so the
-    // database can apply its exhaustion cooldown instead of treating it as a
-    // transient worker failure and immediately reopening it on the next tick.
+    const retainedAfterPass = existingCompanies.length + Number(saved);
     const discoverySummary = {
       ...createResultSummary(Number(saved)>0?"COMPLETED_WITH_RESULTS":"COMPLETED_NO_RESULTS",Number(saved),startedAt),
       candidatesReturned: result.companies.length,
@@ -98,13 +122,33 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       reachableOfficialEvidence,
       excerptMatches,
       heldReasons,
+      searchPass,
+      searchStrategy,
+      retainedAfterPass,
+      minimumSupportedCompanies,
+      maxExpansionPasses,
     };
-    await activity(job.session_id,"DISCOVERY_SUMMARY",saved > 0 ? `${saved} companies ready for review` : "No companies met the evidence gate",saved > 0 ? `${verified} verified from ${result.companies.length} candidates.` : "The search completed normally. Candidate diagnostics have been saved for tuning.",discoverySummary);
     const finalSaved=await databaseRequest<number>("rpc/finalize_company_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_result_summary:discoverySummary})});
+    const finalSessionRows = await databaseRequest<Array<{ status: string; job_state?: string | null; result_summary_json?: Record<string, unknown> | null }>>(
+      `discovery_sessions?id=eq.${job.session_id}&organisation_id=eq.${job.organisation_id}&select=status,job_state,result_summary_json&limit=1`
+    );
+    const finalSession = finalSessionRows[0];
+    const expansionPending = finalSession?.status === "QUEUED" || finalSession?.result_summary_json?.expansionPending === true;
+    if (!expansionPending) {
+      await activity(
+        job.session_id,
+        "DISCOVERY_SUMMARY",
+        Number(finalSaved) > 0 ? `${Number(finalSaved)} companies ready for review` : "Extended search completed without enough supported matches",
+        Number(finalSaved) > 0
+          ? `${verified} verified from ${result.companies.length} candidates on this pass.`
+          : "SalesPilot completed every safe expansion pass without weakening the evidence standard. No weak recommendations were added.",
+        discoverySummary,
+      );
+    }
     return {
       worker: "COMPANY_DISCOVERY",
       processed: true,
-      outcome: Number(finalSaved) > 0 ? "COMPLETED_WITH_RESULTS" : "COMPLETED_NO_RESULTS",
+      outcome: expansionPending ? "CONTINUING" : Number(finalSaved) > 0 ? "COMPLETED_WITH_RESULTS" : "COMPLETED_NO_RESULTS",
       sessionId: job.session_id,
       saved: Number(finalSaved),
     };

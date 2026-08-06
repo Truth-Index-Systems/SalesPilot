@@ -3,7 +3,8 @@ export type WorkerKind = "COMPANY_DISCOVERY" | "CONTACT_DISCOVERY";
 export type WorkerExecutionOutcome =
   | "NO_JOB"
   | "COMPLETED_WITH_RESULTS"
-  | "COMPLETED_NO_RESULTS";
+  | "COMPLETED_NO_RESULTS"
+  | "CONTINUING";
 
 export type WorkerExecutionResult = {
   worker: WorkerKind;

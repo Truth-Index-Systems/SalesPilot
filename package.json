@@ -82,7 +82,10 @@
     "genesis:g464-check": "node scripts/validate-g464-learning.mjs",
     "genesis:g465-check": "node scripts/validate-genesis-g465.mjs",
     "genesis:ai-gateway-check": "node scripts/validate-structured-ai-gateway.mjs",
-    "genesis:governance-check": "node scripts/validate-ai-governance-controls.mjs"
+    "genesis:governance-check": "node scripts/validate-ai-governance-controls.mjs",
+    "genesis:g4-expansion-check": "node scripts/validate-g4-company-discovery-expansion.mjs",
+    "genesis:g4-universal-expansion-check": "node scripts/validate-g4-universal-expansion.mjs",
+    "genesis:g4-route-expansion-check": "node scripts/validate-g4-route-expansion.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
