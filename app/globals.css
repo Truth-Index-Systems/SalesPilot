@@ -263,3 +263,17 @@
 @media(max-width:650px){.opportunity-card-main{padding:20px 20px 0}.opportunity-card-head-actions{width:100%;justify-content:space-between}.opportunity-card-footer{align-items:stretch;flex-direction:column;padding:16px 20px 20px}.opportunity-view-button{width:100%;min-width:0}.opportunity-select span{display:none}}
 
 .opportunity-card-title-link>span:last-child{color:var(--muted);font-size:12px}
+
+/* Genesis G4.2 — access-route presentation foundation */
+.opportunity-route-summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start}
+.opportunity-route-copy{min-width:0}.opportunity-route-copy p{margin:10px 0 0;color:#53647d;font-size:12px;line-height:1.5}
+.opportunity-route-signals{display:grid;grid-template-columns:repeat(2,minmax(90px,auto));gap:10px;margin-left:14px}
+.opportunity-route-signals>div,.route-signal-grid>div{padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:#fff}
+.opportunity-route-signals span,.route-signal-grid span{display:block;color:var(--muted);font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.06em}
+.opportunity-route-signals strong,.route-signal-grid strong{display:block;margin-top:5px}
+.route-stars{color:#9a6a08;letter-spacing:.08em;white-space:nowrap}
+.route-confidence{display:inline-flex!important;align-items:center;width:max-content;padding:4px 7px;border-radius:999px;font-size:12px}
+.route-confidence.high{background:#e6f7ee;color:#087748}.route-confidence.good{background:#eaf1ff;color:#1749d2}.route-confidence.moderate{background:#fff4db;color:#875b00}.route-confidence.low{background:#eef1f5;color:#667085}
+.route-signal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.opportunity-route-detail small{max-width:620px}
+@media(max-width:760px){.opportunity-route-summary{grid-template-columns:auto minmax(0,1fr)}.opportunity-route-signals{grid-column:2;margin:12px 0 0;grid-template-columns:1fr 1fr}.route-signal-grid{grid-template-columns:1fr}}

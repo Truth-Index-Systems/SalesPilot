@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, CheckCircle2, ContactRound, ExternalLink, Mail, ShieldCheck } from "@/components/icons";
 import type { OpportunityOverview } from "@/lib/opportunities/domain";
+import { buildAccessRoute, routeConfidenceClass } from "@/lib/opportunities/route-view";
 
 function band(row: OpportunityOverview) {
   if (row.status === "APPROVED") return { label: "Approved", className: "approved" };
   if (row.status === "REJECTED") return { label: "Not selected", className: "rejected" };
-  if (row.status === "NEEDS_CONTACT") return { label: "Needs contact", className: "hold" };
+  if (row.status === "NEEDS_CONTACT") return { label: "Route research needed", className: "hold" };
   if (row.status === "NEEDS_EVIDENCE") return { label: "Needs evidence", className: "hold" };
   if (row.status === "LOW_PRIORITY") return { label: "Low priority", className: "archived" };
   return { label: (row.opportunity_score ?? 0) >= 80 ? "Recommended" : "Review", className: "pending_review" };
@@ -59,7 +60,8 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
       {rows.map(row => {
         const state = band(row);
         const score = row.opportunity_score ?? 0;
-        const channel = row.primary_contact_email || row.primary_route_email;
+        const route = buildAccessRoute(row);
+        const channel = route.email;
         return <article className={`card opportunity-review-card ${selectedSet.has(row.id) ? "selected" : ""}`} key={row.id}>
           <div className="opportunity-card-main">
             <div className="opportunity-card-head">
@@ -72,19 +74,29 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
               </div>
             </div>
             <Link href={`/opportunities/${row.id}`} className="opportunity-card-link">
-            <div className="opportunity-contact">
-              <ContactRound size={18}/><div><span>Best access route</span><strong>{row.primary_contact_name || "Research in progress"}</strong><small>{row.primary_contact_role || "SalesPilot is identifying the strongest commercial route into this organisation."}</small></div>
+            <div className="opportunity-contact opportunity-route-summary">
+              <ContactRound size={18}/>
+              <div className="opportunity-route-copy">
+                <span>Best access route</span>
+                <strong>{route.personName || "Research in progress"}</strong>
+                <small>{route.personName ? `${route.role} · ${route.typeLabel}` : "SalesPilot is analysing the strongest commercial route into this organisation."}</small>
+                {route.personName && <p>{route.recommendation}</p>}
+              </div>
+              <div className="opportunity-route-signals">
+                <div><span>Route quality</span><strong className="route-stars" aria-label={`${route.quality} out of 5 stars`}>{route.qualityStars}</strong></div>
+                <div><span>Route confidence</span><strong className={`route-confidence ${routeConfidenceClass(route.confidence)}`}>{route.confidence}%</strong></div>
+              </div>
             </div>
             <div className="opportunity-reason"><span>Why this is an opportunity</span><p>{row.buying_reason || row.company_summary || "SalesPilot is still assembling the recommendation."}</p></div>
             <div className="opportunity-score-grid">
               <div><span>Company fit</span><strong>{row.company_fit ?? 0}</strong></div>
               <div><span>Operational fit</span><strong>{row.operational_fit ?? 0}</strong></div>
               <div><span>Buying authority</span><strong>{row.buying_authority ?? 0}</strong></div>
-              <div><span>Contactability</span><strong>{row.contactability ?? 0}</strong></div>
+              <div><span>Route accessibility</span><strong>{row.contactability ?? 0}</strong></div>
             </div>
             <div className="opportunity-channel-row">
               <div className={channel ? "available" : "unknown"}><Mail size={15}/><span>{channel || "Email route not found"}</span></div>
-              <div className={row.primary_contact_linkedin_url ? "available" : "unknown"}><ExternalLink size={15}/><span>{row.primary_contact_linkedin_url ? "LinkedIn matched" : "LinkedIn unknown"}</span></div>
+              <div className={route.linkedinUrl ? "available" : "unknown"}><ExternalLink size={15}/><span>{route.linkedinUrl ? "LinkedIn route available" : "LinkedIn route unknown"}</span></div>
               <div><ShieldCheck size={15}/><span>{Number(row.company_evidence_count) + Number(row.contact_evidence_count)} evidence sources</span></div>
             </div>
             </Link>

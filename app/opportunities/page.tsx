@@ -59,7 +59,7 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
     <div className="grid cols-4 section">
       <Card><div className="card-title">Recommended</div><div className="metric-value">{recommended}</div><div className="metric-foot positive">Strongest opportunities first</div></Card>
       <Card><div className="card-title">Worth reviewing</div><div className="metric-value">{review}</div><div className="metric-foot">Potential with visible limitations</div></Card>
-      <Card><div className="card-title">Still assembling</div><div className="metric-value">{incomplete}</div><div className="metric-foot">Needs contact or evidence</div></Card>
+      <Card><div className="card-title">Research in progress</div><div className="metric-value">{incomplete}</div><div className="metric-foot">Needs route research or evidence</div></Card>
       <Card><div className="card-title">Approved for engagement</div><div className="metric-value">{approved}</div><div className="metric-foot positive">{reachable} opportunities currently reachable</div></Card>
     </div>
 
@@ -70,7 +70,7 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
     <form className="company-search-controls" action="/opportunities" method="get">
       <input name="q" defaultValue={search.q} placeholder="Search company, route, role or market" aria-label="Search opportunities" />
       <select name="campaign" defaultValue={search.campaign ?? ""}><option value="">All campaigns</option>{campaigns.map(campaign => <option value={campaign.id} key={campaign.id}>{campaign.name}</option>)}</select>
-      <select name="status" defaultValue={search.status ?? ""}><option value="">All decisions</option><option value="READY">Awaiting decision</option><option value="APPROVED">Approved</option><option value="REJECTED">Not selected</option><option value="NEEDS_CONTACT">Needs contact</option><option value="NEEDS_EVIDENCE">Needs evidence</option><option value="LOW_PRIORITY">Low priority</option></select>
+      <select name="status" defaultValue={search.status ?? ""}><option value="">All decisions</option><option value="READY">Awaiting decision</option><option value="APPROVED">Approved</option><option value="REJECTED">Not selected</option><option value="NEEDS_CONTACT">Route research needed</option><option value="NEEDS_EVIDENCE">Needs evidence</option><option value="LOW_PRIORITY">Low priority</option></select>
       {search.band && <input type="hidden" name="band" value={search.band}/>}<button className="button secondary">Apply filters</button>{hasFilters && <Link className="button text" href="/opportunities">Clear</Link>}
     </form>
 
