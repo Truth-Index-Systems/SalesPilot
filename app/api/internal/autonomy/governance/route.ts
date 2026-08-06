@@ -9,7 +9,11 @@ export async function POST(request:Request){
     const context=await requireOrganisationContext();
     if(!["OWNER","ADMIN"].includes(context.role))return NextResponse.json({ok:false,error:"FORBIDDEN"},{status:403});
     const input=Schema.parse(await request.json());
-    const result=await databaseRequest("rpc/update_ai_governance_policy",{method:"POST",body:JSON.stringify({p_organisation_id:context.organisationId,p_updated_by:context.userId,p_autonomy_enabled:input.autonomyEnabled,p_daily_request_limit:input.dailyRequestLimit,p_daily_cost_limit_usd:input.dailyCostLimitUsd,p_campaign_daily_request_limit:input.campaignDailyRequestLimit,p_initial_contact_burst_size:input.initialContactBurstSize})});
-    return NextResponse.json({ok:true,policy:result});
+    await databaseRequest("rpc/update_ai_governance_policy",{method:"POST",body:JSON.stringify({p_organisation_id:context.organisationId,p_updated_by:context.userId,p_autonomy_enabled:input.autonomyEnabled,p_daily_request_limit:input.dailyRequestLimit,p_daily_cost_limit_usd:input.dailyCostLimitUsd,p_campaign_daily_request_limit:input.campaignDailyRequestLimit,p_initial_contact_burst_size:input.initialContactBurstSize})});
+    const organisationId=encodeURIComponent(context.organisationId);
+    const rows=await databaseRequest<Record<string,unknown>[]>(`ai_governance_policies?organisation_id=eq.${organisationId}&select=autonomy_enabled,daily_request_limit,daily_cost_limit_usd,campaign_daily_request_limit,initial_contact_burst_size,updated_at&limit=1`);
+    const policy=rows[0];
+    if(!policy)throw new Error("AI_GOVERNANCE_READBACK_FAILED");
+    return NextResponse.json({ok:true,policy});
   }catch(error){console.error("AI governance update failed",error);return NextResponse.json({ok:false,error:"AI_GOVERNANCE_UPDATE_FAILED"},{status:400});}
 }
