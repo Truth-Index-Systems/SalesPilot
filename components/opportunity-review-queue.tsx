@@ -83,11 +83,12 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
                 {route.personName && <p>{route.recommendation}</p>}
               </div>
               <div className="opportunity-route-signals">
-                <div><span>Route quality</span><strong className="route-stars" aria-label={`${route.quality} out of 5 stars`}>{route.qualityStars}</strong></div>
-                <div><span>Route confidence</span><strong className={`route-confidence ${routeConfidenceClass(route.confidence)}`}>{route.confidence}%</strong></div>
+                <div><span>Route quality</span><strong className="route-stars" aria-label={`${route.quality} out of 5 stars`}>{route.qualityStars}</strong><small>{route.qualityLabel}</small></div>
+                <div><span>Route confidence</span><strong className={`route-confidence ${routeConfidenceClass(route.confidence)}`}>{route.confidence}%</strong><small>{route.confidenceLabel}</small></div>
               </div>
             </div>
             <div className="opportunity-reason"><span>Why this is an opportunity</span><p>{row.buying_reason || row.company_summary || "SalesPilot is still assembling the recommendation."}</p></div>
+            {route.isReady && <div className="route-next-step"><span>Recommended next step</span><p>{route.nextStep}</p></div>}
             <div className="opportunity-score-grid">
               <div><span>Company fit</span><strong>{row.company_fit ?? 0}</strong></div>
               <div><span>Operational fit</span><strong>{row.operational_fit ?? 0}</strong></div>

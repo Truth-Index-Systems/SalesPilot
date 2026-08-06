@@ -11,7 +11,11 @@ export type AccessRouteView = {
   confidence: number;
   quality: number;
   qualityStars: string;
+  qualityLabel: string;
+  confidenceLabel: string;
+  confidenceSummary: string;
   recommendation: string;
+  nextStep: string;
   isReady: boolean;
 };
 
@@ -30,6 +34,21 @@ function qualityFromConfidence(confidence: number) {
 
 function stars(quality: number) {
   return `${"★".repeat(quality)}${"☆".repeat(5 - quality)}`;
+}
+
+function qualityLabel(quality: number) {
+  if (quality >= 5) return "Exceptional route";
+  if (quality >= 4) return "Strong route";
+  if (quality >= 3) return "Viable route";
+  if (quality >= 2) return "Limited route";
+  return "Early route";
+}
+
+function confidencePresentation(confidence: number) {
+  if (confidence >= 90) return { label: "High confidence", summary: "Evidence strongly supports this route." };
+  if (confidence >= 70) return { label: "Good confidence", summary: "The route is supported, with some uncertainty remaining." };
+  if (confidence >= 50) return { label: "Moderate confidence", summary: "Useful route signals exist, but human judgement is still important." };
+  return { label: "Low confidence", summary: "SalesPilot needs stronger route evidence before relying on this path." };
 }
 
 export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
@@ -67,6 +86,12 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
       ? `Recommended because ${reasons.slice(0, 2).join(" and ")}.`
       : "SalesPilot is still gathering enough evidence to recommend a reliable entry route."
   );
+  const confidencePresentationValue = confidencePresentation(confidence);
+  const nextStep = email
+    ? `Approach ${row.primary_contact_name || role} through the supported email route and anchor the opening message to the identified commercial need.`
+    : linkedinUrl
+      ? `Use LinkedIn to establish relevance with ${row.primary_contact_name || role}, then earn a direct conversation or introduction.`
+      : "Continue route research before beginning outreach.";
 
   return {
     personName: row.primary_contact_name,
@@ -79,7 +104,11 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
     confidence,
     quality,
     qualityStars: stars(quality),
+    qualityLabel: qualityLabel(quality),
+    confidenceLabel: confidencePresentationValue.label,
+    confidenceSummary: confidencePresentationValue.summary,
     recommendation,
+    nextStep,
     isReady: Boolean(email || linkedinUrl),
   };
 }

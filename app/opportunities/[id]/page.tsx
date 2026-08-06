@@ -52,10 +52,11 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
         <div className="card-title">Best access route</div><div className="card-subtitle">The strongest currently supported commercial route into this organisation.</div>
         {route.personName ? <div className="opportunity-person opportunity-route-detail section"><ContactRound size={24}/><div><strong>{route.personName}</strong><span>{route.role} · {route.typeLabel}</span><small>{route.recommendation}</small></div></div> : <div className="verified-empty section"><span>Research in progress. SalesPilot is analysing the strongest commercial route into this organisation.</span></div>}
         <div className="route-signal-grid section">
-          <div><span>Route quality</span><strong className="route-stars" aria-label={`${route.quality} out of 5 stars`}>{route.qualityStars}</strong></div>
-          <div><span>Route confidence</span><strong className={`route-confidence ${routeConfidenceClass(route.confidence)}`}>{route.confidence}%</strong></div>
-          <div><span>Recommended route</span><strong>{route.typeLabel}</strong></div>
+          <div><span>Route quality</span><strong className="route-stars" aria-label={`${route.quality} out of 5 stars`}>{route.qualityStars}</strong><small>{route.qualityLabel}</small></div>
+          <div><span>Route confidence</span><strong className={`route-confidence ${routeConfidenceClass(route.confidence)}`}>{route.confidence}%</strong><small>{route.confidenceLabel}</small></div>
+          <div><span>Recommended route</span><strong>{route.typeLabel}</strong><small>{route.confidenceSummary}</small></div>
         </div>
+        <div className="route-strategy-callout section"><Target size={18}/><div><span>Recommended entry strategy</span><strong>{route.nextStep}</strong></div></div>
         <div className="contact-channel-strip section"><div className={route.email ? "contact-channel verified" : "contact-channel unknown"}><Mail size={14}/><div><span>Best email route</span><strong>{route.email || "Unknown"}</strong><small>{route.emailStatus || "Not found"}</small></div></div><div className={route.linkedinUrl ? "contact-channel verified" : "contact-channel unknown"}><ExternalLink size={14}/><div><span>LinkedIn route</span><strong>{route.linkedinUrl ? "Profile matched" : "Unknown"}</strong><small>{route.linkedinUrl ? "Public profile available" : "Not found"}</small></div></div></div>
       </Card>
     </div>
