@@ -63,7 +63,8 @@
     "genesis:g4-phase3-check": "npm run genesis:g4-phase2-check && node scripts/validate-genesis-g4-phase3.mjs",
     "genesis:g4-phase4-check": "npm run genesis:g4-phase3-check && node scripts/validate-genesis-g4-phase4.mjs",
     "genesis:g4-phase5-check": "npm run genesis:g4-phase4-check && node scripts/validate-genesis-g4-phase5.mjs",
-    "genesis:g4-phase6-check": "npm run genesis:g4-phase5-check && node scripts/validate-genesis-g4-phase6.mjs"
+    "genesis:g4-phase6-check": "npm run genesis:g4-phase5-check && node scripts/validate-genesis-g4-phase6.mjs",
+    "genesis:g4-phase7-check": "npm run genesis:g4-phase6-check && node scripts/validate-genesis-g4-phase7.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
