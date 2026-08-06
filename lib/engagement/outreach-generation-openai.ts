@@ -26,7 +26,7 @@ export async function generateOutreach(input: {
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model = resolveOpenAIModel("analysis").model;
   const compactContext = compactForAi(input.context, { evidenceLimit: 4, depth: 6 }) as Record<string, unknown>;
-  const fingerprint = stableFingerprint({ prompt: "outreach-generation/v2-route-aligned", model, compactContext });
+  const fingerprint = stableFingerprint({ prompt: "engagement-channel-content/v1", model, compactContext });
   const startedAt = Date.now();
   const reservation = await reserveAiRequest({
     organisationId: input.organisationId,
@@ -34,7 +34,7 @@ export async function generateOutreach(input: {
     schedulerRunId: input.schedulerRunId,
     jobType: "OUTREACH",
     jobId: input.draftId,
-    requestScope: `outreach-generation:${fingerprint}`,
+    requestScope: `channel-content-generation:${fingerprint}`,
     model,
     estimatedCostUsd: Number(process.env.SALESPILOT_OUTREACH_GENERATION_ESTIMATED_COST_USD ?? "0.06"),
   });
@@ -49,21 +49,23 @@ export async function generateOutreach(input: {
       body: JSON.stringify({
         model,
         instructions: [
-          "You are SalesPilot Engagement Intelligence, writing the first outreach for an exceptional enterprise salesperson.",
-          "Your objective is to win a relevant business conversation, not to summarise research or force a sale.",
-          "Use the completed commercial analysis and its route strategy as the messaging strategy, and use only facts and evidence supplied in the input.",
-          "The draft must align with the recommended access route, channel, authority level and accessibility constraints. Do not write the same message for every role or channel.",
-          "Reflect the recommended entry strategy in the opening, value framing and CTA without exposing internal scoring or saying SalesPilot selected a route.",
-          "Where the route is indirect or lower-authority, write to earn an introduction or escalation rather than pretending the recipient is the final buyer.",
-          "Never invent company facts, personal information, initiatives, budgets, relationships, urgency, results or familiarity.",
-          "Personalisation must be meaningful and commercially relevant. Do not use superficial praise, generic compliments or fake familiarity.",
-          "Keep the message concise, calm and professional in British English. The CTA must be low-friction and specific.",
-          "Every factual claim used as supporting evidence must reference an exact source ID supplied in the context. Do not create IDs.",
-          "State uncertainty in limitations rather than disguising assumptions as facts.",
-          "Return exact JSON only. Do not include greetings, sign-offs or sender details outside the structured fields.",
+          "You are SalesPilot Channel-Aware Engagement Intelligence.",
+          "Use the primaryChannel in the engagement strategy as the authoritative output channel. Never silently convert a non-email route into email.",
+          "Generate native content for that channel and set every irrelevant content field to null or an empty array.",
+          "EMAIL: provide a concise subject and complete emailBody with a bespoke opener, value, and low-friction CTA.",
+          "LINKEDIN: provide a connectionRequest when useful, a short directMessage, and a restrained followUpMessage. Do not use email formatting or a subject.",
+          "WEBSITE_FORM: provide formSubject when appropriate and formMessage written to be pasted into the organisation contact form. executionInstruction must tell the user to paste it into the contact form using their connected business email.",
+          "PHONE: provide a callOpening, focused discoveryQuestions, and practical objectionResponses.",
+          "REFERRAL, EXISTING_CUSTOMER, PARTNER, INTERNAL_CHAMPION, or EXECUTIVE_ASSISTANT: provide referralRequest and introductionMessage designed to earn the correct introduction.",
+          "PROCUREMENT: provide procurementIntroduction and qualificationSummary without pretending procurement owns the operational need.",
+          "Use the completed commercial analysis, entry strategy, route evidence and only supplied facts. Never invent details, familiarity, results, budgets or relationships.",
+          "Where the route is indirect, seek an introduction or escalation rather than treating the recipient as the final buyer.",
+          "Keep content concise, calm, specific and professional in British English.",
+          "Every supporting factual claim must reference an exact source ID supplied in context.",
+          "Return exact JSON only.",
         ].join(" "),
         input: JSON.stringify(compactContext),
-        text: { format: { type: "json_schema", name: "salespilot_outreach_generation_v2_route_aligned", strict: true, schema: outreachGenerationJsonSchema } },
+        text: { format: { type: "json_schema", name: "salespilot_channel_content_v1", strict: true, schema: outreachGenerationJsonSchema } },
         max_output_tokens: 1800,
         store: false,
       }),
@@ -84,6 +86,16 @@ export async function generateOutreach(input: {
   let parsed: OutreachGeneration;
   try {
     parsed = OutreachGenerationSchema.parse(JSON.parse(outputText(json)));
+    const strategyChannel = String(((compactContext.engagement as Record<string, unknown> | undefined)?.primaryChannel) ?? "").toUpperCase();
+    if (strategyChannel && parsed.channel !== strategyChannel) throw new Error(`CHANNEL_STRATEGY_MISMATCH:${strategyChannel}:${parsed.channel}`);
+    const c = parsed.content;
+    const valid = parsed.channel === "EMAIL" ? Boolean(c.subject && c.emailBody)
+      : parsed.channel === "LINKEDIN" ? Boolean(c.directMessage)
+      : parsed.channel === "WEBSITE_FORM" ? Boolean(c.formMessage)
+      : parsed.channel === "PHONE" ? Boolean(c.callOpening)
+      : parsed.channel === "PROCUREMENT" ? Boolean(c.procurementIntroduction)
+      : Boolean(c.referralRequest || c.introductionMessage);
+    if (!valid) throw new Error(`CHANNEL_CONTENT_MISSING:${parsed.channel}`);
   } catch (error) {
     await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage, durationMs: Date.now() - startedAt, responseId, errorCode: "INVALID_STRUCTURED_OUTPUT", errorMessage: error instanceof Error ? error.message : "Invalid output" }).catch(() => undefined);
     throw error;
