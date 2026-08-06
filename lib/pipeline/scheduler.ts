@@ -8,6 +8,7 @@ import type { OpportunityScoringSummary, OpportunitySyncSummary } from "@/lib/op
 import { scoreOpportunityIntelligence } from "@/lib/opportunities/scoring";
 import { buildEngagements } from "@/lib/engagement/builder";
 import type { EngagementBuilderResult } from "@/lib/engagement/domain";
+import { runNextCommercialReasoning, type CommercialReasoningWorkerResult } from "@/lib/engagement/commercial-reasoning";
 import {
   acquirePipelineSchedulerLease,
   preparePipelineWork,
@@ -34,6 +35,7 @@ export type PipelineSchedulerResult = {
   opportunity: OpportunitySyncSummary | null;
   opportunityScoring: OpportunityScoringSummary | null;
   engagement: EngagementBuilderResult | null;
+  commercialReasoning: CommercialReasoningWorkerResult | null;
 };
 
 async function settle(work: () => Promise<WorkerExecutionResult>): Promise<SettledWorker> {
@@ -56,7 +58,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null };
+    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, commercialReasoning: null };
   }
 
   const runId = lease.run_id;
@@ -82,8 +84,9 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     // G3.5 compatibility contract: syncOpportunityEngagementBridge(runId) is
     // executed inside the G4 Engagement Builder, preserving scheduler ownership.
     const engagement = await buildEngagements(runId);
-    await recordPipelineSchedulerOutcome(runId, company, contact, { contactFoundation, foundation: opportunity, scoring: opportunityScoring, engagement });
-    return { acquired: true, runId, preparation, company, contactFoundation, contact, opportunity, opportunityScoring, engagement };
+    const commercialReasoning = await runNextCommercialReasoning(runId);
+    await recordPipelineSchedulerOutcome(runId, company, contact, { contactFoundation, foundation: opportunity, scoring: opportunityScoring, engagement, commercialReasoning });
+    return { acquired: true, runId, preparation, company, contactFoundation, contact, opportunity, opportunityScoring, engagement, commercialReasoning };
   } finally {
     await releasePipelineSchedulerLease(runId).catch((error) => {
       console.error("Failed to release pipeline scheduler lease", error);
