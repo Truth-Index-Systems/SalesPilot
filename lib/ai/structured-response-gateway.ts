@@ -1,5 +1,5 @@
 import "server-only";
-import type { ZodType } from "zod";
+import type { ZodTypeAny, output as ZodOutput } from "zod";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 
@@ -61,19 +61,19 @@ function closeTruncatedJson(raw: string): string {
   return repaired;
 }
 
-function parseCandidate<T>(candidate: string, schema: ZodType<T>): T {
-  return schema.parse(JSON.parse(candidate));
+function parseCandidate<S extends ZodTypeAny>(candidate: string, schema: S): ZodOutput<S> {
+  return schema.parse(JSON.parse(candidate)) as ZodOutput<S>;
 }
 
-async function requestRepair<T>(params: {
+async function requestRepair<S extends ZodTypeAny>(params: {
   raw: string;
-  schema: ZodType<T>;
+  schema: S;
   jsonSchema: unknown;
   schemaName: string;
   apiKey: string;
   model: string;
   timeoutMs?: number;
-}): Promise<T> {
+}): Promise<ZodOutput<S>> {
   const response = await fetch(ENDPOINT, {
     method: "POST",
     cache: "no-store",
@@ -98,15 +98,15 @@ async function requestRepair<T>(params: {
   return parseCandidate(extractStructuredOutputText(json), params.schema);
 }
 
-export async function parseStructuredAiResponse<T>(params: {
+export async function parseStructuredAiResponse<S extends ZodTypeAny>(params: {
   response: unknown;
-  schema: ZodType<T>;
+  schema: S;
   jsonSchema: unknown;
   schemaName: string;
   apiKey: string;
   model: string;
   allowRepair?: boolean;
-}): Promise<{ value: T; recovery: "NONE" | "DETERMINISTIC" | "MODEL_REPAIR" }> {
+}): Promise<{ value: ZodOutput<S>; recovery: "NONE" | "DETERMINISTIC" | "MODEL_REPAIR" }> {
   const raw = extractStructuredOutputText(params.response);
   const candidates = [stripFences(raw), closeTruncatedJson(raw)];
   let parsedJson = false;
