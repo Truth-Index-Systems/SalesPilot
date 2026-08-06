@@ -6,6 +6,7 @@ import { normaliseDiscoveryResult } from "./normalise";
 import { CompanyDiscoveryResultSchema } from "./schemas";
 import { compactCompanyDiscoveryInput, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
+import type { CompanySearchPlan } from "./search-plan";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 
@@ -25,7 +26,7 @@ const companyDiscoveryJsonSchema = {
     companies: {
       type: "array",
       minItems: 1,
-      maxItems: 8,
+      maxItems: 12,
       items: {
         type: "object",
         additionalProperties: false,
@@ -93,6 +94,7 @@ type DiscoverCompaniesInput = {
   excludedCompanies?: Array<{ name: string; domain: string }>;
   searchPass?: number;
   searchStrategy?: string;
+  searchPlan: CompanySearchPlan;
 };
 
 export async function discoverCompanies(input: DiscoverCompaniesInput) {
@@ -118,14 +120,18 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
       model,
       instructions: [
         "You are SalesPilot Company Discovery.",
-        "Use web search to find real operating B2B companies that genuinely match the approved outbound sales campaign.",
+        "Execute the supplied search plan to find real operating B2B companies that genuinely match the approved outbound sales campaign.",
+        "Discovery and proof are separate: first build a broad, diverse candidate pool across the supplied company archetypes, then attach the strongest official evidence for each candidate.",
+        "Search for companies experiencing the operating reality, not companies selling similarly named products or using the seller's product-category language.",
         "Return only official company websites and evidence from those official domains.",
         "Do not invent employee counts, technology usage, operational problems, buyer intent, or private information.",
         "Exclude the customer's own company, directories, agencies listing clients, news articles, and duplicate domains.",
         "Never return a company present in excludedCompanies. Treat both its canonical domain and company name as already researched.",
         "Score industry fit, audience fit, operational fit, geography fit, and commercial fit independently.",
         "Record genuine uncertainties and risk flags instead of hiding them.",
-        "Return 5–8 high-confidence matches when supported; quality is more important than volume.",
+        "Return 10–12 diverse candidates when supported so the independent verifier has enough breadth to retain the strongest matches; quality still matters and unsupported candidates must not be invented.",
+        "Distribute candidates across multiple supplied archetypes. Do not let one sector, keyword family or company type dominate the result.",
+        "Prioritise evidence in this order where available: operations and locations pages; careers and role descriptions; annual, sustainability or regulatory reports; procurement and supplier pages; official case studies and news; then the homepage.",
         input.searchPass && input.searchPass > 1
           ? `This is search pass ${input.searchPass}. The earlier search retained too few supported companies. Broaden intelligently using this strategy: ${input.searchStrategy ?? "ALTERNATIVE_LANGUAGE"}. Keep the approved commercial problem and evidence threshold unchanged.`
           : "Start with the approved audience, buyer language and strongest direct commercial fit.",
@@ -133,7 +139,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
         "Use British English.",
       ].join(" "),
       input: JSON.stringify(compactInput),
-      tools: [{ type: "web_search_preview", search_context_size: "low" }],
+      tools: [{ type: "web_search_preview", search_context_size: "medium" }],
       reasoning: { effort: "low" },
       text: {
         format: {

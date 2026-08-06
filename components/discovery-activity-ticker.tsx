@@ -1,33 +1,68 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "@/components/icons";
 import { isJobActive, isJobRunning, jobStateLabel } from "@/lib/pipeline/presentation";
 
 type Activity={id:string;title:string;description?:string|null;occurred_at:string};
 type Discovery={status:string;job_state?:string|null;stage:string;progress:number;recommendations_saved:number;next_retry_at?:string|null};
+
+function snapshot(discovery:Discovery|null,activities:Activity[],companyCount:number){
+ return JSON.stringify({
+  status:discovery?.status??null,
+  jobState:discovery?.job_state??null,
+  stage:discovery?.stage??null,
+  progress:discovery?.progress??null,
+  saved:discovery?.recommendations_saved??null,
+  retry:discovery?.next_retry_at??null,
+  companyCount,
+  activities:activities.slice(0,8).map(item=>[item.id,item.title,item.occurred_at]),
+ });
+}
+
 export function DiscoveryActivityTicker({campaignId,initialDiscovery,initialActivities,initialCompanyCount}:{campaignId:string;initialDiscovery:Discovery|null;initialActivities:Activity[];initialCompanyCount:number}){
  const router=useRouter();
  const [discovery,setDiscovery]=useState(initialDiscovery);
  const [activities,setActivities]=useState(initialActivities);
  const [companyCount,setCompanyCount]=useState(initialCompanyCount);
+ const latestSnapshot=useRef(snapshot(initialDiscovery,initialActivities,initialCompanyCount));
  const active=isJobActive(discovery);
  const running=isJobRunning(discovery);
+
  useEffect(()=>{
   if(!active) return;
-  const timer=window.setInterval(async()=>{
+  let cancelled=false;
+  let requestInFlight=false;
+
+  const refreshStatus=async()=>{
+   if(requestInFlight||cancelled)return;
+   requestInFlight=true;
+   window.dispatchEvent(new CustomEvent("salespilot:api-start",{detail:{method:"GET",url:`/api/campaigns/${campaignId}/discovery/status`}}));
    try{
     const response=await fetch(`/api/campaigns/${campaignId}/discovery/status`,{cache:"no-store"});
     if(!response.ok)return;
     const data=await response.json();
-    const priorStatus=discovery?.status;
-    const priorCount=companyCount;
-    setDiscovery(data.discovery);setActivities(data.activities??[]);setCompanyCount(data.companyCount??0);
-    if(data.discovery?.status!==priorStatus||data.companyCount!==priorCount) router.refresh();
-   }catch{}
-  },3500);
-  return()=>window.clearInterval(timer);
- },[campaignId,active,router,discovery?.status,discovery?.job_state,companyCount]);
+    if(cancelled)return;
+    const nextDiscovery=data.discovery??null;
+    const nextActivities=data.activities??[];
+    const nextCompanyCount=data.companyCount??0;
+    const nextSnapshot=snapshot(nextDiscovery,nextActivities,nextCompanyCount);
+    setDiscovery(nextDiscovery);setActivities(nextActivities);setCompanyCount(nextCompanyCount);
+    if(nextSnapshot!==latestSnapshot.current){
+      latestSnapshot.current=nextSnapshot;
+      router.refresh();
+    }
+   }catch{}finally{
+    requestInFlight=false;
+    window.dispatchEvent(new CustomEvent("salespilot:api-finish",{detail:{method:"GET",url:`/api/campaigns/${campaignId}/discovery/status`}}));
+   }
+  };
+
+  void refreshStatus();
+  const timer=window.setInterval(refreshStatus,3000);
+  return()=>{cancelled=true;window.clearInterval(timer)};
+ },[campaignId,active,router]);
+
  const visible=useMemo(()=>activities.slice(0,5),[activities]);
  if(!visible.length)return null;
  return <div className="discovery-live-feed" aria-live="polite">

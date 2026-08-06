@@ -126,10 +126,14 @@ export async function verifyDiscoveredCompanyDetailed(company: DiscoveredCompany
   const domain = canonicalDomain(company.websiteUrl);
   if (!domain) return { accepted: false, reason: "INVALID_DOMAIN", diagnostics: emptyDiagnostics() };
 
+  // A marketing homepage is not the strongest proof source and may block bots even
+  // when official operations, careers or report pages are publicly reachable.
+  // Verify the evidence package first; only treat the homepage as a supporting signal.
+  let homepageReachable = true;
   try {
     await fetchPublicPage(company.websiteUrl, domain);
   } catch {
-    return { accepted: false, reason: "HOMEPAGE_UNREACHABLE", diagnostics: emptyDiagnostics() };
+    homepageReachable = false;
   }
 
   const officialEvidence = company.evidence.filter((item) => canonicalDomain(item.sourceUrl) === domain);
@@ -157,7 +161,7 @@ export async function verifyDiscoveredCompanyDetailed(company: DiscoveredCompany
     finalConfidence: confidence,
   };
 
-  if (verifiedEvidence.length === 0) return { accepted: false, reason: "NO_OFFICIAL_EVIDENCE", diagnostics };
+  if (verifiedEvidence.length === 0) return { accepted: false, reason: homepageReachable ? "NO_OFFICIAL_EVIDENCE" : "HOMEPAGE_UNREACHABLE", diagnostics };
 
   // One reachable official source is acceptable when campaign fit and model
   // confidence are both strong. Weak-fit candidates still require richer or

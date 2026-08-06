@@ -86,7 +86,9 @@
     "genesis:g4-expansion-check": "node scripts/validate-g4-company-discovery-expansion.mjs",
     "genesis:g4-universal-expansion-check": "node scripts/validate-g4-universal-expansion.mjs",
     "genesis:g4-route-expansion-check": "node scripts/validate-g4-route-expansion.mjs",
-    "genesis:g4-route-claim-check": "node scripts/validate-g4-route-claim-ambiguity-hotfix.mjs"
+    "genesis:g4-route-claim-check": "node scripts/validate-g4-route-claim-ambiguity-hotfix.mjs",
+    "genesis:g4-api-refresh-check": "node scripts/validate-g4-api-lifecycle-refresh.mjs",
+    "genesis:g4-search-order-check": "node scripts/validate-g4-company-search-order.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
