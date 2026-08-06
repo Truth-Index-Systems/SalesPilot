@@ -13,6 +13,7 @@ import { runNextOutreachGeneration, type OutreachGenerationWorkerResult } from "
 import { runNextEngagementSelfReview, type EngagementSelfReviewWorkerResult } from "@/lib/engagement/self-review";
 import { buildEngagementSendQueue, type EngagementQueueBuilderResult } from "@/lib/engagement/queue-builder";
 import { buildEngagementLearning } from "@/lib/learning/service";
+import { syncEngagementStrategies, reconcileEngagementFailures, type EngagementStrategySyncResult } from "@/lib/engagement/strategy";
 import type { EngagementLearningBuilderResult } from "@/lib/learning/types";
 import {
   acquirePipelineSchedulerLease,
@@ -40,6 +41,7 @@ export type PipelineSchedulerResult = {
   opportunity: OpportunitySyncSummary | null;
   opportunityScoring: OpportunityScoringSummary | null;
   engagement: EngagementBuilderResult | null;
+  engagementStrategy: EngagementStrategySyncResult | null;
   commercialReasoning: CommercialReasoningWorkerResult | null;
   outreachGeneration: OutreachGenerationWorkerResult | null;
   engagementSelfReview: EngagementSelfReviewWorkerResult | null;
@@ -67,7 +69,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, commercialReasoning: null, outreachGeneration: null, engagementSelfReview: null, engagementQueue: null, engagementLearning: null };
+    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, commercialReasoning: null, outreachGeneration: null, engagementSelfReview: null, engagementQueue: null, engagementLearning: null };
   }
 
   const runId = lease.run_id;
@@ -93,13 +95,15 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     // G3.5 compatibility contract: syncOpportunityEngagementBridge(runId) is
     // executed inside the G4 Engagement Builder, preserving scheduler ownership.
     const engagement = await buildEngagements(runId);
+    const engagementStrategy = await syncEngagementStrategies(runId);
+    await reconcileEngagementFailures(runId);
     const commercialReasoning = await runNextCommercialReasoning(runId);
     const outreachGeneration = await runNextOutreachGeneration(runId);
     const engagementSelfReview = await runNextEngagementSelfReview(runId);
     const engagementQueue = await buildEngagementSendQueue(runId);
     const engagementLearning = await buildEngagementLearning(runId);
-    await recordPipelineSchedulerOutcome(runId, company, contact, { contactFoundation, foundation: opportunity, scoring: opportunityScoring, engagement, commercialReasoning, outreachGeneration, engagementSelfReview, engagementQueue, engagementLearning });
-    return { acquired: true, runId, preparation, company, contactFoundation, contact, opportunity, opportunityScoring, engagement, commercialReasoning, outreachGeneration, engagementSelfReview, engagementQueue, engagementLearning };
+    await recordPipelineSchedulerOutcome(runId, company, contact, { contactFoundation, foundation: opportunity, scoring: opportunityScoring, engagement, engagementStrategy, commercialReasoning, outreachGeneration, engagementSelfReview, engagementQueue, engagementLearning });
+    return { acquired: true, runId, preparation, company, contactFoundation, contact, opportunity, opportunityScoring, engagement, engagementStrategy, commercialReasoning, outreachGeneration, engagementSelfReview, engagementQueue, engagementLearning };
   } finally {
     await releasePipelineSchedulerLease(runId).catch((error) => {
       console.error("Failed to release pipeline scheduler lease", error);

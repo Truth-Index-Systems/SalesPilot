@@ -11,7 +11,7 @@ export const ENGAGEMENT_STATUSES = [
 ] as const;
 
 export type EngagementStatus = (typeof ENGAGEMENT_STATUSES)[number];
-export type EngagementChannel = "EMAIL" | "LINKEDIN" | "NONE";
+export type EngagementChannel = "EMAIL" | "LINKEDIN" | "WEBSITE_FORM" | "PHONE" | "REFERRAL" | "PROCUREMENT" | "EXECUTIVE_ASSISTANT" | "EXISTING_CUSTOMER" | "PARTNER" | "INTERNAL_CHAMPION" | "NONE";
 export type OutreachPolicy = "MANUAL" | "REVIEW_FIRST" | "AUTO_SEND";
 export type ReplyPolicy = "MANUAL" | "SUGGEST" | "AUTO_RESPOND";
 
@@ -42,6 +42,19 @@ export type Engagement = {
   prepared_at: string;
   created_at: string;
   updated_at: string;
+  primary_channel?: EngagementChannel | null;
+  secondary_channel?: EngagementChannel | null;
+  fallback_channel?: EngagementChannel | null;
+  entry_strategy?: string | null;
+  recommendation_reason?: string | null;
+  strategy_confidence?: number | null;
+  pipeline_state?: string;
+  current_stage?: string;
+  stage_reason?: string | null;
+  stage_attempts?: number;
+  stage_last_attempt_at?: string | null;
+  stage_next_retry_at?: string | null;
+  stage_failure_reason?: string | null;
 };
 
 export type EngagementOverview = Engagement & {

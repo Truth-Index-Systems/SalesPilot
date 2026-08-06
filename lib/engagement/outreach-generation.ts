@@ -1,6 +1,7 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { generateOutreach } from "./outreach-generation-openai";
+import { recordEngagementStage } from "./strategy";
 
 export type OutreachGenerationWorkerResult = {
   processed: boolean;
@@ -26,6 +27,7 @@ export async function runNextOutreachGeneration(schedulerRunId: string): Promise
   if (!job) return { processed: false, outcome: "NO_JOB" };
 
   try {
+    await recordEngagementStage({ engagementId: job.engagement_id, schedulerRunId, stage: "CHANNEL_CONTENT_GENERATION", state: "RUNNING", reason: "Generating content for the recommended engagement channel.", worker: "channel-content-generation" });
     const generated = await generateOutreach({
       organisationId: job.organisation_id,
       campaignId: job.campaign_id,
@@ -48,8 +50,10 @@ export async function runNextOutreachGeneration(schedulerRunId: string): Promise
         p_response_id: generated.responseId,
       }),
     });
+    await recordEngagementStage({ engagementId: job.engagement_id, schedulerRunId, stage: "AI_QUALITY_REVIEW", state: "READY", reason: "Channel content generated and ready for independent review.", worker: "channel-content-generation" });
     return { processed: true, outcome: "COMPLETED", draftId: job.draft_id, engagementId: job.engagement_id };
   } catch (error) {
+    await recordEngagementStage({ engagementId: job.engagement_id, schedulerRunId, stage: "CHANNEL_CONTENT_GENERATION", state: "RETRYING", reason: error instanceof Error ? error.message : "OUTREACH_GENERATION_FAILED", worker: "channel-content-generation" }).catch(() => undefined);
     await databaseRequest("rpc/fail_engagement_outreach_generation", {
       method: "POST",
       body: JSON.stringify({ p_draft_id: job.draft_id, p_error: error instanceof Error ? error.message : "OUTREACH_GENERATION_FAILED" }),

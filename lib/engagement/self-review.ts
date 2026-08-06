@@ -1,6 +1,7 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { reviewEngagementDraft } from "./self-review-openai";
+import { recordEngagementStage } from "./strategy";
 
 export type EngagementSelfReviewWorkerResult = {
   processed: boolean;
@@ -30,6 +31,7 @@ export async function runNextEngagementSelfReview(schedulerRunId: string): Promi
   if (!job) return { processed: false, outcome: "NO_JOB" };
 
   try {
+    await recordEngagementStage({ engagementId: job.engagement_id, schedulerRunId, stage: "AI_QUALITY_REVIEW", state: "RUNNING", reason: "Independently reviewing engagement quality and route alignment.", worker: "engagement-self-review" });
     const reviewed = await reviewEngagementDraft({
       organisationId: job.organisation_id,
       campaignId: job.campaign_id,
@@ -54,8 +56,10 @@ export async function runNextEngagementSelfReview(schedulerRunId: string): Promi
         p_response_id: reviewed.responseId,
       }),
     });
+    await recordEngagementStage({ engagementId: job.engagement_id, schedulerRunId, stage: "HUMAN_REVIEW", state: "READY", reason: "AI quality review completed; engagement is ready for human decision.", worker: "engagement-self-review", metadata: { approvedByAI: reviewed.result.approvedByAI, score: reviewed.result.combinedScore } });
     return { processed: true, outcome: "COMPLETED", reviewId: job.review_id, draftId: job.draft_id, engagementId: job.engagement_id, approvedByAI: reviewed.result.approvedByAI, engagementScore: reviewed.result.combinedScore };
   } catch (error) {
+    await recordEngagementStage({ engagementId: job.engagement_id, schedulerRunId, stage: "AI_QUALITY_REVIEW", state: "RETRYING", reason: error instanceof Error ? error.message : "ENGAGEMENT_SELF_REVIEW_FAILED", worker: "engagement-self-review" }).catch(() => undefined);
     await databaseRequest("rpc/fail_engagement_self_review", {
       method: "POST",
       body: JSON.stringify({ p_review_id: job.review_id, p_error: error instanceof Error ? error.message : "ENGAGEMENT_SELF_REVIEW_FAILED" }),
