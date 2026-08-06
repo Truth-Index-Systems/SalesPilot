@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { AppShell } from "@/components/shell";
 import { Card, Metric, PageHeader } from "@/components/ui";
 import { AutonomyHealthRefresh } from "@/components/autonomy-health-refresh";
@@ -38,7 +39,7 @@ export default async function AutonomyHealthPage() {
 
   return <AppShell title="Autonomy health" user={user}>
     <AutonomyHealthRefresh />
-    <PageHeader eyebrow="Internal diagnostics" title="Autonomy health" subtitle="Authoritative scheduler, lease, retry and worker state for this workspace. This page refreshes every 15 seconds." />
+    <PageHeader eyebrow="Internal diagnostics" title="Autonomy health" subtitle="Authoritative scheduler, lease, retry and worker state for this workspace. This page refreshes every 15 seconds." action={<Link className="button secondary" href="/internal/ai-costs">AI cost baseline</Link>} />
 
     <Card className="section">
       <div className="card-title">Production readiness and G3 freeze</div>
