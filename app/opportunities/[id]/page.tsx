@@ -8,6 +8,7 @@ import { getOpportunity, listOpportunities } from "@/lib/opportunities/repositor
 import { listCampaigns } from "@/lib/campaigns/repository";
 import { Building2, CheckCircle2, ContactRound, ExternalLink, Mail, ShieldCheck, Target } from "@/components/icons";
 import { buildAccessRoute, routeConfidenceClass } from "@/lib/opportunities/route-view";
+import { formatDateTime } from "@/lib/date-time";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +81,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
       <div className="opportunity-evidence-columns section"><div><h3>Company evidence</h3><div className="evidence-list">{opportunity.company_evidence.map((evidence: any) => <div className="evidence-item" key={evidence.id}><div><strong>{evidence.claim}</strong>{evidence.excerpt && <p>“{evidence.excerpt}”</p>}<span>{evidence.sourceTitle || evidence.sourceDomain || "Official company source"}</span></div><a href={evidence.sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={16}/></a></div>)}</div></div><div><h3>Route evidence</h3><div className="evidence-list">{opportunity.contact_evidence.length ? opportunity.contact_evidence.map((evidence: any) => <div className="evidence-item" key={evidence.id}><div><strong>{evidence.claim}</strong>{evidence.excerpt && <p>“{evidence.excerpt}”</p>}<span>{evidence.sourceTitle || evidence.sourceKind || "Official route source"}</span></div><a href={evidence.sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={16}/></a></div>) : <div className="verified-empty"><span>No route evidence has been persisted yet.</span></div>}</div></div></div>
     </Card>
 
-    <Card className="section"><div className="card-title">Opportunity history</div><div className="card-subtitle">Creation, scoring, ranking and workspace decisions remain auditable.</div>{opportunity.history.length ? <div className="review-history section">{opportunity.history.map((event: any) => <div className="review-history-item" key={event.id}><div><strong>{String(event.eventType).replaceAll("_", " ").toLowerCase()}</strong><span>{event.metadata?.note || `${event.previousStatus || "New"} → ${event.nextStatus || opportunity.status}`}</span></div><time>{new Date(event.occurredAt).toLocaleString("en-GB")}</time></div>)}</div> : <div className="verified-empty section"><span>No opportunity history has been recorded yet.</span></div>}</Card>
+    <Card className="section"><div className="card-title">Opportunity history</div><div className="card-subtitle">Creation, scoring, ranking and workspace decisions remain auditable.</div>{opportunity.history.length ? <div className="review-history section">{opportunity.history.map((event: any) => <div className="review-history-item" key={event.id}><div><strong>{String(event.eventType).replaceAll("_", " ").toLowerCase()}</strong><span>{event.metadata?.note || `${event.previousStatus || "New"} → ${event.nextStatus || opportunity.status}`}</span></div><time>{formatDateTime(event.occurredAt)}</time></div>)}</div> : <div className="verified-empty section"><span>No opportunity history has been recorded yet.</span></div>}</Card>
 
     <div className="section"><Link className="button secondary" href="/opportunities">← Back to opportunities</Link></div>
   </AppShell>;

@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/lib/date-time";
 import type { PipelineJobState } from "@/lib/pipeline/job-state";
 
 export type PersistedJobLike = {
@@ -69,7 +70,7 @@ export function jobStateLabel(job: PersistedJobLike | null | undefined, options?
     case "NO_RESULTS": return options?.noResults ?? "No supported results found";
     case "EXHAUSTED": return "Research scope exhausted";
     case "PAUSED": return "Research paused";
-    case "FAILED_RETRYABLE": return job?.next_retry_at ? `Retry scheduled ${new Date(job.next_retry_at).toLocaleString("en-GB")}` : "Retry scheduled";
+    case "FAILED_RETRYABLE": return job?.next_retry_at ? `Retry scheduled ${formatDateTime(job.next_retry_at)}` : "Retry scheduled";
     case "FAILED_TERMINAL": return "Needs attention";
     case "CANCELLED": return "Cancelled";
     default: return "Waiting";

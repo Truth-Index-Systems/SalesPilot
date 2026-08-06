@@ -1,4 +1,6 @@
 "use client";
+
+import { formatDateTime } from "@/lib/date-time";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -27,7 +29,7 @@ export function PipelineReleaseControls({ status, observationEndsAt, ready }: { 
       {status === "OBSERVING" && <button className="button" disabled={!!busy || !ready} onClick={() => run("freeze", () => post("/api/internal/autonomy/observation", { action: "COMPLETE", passed: true, freeze: true, notes: "G3 production observation passed." }))}>{busy === "freeze" ? "Freezing…" : "Pass and freeze G3"}</button>}
       {status === "OBSERVING" && <button className="button danger" disabled={!!busy} onClick={() => run("fail", () => post("/api/internal/autonomy/observation", { action: "COMPLETE", passed: false, freeze: false, notes: "Observation failed; further stabilisation required." }))}>Mark observation failed</button>}
     </div>
-    {observationEndsAt && status === "OBSERVING" && <p className="muted">Observation window ends {new Date(observationEndsAt).toLocaleString("en-GB")}.</p>}
+    {observationEndsAt && status === "OBSERVING" && <p className="muted">Observation window ends {formatDateTime(observationEndsAt)}.</p>}
     {message && <p className="muted" role="status">{message}</p>}
   </div>;
 }

@@ -15,6 +15,7 @@ import type { OpportunityOverview } from "@/lib/opportunities/domain";
 import Link from "next/link";
 import { TimelineBox } from "@/components/timeline-box";
 import { canShowProgress, isJobComplete, isJobRetryScheduled, jobStateLabel, resolvePersistedJobState, truthfulProgress } from "@/lib/pipeline/presentation";
+import { formatDateTime } from "@/lib/date-time";
 
 export const dynamic = "force-dynamic";
 
@@ -195,7 +196,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           return key !== previousKey || Math.abs(Date.parse(entry.occurredAt) - Date.parse(previous.occurredAt)) >= 10 * 60 * 1000;
         }).map(entry => {
           const presented = humanTimeline(entry.title, entry.description);
-          const exact = new Date(entry.occurredAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+          const exact = formatDateTime(entry.occurredAt);
           return { id: entry.id, occurredAt: entry.occurredAt, title: presented.title, description: presented.description, meta: `${relativeTime(entry.occurredAt)} · ${exact}` };
         })}/>
       </Card>

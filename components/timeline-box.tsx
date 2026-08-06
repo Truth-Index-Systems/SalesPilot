@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDateTime } from "@/lib/date-time";
+
 import { useMemo, useState, type ReactNode } from "react";
 
 type TimelineRange = "today" | "week" | "month" | "all";
@@ -42,7 +44,7 @@ export function TimelineBox({ entries, emptyMessage = "No activity in this perio
       {labels.map(([value, label]) => <button key={value} type="button" className={range === value ? "active" : ""} onClick={() => setRange(value)}>{label}</button>)}
     </div>
     <div className="timeline-scroll" tabIndex={0}>
-      {visible.length ? visible.map(entry => renderEntry ? <div key={entry.id}>{renderEntry(entry)}</div> : <div className="timeline-entry" key={entry.id}><div className="timeline-icon" aria-hidden="true">✓</div><div><div className="name">{entry.title}</div>{entry.description && <div className="meta">{entry.description}</div>}<time dateTime={entry.occurredAt}>{entry.meta ?? new Date(entry.occurredAt).toLocaleString("en-GB")}</time></div></div>) : <div className="timeline-empty">{emptyMessage}</div>}
+      {visible.length ? visible.map(entry => renderEntry ? <div key={entry.id}>{renderEntry(entry)}</div> : <div className="timeline-entry" key={entry.id}><div className="timeline-icon" aria-hidden="true">✓</div><div><div className="name">{entry.title}</div>{entry.description && <div className="meta">{entry.description}</div>}<time dateTime={entry.occurredAt}>{entry.meta ?? formatDateTime(entry.occurredAt)}</time></div></div>) : <div className="timeline-empty">{emptyMessage}</div>}
     </div>
   </div>;
 }

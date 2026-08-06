@@ -11,6 +11,7 @@ import { AiGovernanceControls } from "@/components/ai-governance-controls";
 import { jobStateLabel, truthfulProgress } from "@/lib/pipeline/presentation";
 import { getPipelineReleaseReadiness } from "@/lib/pipeline/release";
 import { PipelineReleaseControls } from "@/components/pipeline-release-controls";
+import { formatDateTime } from "@/lib/date-time";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +97,7 @@ export default async function AutonomyHealthPage() {
           <div><span>Latest run</span><strong>{latestRun ? ago(latestRun.started_at) : "No run recorded"}</strong></div>
           <div><span>Outcome</span><strong>{latestRun?.status ?? "Unknown"}</strong></div>
           <div><span>Recovered jobs</span><strong>{latestRun?.recovered_jobs ?? 0}</strong></div>
-          <div><span>Lease expires</span><strong>{diagnostics.health?.lease_expires_at ? new Date(diagnostics.health.lease_expires_at).toLocaleString("en-GB") : "No active lease"}</strong></div>
+          <div><span>Lease expires</span><strong>{diagnostics.health?.lease_expires_at ? formatDateTime(diagnostics.health.lease_expires_at) : "No active lease"}</strong></div>
         </div>
         {latestRun?.last_error && <div className="website-error section" role="alert"><strong>Scheduler error</strong><span>{latestRun.last_error}</span></div>}
         <details className="section"><summary>Preparation decision</summary><pre className="diagnostic-json">{JSON.stringify(latestRun?.preparation_json ?? {}, null, 2)}</pre></details>
