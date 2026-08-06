@@ -72,7 +72,8 @@
     "cost:release-c-check": "node scripts/check-cost-release-c.mjs",
     "company-discovery:first-attempt-check": "node scripts/validate-company-discovery-first-attempt-hotfix.mjs",
     "g4:commercial-reasoning-claim-hotfix-check": "node scripts/validate-commercial-reasoning-claim-hotfix.mjs",
-    "campaign-fit-score:hotfix-check": "node scripts/validate-campaign-fit-score-hotfix.mjs"
+    "campaign-fit-score:hotfix-check": "node scripts/validate-campaign-fit-score-hotfix.mjs",
+    "outreach-claim:hotfix-check": "node scripts/validate-outreach-claim-hotfix.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
