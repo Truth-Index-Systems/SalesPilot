@@ -85,7 +85,8 @@
     "genesis:governance-check": "node scripts/validate-ai-governance-controls.mjs",
     "genesis:g4-expansion-check": "node scripts/validate-g4-company-discovery-expansion.mjs",
     "genesis:g4-universal-expansion-check": "node scripts/validate-g4-universal-expansion.mjs",
-    "genesis:g4-route-expansion-check": "node scripts/validate-g4-route-expansion.mjs"
+    "genesis:g4-route-expansion-check": "node scripts/validate-g4-route-expansion.mjs",
+    "genesis:g4-route-claim-check": "node scripts/validate-g4-route-claim-ambiguity-hotfix.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

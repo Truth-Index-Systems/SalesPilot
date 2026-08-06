@@ -178,13 +178,13 @@ begin
   for update of s skip locked limit 1;
 
   if v_id is null then return; end if;
-  update public.contact_discovery_sessions set
-    status='RUNNING',job_state='RUNNING',stage=case when route_expansion_pass>0 then 'EXPANDING' else 'PREPARING' end,progress=5,
-    attempt_count=attempt_count+1,claimed_at=now(),started_at=coalesce(started_at,now()),
+  update public.contact_discovery_sessions as target set
+    status='RUNNING',job_state='RUNNING',stage=case when target.route_expansion_pass>0 then 'EXPANDING' else 'PREPARING' end,progress=5,
+    attempt_count=target.attempt_count+1,claimed_at=now(),started_at=coalesce(target.started_at,now()),
     heartbeat_at=now(),last_heartbeat_at=now(),lease_expires_at=now()+interval '8 minutes',
     last_error=null,last_error_code=null,last_error_message=null,next_attempt_at=null,next_retry_at=null,
     scheduler_run_id=p_scheduler_run_id,updated_at=now()
-  where id=v_id;
+  where target.id=v_id;
   return query select s.id,s.organisation_id,s.campaign_id,s.company_id,s.route_expansion_pass
     from public.contact_discovery_sessions s where s.id=v_id;
 end $$;
