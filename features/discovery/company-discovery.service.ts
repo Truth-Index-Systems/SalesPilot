@@ -23,6 +23,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
   const claimed = await databaseRequest<Array<{ session_id: string; organisation_id: string; campaign_id: string }>>("rpc/claim_company_discovery",{ method: "POST", body: JSON.stringify({ p_scheduler_run_id: context.schedulerRunId }) });
   const job = claimed[0];
   if (!job) return { worker: "COMPANY_DISCOVERY", processed: false, outcome: "NO_JOB" };
+  let failurePhase = "PREPARING";
   try {
     const sessionRows = await databaseRequest<Array<{ expansion_pass_count?: number | null; minimum_supported_companies?: number | null; max_expansion_passes?: number | null }>>(
       `discovery_sessions?id=eq.${job.session_id}&organisation_id=eq.${job.organisation_id}&select=expansion_pass_count,minimum_supported_companies,max_expansion_passes&limit=1`
@@ -52,6 +53,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     const business = profiles[0]?.payload_json ?? { name: campaign.business_name, summary: campaign.business_summary, website: campaign.website_url };
 
     await activity(job.session_id,"SEARCH_PREPARED","Approved strategy verified","The audience, buyer roles and commercial angle are ready for company research.");
+    failurePhase = "PLANNING";
     await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"PLANNING",p_progress:28})});
     await activity(job.session_id,"SEARCH_PLAN_STARTED","Building the market search plan","SalesPilot is translating the campaign into operational conditions, company archetypes and high-value evidence sources.",{searchPass,searchStrategy});
     const searchPlan = await buildCompanySearchPlan({
@@ -71,7 +73,8 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       archetypes:searchPlan.companyArchetypes.map(item=>item.name),
       sourcePriority:searchPlan.sourcePriority,
     });
-    await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"ANALYSING",p_progress:40})});
+    failurePhase = "SEARCHING";
+    await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"SEARCHING",p_progress:40})});
     await activity(job.session_id,"RESEARCHING","Searching across the planned market space","SalesPilot is researching diverse company archetypes before independently verifying commercial fit and official evidence.");
 
     const existingCompanies = await databaseRequest<Array<{ company_name: string; canonical_domain: string }>>(
@@ -91,7 +94,8 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       searchPlan,
     });
 
-    await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"VALIDATING",p_progress:72,p_candidates:result.companies.length})});
+    failurePhase = "VERIFYING";
+    await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"VERIFYING",p_progress:72,p_candidates:result.companies.length})});
     await activity(
       job.session_id,
       "CANDIDATES_FOUND",
@@ -116,7 +120,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     for (let index=0; index<result.companies.length; index++) {
       const candidate=result.companies[index];
       const validationProgress=73+Math.round(((index+1)/result.companies.length)*12);
-      await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"VALIDATING",p_progress:Math.min(85,validationProgress),p_candidates:result.companies.length})});
+      await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"VERIFYING",p_progress:Math.min(85,validationProgress),p_candidates:result.companies.length})});
       const verification=await verifyDiscoveredCompanyDetailed(candidate);
       reachableOfficialEvidence += verification.diagnostics.officialEvidenceReachable;
       excerptMatches += verification.diagnostics.excerptMatches;
@@ -182,16 +186,19 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
   } catch (error) {
     const safeMessage=safeWorkerError(error);
     const classified=classifyPipelineError(error);
+    const preparationFailure = failurePhase === "PREPARING" || failurePhase === "PLANNING";
     await activity(
       job.session_id,
-      "DISCOVERY_FAILED",
-      "Company discovery paused",
-      classified.code === "INVALID_AI_OUTPUT"
-        ? "The research response did not complete cleanly, so SalesPilot held back every recommendation and scheduled a safe retry."
-        : "SalesPilot could not complete this attempt. No unverified recommendations were marked ready.",
-      { errorCode: classified.code },
+      "DISCOVERY_TECHNICAL_RETRY",
+      preparationFailure ? "Company research preparation will retry" : "Company research will retry",
+      preparationFailure
+        ? "SalesPilot could not finish preparing the market search plan. No company search was counted as completed, and preparation will resume automatically."
+        : classified.code === "INVALID_AI_OUTPUT"
+          ? "The research response did not complete cleanly, so SalesPilot held back every recommendation and scheduled a safe technical retry."
+          : "SalesPilot encountered a technical issue during company research. No unverified recommendations were marked ready.",
+      { errorCode: classified.code, failurePhase },
     ).catch(()=>undefined);
-    await databaseRequest("rpc/record_company_discovery_failure",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_error_code:classified.code,p_error_message:safeMessage,p_retryable:classified.retryable})}).catch(()=>undefined);
+    await databaseRequest("rpc/record_company_discovery_failure_v2",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_error_code:classified.code,p_error_message:safeMessage,p_retryable:classified.retryable,p_failure_phase:failurePhase})}).catch(()=>undefined);
     throw error;
   }
 }

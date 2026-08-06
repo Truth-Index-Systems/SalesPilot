@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "@/components/icons";
-import { isJobActive, isJobRunning, jobStateLabel } from "@/lib/pipeline/presentation";
+import { isJobActive, isJobRetryScheduled, isJobRunning, jobStateLabel, resolvePersistedJobState } from "@/lib/pipeline/presentation";
 
 type Activity={id:string;title:string;description?:string|null;occurred_at:string};
 type Discovery={status:string;job_state?:string|null;stage:string;progress:number;recommendations_saved:number;next_retry_at?:string|null};
@@ -27,10 +27,12 @@ export function DiscoveryActivityTicker({campaignId,initialDiscovery,initialActi
  const [companyCount,setCompanyCount]=useState(initialCompanyCount);
  const latestSnapshot=useRef(snapshot(initialDiscovery,initialActivities,initialCompanyCount));
  const active=isJobActive(discovery);
+ const retryScheduled=isJobRetryScheduled(discovery);
  const running=isJobRunning(discovery);
+ const watchable=active||retryScheduled;
 
  useEffect(()=>{
-  if(!active) return;
+  if(!watchable) return;
   let cancelled=false;
   let requestInFlight=false;
 
@@ -48,20 +50,25 @@ export function DiscoveryActivityTicker({campaignId,initialDiscovery,initialActi
     const nextCompanyCount=data.companyCount??0;
     const nextSnapshot=snapshot(nextDiscovery,nextActivities,nextCompanyCount);
     setDiscovery(nextDiscovery);setActivities(nextActivities);setCompanyCount(nextCompanyCount);
-    if(nextSnapshot!==latestSnapshot.current){
-      latestSnapshot.current=nextSnapshot;
-      router.refresh();
-    }
+    const changed=nextSnapshot!==latestSnapshot.current;
+    latestSnapshot.current=nextSnapshot;
+    const nextState=resolvePersistedJobState(nextDiscovery);
+    const retryDue=nextState==="FAILED_RETRYABLE" && nextDiscovery?.next_retry_at && Date.parse(nextDiscovery.next_retry_at)<=Date.now();
+    if(changed||retryDue) router.refresh();
    }catch{}finally{
     requestInFlight=false;
     window.dispatchEvent(new CustomEvent("salespilot:api-finish",{detail:{method:"GET",url:`/api/campaigns/${campaignId}/discovery/status`}}));
    }
   };
 
+  const onVisible=()=>{if(document.visibilityState==="visible") void refreshStatus();};
+  const onFocus=()=>void refreshStatus();
   void refreshStatus();
-  const timer=window.setInterval(refreshStatus,3000);
-  return()=>{cancelled=true;window.clearInterval(timer)};
- },[campaignId,active,router]);
+  const timer=window.setInterval(refreshStatus,retryScheduled?1500:2000);
+  document.addEventListener("visibilitychange",onVisible);
+  window.addEventListener("focus",onFocus);
+  return()=>{cancelled=true;window.clearInterval(timer);document.removeEventListener("visibilitychange",onVisible);window.removeEventListener("focus",onFocus)};
+ },[campaignId,watchable,retryScheduled,router]);
 
  const visible=useMemo(()=>activities.slice(0,5),[activities]);
  if(!visible.length)return null;
