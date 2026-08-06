@@ -4,7 +4,9 @@ export type WorkerExecutionOutcome =
   | "NO_JOB"
   | "COMPLETED_WITH_RESULTS"
   | "COMPLETED_NO_RESULTS"
-  | "CONTINUING";
+  | "CONTINUING"
+  | "ROUTE_EXPANSION_QUEUED"
+  | "ROUTE_RESEARCH_EXHAUSTED";
 
 export type WorkerExecutionResult = {
   worker: WorkerKind;

@@ -1,5 +1,5 @@
 export type PipelineResultSummary = {
-  outcome: "COMPLETED_WITH_RESULTS" | "COMPLETED_NO_RESULTS";
+  outcome: "COMPLETED_WITH_RESULTS" | "COMPLETED_NO_RESULTS" | "ROUTE_RESEARCH_EXHAUSTED";
   saved: number;
   durationMs: number;
   completedAt: string;
