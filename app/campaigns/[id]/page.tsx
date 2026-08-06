@@ -13,6 +13,7 @@ import { contactCounts, listContactDiscoveryForCampaign } from "@/lib/contacts/r
 import { listCampaignOpportunities } from "@/lib/opportunities/repository";
 import type { OpportunityOverview } from "@/lib/opportunities/domain";
 import Link from "next/link";
+import { TimelineBox } from "@/components/timeline-box";
 import { canShowProgress, isJobComplete, isJobRetryScheduled, jobStateLabel, resolvePersistedJobState, truthfulProgress } from "@/lib/pipeline/presentation";
 
 export const dynamic = "force-dynamic";
@@ -117,7 +118,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     <div className="hero campaign-control-centre">
       <div className="campaign-control-copy">
         <div className="eyebrow" style={{ color: "#d8f6ff" }}>Campaign status</div>
-        <h2>{campaignPaused ? "This outbound sales campaign is paused." : opportunityCount > 0 ? `${opportunityCount} sales opportunit${opportunityCount === 1 ? "y is" : "ies are"} assembled.` : contactsActive ? "SalesPilot is building complete commercial opportunities." : reviewComplete ? "Company intelligence is moving into buyer research." : discoveryComplete ? "Company intelligence is ready to progress." : discoveryRunning ? "SalesPilot is finding strong commercial matches." : discoveryRetryScheduled ? "Company intelligence retry is scheduled." : discoveryNeedsAttention ? "Company intelligence needs attention." : discoveryQueued ? "Company intelligence is queued." : "Your outbound sales campaign is ready."}</h2>
+        <h2>{campaignPaused ? "This outbound sales campaign is paused." : opportunityCount > 0 ? `${opportunityCount} sales opportunit${opportunityCount === 1 ? "y is" : "ies are"} assembled.` : contactsActive ? "SalesPilot is building complete commercial opportunities." : reviewComplete ? "Company discovery is moving into route research." : discoveryComplete ? "Company discovery is ready to progress." : discoveryRunning ? "SalesPilot is finding strong commercial matches." : discoveryRetryScheduled ? "Company discovery retry is scheduled." : discoveryNeedsAttention ? "Company discovery needs attention." : discoveryQueued ? "Company discovery is queued." : "Your outbound sales campaign is ready."}</h2>
         <p>{campaignPaused ? "Autonomous work is stopped. Your campaign and all supporting intelligence remain safely saved." : opportunityCount > 0 ? `${opportunityRecommended} recommended · ${opportunityAwaitingReview} awaiting your decision · ${opportunityApproved} approved for engagement. SalesPilot has combined company fit, commercial need, route quality and evidence into one ranked commercial view.` : contactsActive ? `${contactResearching} compan${contactResearching === 1 ? "y is" : "ies are"} being researched while SalesPilot connects commercial need, route quality and the reason to buy.` : reviewComplete ? `${approvedCompanyCount} approved companies are now being converted into complete opportunities.` : discoveryComplete ? `${companyCount} compan${companyCount === 1 ? "y has" : "ies have"} been retained in supporting intelligence. SalesPilot will continue building the strongest opportunities.` : discoveryRunning ? "SalesPilot is continuing the approved campaign automatically. Low-confidence matches remain visible with transparent limitations." : discoveryRetryScheduled ? "The scheduler will retry automatically at the saved retry time." : discoveryNeedsAttention ? "The job reached a terminal failure and requires an administrator to review the diagnostic reason." : discoveryQueued ? "The scheduler has accepted this campaign and will begin intelligence gathering when a worker is available." : "Business understanding and campaign approval are complete. SalesPilot is preparing commercial opportunities."}</p>
         <div className="campaign-readiness"><span/><strong>{opportunityCount > 0 ? "Opportunities" : contactsActive ? "Assembling opportunities" : reviewComplete ? "Buyer intelligence next" : stageLabel}</strong><small>{opportunityCount > 0 ? `${opportunityAwaitingReview} awaiting decision · ${opportunityApproved} approved` : contactsActive ? `${contactResearching} researching · ${contactQueued} queued · ${contactRetryScheduled} retry scheduled` : reviewComplete ? "Approved companies are moving forward automatically" : discoveryComplete ? `${companyCount} companies retained in intelligence` : discoveryRetryScheduled ? "Retry scheduled" : discoveryNeedsAttention ? "Needs attention" : discoveryQueued ? "Queued" : progress !== null ? `${progress}% complete` : stageLabel}</small></div>
         {discoveryNeedsAttention && <DiscoveryRetryButton campaignId={id}/>}
@@ -126,7 +127,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       </div>
       <div className="next-status-panel">
         <span>{opportunityCount > 0 ? "Current commercial stage" : "Current intelligence stage"}</span>
-        <strong>{opportunityApproved > 0 ? "Engagement" : opportunityCount > 0 ? "Opportunity Review" : "Opportunity Research"}</strong>
+        <strong>{opportunityApproved > 0 ? "Engagement" : opportunityCount > 0 ? "Opportunity Review" : contactsActive ? "Route Research" : "Company Discovery"}</strong>
         <small>{opportunityCount > 0 ? `${opportunityRecommended} recommended · top score ${topOpportunity?.opportunity_score ?? 0}/100` : contactsActive ? `${contactResearching} companies researching · ${pendingContactCount} contacts awaiting review` : reviewComplete ? "Building buyer and reachability intelligence" : stageLabel}</small>
         {opportunityCount > 0 ? <Link className="campaign-stage-link" href={`/opportunities?campaign=${id}`}>Open campaign opportunities →</Link> : contactsActive ? <Link className="campaign-stage-link" href={`/contacts?campaign=${id}`}>View supporting contacts →</Link> : null}
       </div>
@@ -186,18 +187,17 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       <Card>
         <div className="card-title">Campaign timeline</div>
         <div className="card-subtitle">Only useful customer-facing progress is shown.</div>
-        <div className="premium-timeline section">{campaign.timeline.filter((entry, index, entries) => {
+        <TimelineBox entries={campaign.timeline.filter((entry, index, entries) => {
           if (index === 0) return true;
           const previous = entries[index - 1];
           const key = `${entry.title.trim().toLowerCase()}|${(entry.description ?? "").trim().toLowerCase()}`;
           const previousKey = `${previous.title.trim().toLowerCase()}|${(previous.description ?? "").trim().toLowerCase()}`;
-          const closeTogether = Math.abs(Date.parse(entry.occurredAt) - Date.parse(previous.occurredAt)) < 10 * 60 * 1000;
-          return key !== previousKey || !closeTogether;
+          return key !== previousKey || Math.abs(Date.parse(entry.occurredAt) - Date.parse(previous.occurredAt)) >= 10 * 60 * 1000;
         }).map(entry => {
           const presented = humanTimeline(entry.title, entry.description);
           const exact = new Date(entry.occurredAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
-          return <div className="timeline-entry" key={entry.id}><div className="timeline-icon"><CheckCircle2 size={17}/></div><div><div className="name">{presented.title}</div>{presented.description && <div className="meta">{presented.description}</div>}<time title={exact} dateTime={entry.occurredAt}>{relativeTime(entry.occurredAt)}</time></div></div>;
-        })}</div>
+          return { id: entry.id, occurredAt: entry.occurredAt, title: presented.title, description: presented.description, meta: `${relativeTime(entry.occurredAt)} · ${exact}` };
+        })}/>
       </Card>
     </div>
   </AppShell>;

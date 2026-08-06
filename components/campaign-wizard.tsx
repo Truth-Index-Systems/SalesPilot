@@ -626,9 +626,7 @@ export function CampaignWizard() {
               </div>
             </div>
 
-            <span className="badge green">
-              {confidenceLabel} · {pagesRead} pages read
-            </span>
+            <div className="confidence-summary"><span className="badge green">{confidenceLabel} · {pagesRead} pages read</span><small>{result.payload.offers.length > 0 ? "✓ Offer identified" : ""} {result.payload.idealCustomers.length > 0 ? "· ✓ Buyers identified" : ""} {result.payload.positioning.strongestValueProposition ? "· ✓ Positioning understood" : ""}</small></div>
           </div>
 
           <div className="grid cols-3">
@@ -691,20 +689,15 @@ export function CampaignWizard() {
           </div>
 
           <div className="section card recommendation">
-            <h3>SalesPilot proposes</h3>
+            <h3>Recommended first commercial approach</h3>
             <p>{result.payload.campaigns[0]?.messageAngle}</p>
           </div>
 
           {result.payload.unknowns.length > 0 && (
-            <div className="section card soft">
-              <div className="card-title">
-                Worth confirming
-              </div>
-
-              <p className="card-subtitle">
-                {result.payload.unknowns.join(" · ")}
-              </p>
-            </div>
+            <details className="section card soft confirmation-details">
+              <summary>Worth confirming <span>{result.payload.unknowns.length}</span></summary>
+              <p className="card-subtitle">{result.payload.unknowns.join(" · ")}</p>
+            </details>
           )}
         </div>
       )}

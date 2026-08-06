@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { hasFounderDashboardSession } from "@/lib/founder-dashboard/auth";
 import { getFounderDashboard } from "@/lib/founder-dashboard/repository";
+import { TimelineBox } from "@/components/timeline-box";
 
 export const dynamic = "force-dynamic";
 
@@ -118,7 +119,7 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
 
       <section className="founder-grid founder-grid-equal">
         <article className="founder-panel"><div className="founder-panel-head"><div><span>Prompt intelligence</span><h2>Prompt cost profile</h2></div></div><div className="founder-ranked-list">{data.prompts.map((row,index)=><div key={row.prompt}><b>{String(index+1).padStart(2,"0")}</b><div><strong>{row.prompt}</strong><small>{row.calls} calls · {number(row.avgTokens)} average tokens</small></div><span>{money(row.avgCost)} avg</span></div>)}</div></article>
-        <article className="founder-panel"><div className="founder-panel-head"><div><span>Production timeline</span><h2>SalesPilot working</h2></div></div><div className="founder-timeline">{data.timeline.map(row=><div key={row.id}><i/><div><strong>{row.title}</strong><p>{row.description??row.event_type.replaceAll("_"," ")}</p><small>{row.campaignName} · {new Date(row.occurred_at).toLocaleString("en-GB")}</small></div></div>)}</div></article>
+        <article className="founder-panel"><div className="founder-panel-head"><div><span>Production timeline</span><h2>SalesPilot working</h2></div></div><TimelineBox dark entries={data.timeline.map(row=>({id:row.id,occurredAt:row.occurred_at,title:row.title,description:row.description??row.event_type.replaceAll("_"," "),meta:`${row.campaignName} · ${new Date(row.occurred_at).toLocaleString("en-GB")}`}))}/></article>
       </section>
     </div>
   </main>;
