@@ -1,6 +1,7 @@
 export const ENGAGEMENT_STATUSES = [
   "NEEDS_ROUTE",
   "READY_FOR_DRAFT",
+  "DRAFT_READY",
   "DRAFT_REVIEW",
   "APPROVED_TO_SEND",
   "QUEUED_FOR_SEND",
@@ -60,7 +61,9 @@ export type EngagementHistoryEvent =
   | "UPDATED"
   | "PAUSED"
   | "CANCELLED"
+  | "DRAFT_GENERATION_STARTED"
   | "DRAFT_CREATED"
+  | "DRAFT_GENERATION_FAILED"
   | "APPROVED_TO_SEND"
   | "QUEUED"
   | "SENT";
