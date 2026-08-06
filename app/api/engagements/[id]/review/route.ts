@@ -1,0 +1,5 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { reviewEngagement } from "@/lib/engagement/review-repository";
+const Schema=z.object({action:z.enum(["APPROVED","EDITED","REJECTED","REGENERATE_REQUESTED"]),note:z.string().trim().max(500).optional(),edit:z.object({subject:z.string().trim().min(1).max(200),opening:z.string().trim().min(1).max(1200),personalisation:z.string().trim().max(1200).optional(),valueProposition:z.string().trim().min(1).max(1600),callToAction:z.string().trim().min(1).max(600)}).optional()}).superRefine((v,c)=>{if(v.action==="EDITED"&&!v.edit)c.addIssue({code:"custom",message:"Edited draft required",path:["edit"]});});
+export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){try{const {id}=await params;const input=Schema.parse(await request.json());await reviewEngagement(id,input.action,input.note,input.edit);return NextResponse.json({ok:true});}catch(error){console.error("Engagement review failed",error);return NextResponse.json({ok:false,error:{message:"SalesPilot could not save this outreach review."}},{status:400});}}
