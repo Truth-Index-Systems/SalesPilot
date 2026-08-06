@@ -58,7 +58,8 @@
     "genesis:g35-phase4-check": "npm run genesis:g35-phase3-check && node scripts/validate-genesis-g35-phase4.mjs",
     "genesis:g35-phase5-check": "npm run genesis:g35-phase4-check && node scripts/validate-genesis-g35-phase5.mjs",
     "genesis:g4-phase1-check": "npm run genesis:g35-phase5-check && node scripts/validate-genesis-g4-phase1.mjs",
-    "g3:contact-foundation-hotfix-check": "npm run genesis:g4-phase1-check && node scripts/validate-g3-contact-foundation-sync-hotfix.mjs"
+    "g3:contact-foundation-hotfix-check": "npm run genesis:g4-phase1-check && node scripts/validate-g3-contact-foundation-sync-hotfix.mjs",
+    "genesis:g4-phase2-check": "npm run g3:contact-foundation-hotfix-check && node scripts/validate-genesis-g4-phase2.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

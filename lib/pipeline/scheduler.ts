@@ -6,8 +6,8 @@ import type { WorkerExecutionResult } from "./executor";
 import { syncOpportunityFoundations } from "@/lib/opportunities/builder";
 import type { OpportunityScoringSummary, OpportunitySyncSummary } from "@/lib/opportunities/domain";
 import { scoreOpportunityIntelligence } from "@/lib/opportunities/scoring";
-import { syncOpportunityEngagementBridge } from "@/lib/engagement/repository";
-import type { EngagementSyncSummary } from "@/lib/engagement/domain";
+import { buildEngagements } from "@/lib/engagement/builder";
+import type { EngagementBuilderResult } from "@/lib/engagement/domain";
 import {
   acquirePipelineSchedulerLease,
   preparePipelineWork,
@@ -33,7 +33,7 @@ export type PipelineSchedulerResult = {
   contact: SettledWorker | SettledWorker[] | null;
   opportunity: OpportunitySyncSummary | null;
   opportunityScoring: OpportunityScoringSummary | null;
-  engagement: EngagementSyncSummary | null;
+  engagement: EngagementBuilderResult | null;
 };
 
 async function settle(work: () => Promise<WorkerExecutionResult>): Promise<SettledWorker> {
@@ -79,7 +79,9 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
         : await settle(() => runNextContactDiscovery(context));
     const opportunity = await syncOpportunityFoundations(runId);
     const opportunityScoring = await scoreOpportunityIntelligence(runId);
-    const engagement = await syncOpportunityEngagementBridge(runId);
+    // G3.5 compatibility contract: syncOpportunityEngagementBridge(runId) is
+    // executed inside the G4 Engagement Builder, preserving scheduler ownership.
+    const engagement = await buildEngagements(runId);
     await recordPipelineSchedulerOutcome(runId, company, contact, { contactFoundation, foundation: opportunity, scoring: opportunityScoring, engagement });
     return { acquired: true, runId, preparation, company, contactFoundation, contact, opportunity, opportunityScoring, engagement };
   } finally {

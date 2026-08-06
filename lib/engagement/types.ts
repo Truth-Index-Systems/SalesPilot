@@ -95,6 +95,16 @@ export type EngagementSyncSummary = {
   needsRoute: number;
 };
 
+export type EngagementBuilderStatus = "RUNNING" | "COMPLETED" | "FAILED";
+
+export type EngagementBuilderResult = EngagementSyncSummary & {
+  builderRunId: string | null;
+  schedulerRunId: string;
+  status: EngagementBuilderStatus;
+  startedAt: string | null;
+  completedAt: string | null;
+};
+
 export type EngagementFilters = {
   campaignId?: string;
   opportunityId?: string;
