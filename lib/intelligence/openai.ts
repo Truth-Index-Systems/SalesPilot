@@ -4,6 +4,7 @@ import { businessDiscoveryJsonSchema } from "@/lib/intelligence/business-discove
 import type { WebsiteSource } from "@/lib/intelligence/website-reader";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
+import { stableFingerprint } from "@/lib/ai/cost-optimisation";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 const envelopeSchema = AiEnvelopeSchema(BusinessDnaPayloadSchema);
@@ -35,7 +36,8 @@ function extractOutputText(response: unknown): string {
 
 export async function analyseBusiness(params: { organisationId:string|null; jobId:string; website: string; sources: WebsiteSource[] }): Promise<AiEnvelope<BusinessDnaPayload>> {
   const { apiKey, model } = getConfig();
-  const sourceBlock = params.sources.map((source, index) => `SOURCE ${index + 1}\nURL: ${source.url}\nTITLE: ${source.title}\nCONTENT: ${source.text}`).join("\n\n");
+  const compactSources = params.sources.slice(0, 8).map(source => ({...source, text: source.text.slice(0, 6000)}));
+  const sourceBlock = compactSources.map((source, index) => `SOURCE ${index + 1}\nURL: ${source.url}\nTITLE: ${source.title}\nCONTENT: ${source.text}`).join("\n\n");
   const now = new Date().toISOString();
   const instructions = `You are SalesPilot Intelligence. Analyse a B2B company's own website and propose commercially useful outbound strategies.\n\nRules:\n- Use only the supplied source material for factual claims about the company.\n- Clearly list unknowns instead of inventing facts.\n- Inferences about ideal customers and campaigns are allowed, but must be labelled through confidence, why and risks.\n- Avoid guaranteed revenue, meeting or lead claims.\n- Write concise, calm British English.\n- Return the exact JSON schema only.\n- Set schemaVersion to business-dna/v1 and promptVersion to business-discovery/v1.\n- Set model to ${model} and generatedAt to ${now}.\n- Use the canonical website ${params.website}.`;
 
@@ -52,11 +54,12 @@ export async function analyseBusiness(params: { organisationId:string|null; jobI
         schema: businessDiscoveryJsonSchema,
       },
     },
-    max_output_tokens: 7000,
+    max_output_tokens: 4500,
     store: false,
   };
 
-  const reservation = await reserveAiRequest({ organisationId: params.organisationId, jobType: "BUSINESS_ANALYSIS", jobId: params.jobId, requestScope: `business-analysis:${params.jobId}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_BUSINESS_ANALYSIS_ESTIMATED_COST_USD ?? "0.10") });
+  const fingerprint = stableFingerprint({prompt:"business-discovery/v1-cost-optimised",model,website:params.website,sources:compactSources});
+  const reservation = await reserveAiRequest({ organisationId: params.organisationId, jobType: "BUSINESS_ANALYSIS", jobId: params.jobId, requestScope: `business-analysis:${fingerprint}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_BUSINESS_ANALYSIS_ESTIMATED_COST_USD ?? "0.10") });
   const startedAt = Date.now();
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 2; attempt += 1) {

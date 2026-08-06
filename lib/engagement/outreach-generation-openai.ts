@@ -1,6 +1,7 @@
 import "server-only";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
+import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { OutreachGenerationSchema, outreachGenerationJsonSchema, type OutreachGeneration } from "./outreach-generation-schema";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
@@ -24,6 +25,8 @@ export async function generateOutreach(input: {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model = resolveOpenAIModel("analysis").model;
+  const compactContext = compactForAi(input.context, { evidenceLimit: 4, depth: 6 }) as Record<string, unknown>;
+  const fingerprint = stableFingerprint({ prompt: "outreach-generation/v1-cost-optimised", model, compactContext });
   const startedAt = Date.now();
   const reservation = await reserveAiRequest({
     organisationId: input.organisationId,
@@ -31,7 +34,7 @@ export async function generateOutreach(input: {
     schedulerRunId: input.schedulerRunId,
     jobType: "OUTREACH",
     jobId: input.draftId,
-    requestScope: `outreach-generation:${input.draftId}`,
+    requestScope: `outreach-generation:${fingerprint}`,
     model,
     estimatedCostUsd: Number(process.env.SALESPILOT_OUTREACH_GENERATION_ESTIMATED_COST_USD ?? "0.06"),
   });
@@ -56,9 +59,9 @@ export async function generateOutreach(input: {
           "State uncertainty in limitations rather than disguising assumptions as facts.",
           "Return exact JSON only. Do not include greetings, sign-offs or sender details outside the structured fields.",
         ].join(" "),
-        input: JSON.stringify(input.context),
+        input: JSON.stringify(compactContext),
         text: { format: { type: "json_schema", name: "salespilot_outreach_generation_v1", strict: true, schema: outreachGenerationJsonSchema } },
-        max_output_tokens: 4000,
+        max_output_tokens: 1800,
         store: false,
       }),
     });

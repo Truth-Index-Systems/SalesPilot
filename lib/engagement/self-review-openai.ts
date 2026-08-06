@@ -1,6 +1,7 @@
 import "server-only";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
+import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { EngagementSelfReviewSchema, engagementSelfReviewJsonSchema, type EngagementSelfReview } from "./self-review-schema";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
@@ -23,6 +24,8 @@ export async function reviewEngagementDraft(input: {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model = resolveOpenAIModel("analysis").model;
+  const compactContext = compactForAi(input.context, { evidenceLimit: 4, depth: 6 }) as Record<string, unknown>;
+  const fingerprint = stableFingerprint({ prompt: "self-review/v1-cost-optimised", model, compactContext });
   const startedAt = Date.now();
   const reservation = await reserveAiRequest({
     organisationId: input.organisationId,
@@ -30,7 +33,7 @@ export async function reviewEngagementDraft(input: {
     schedulerRunId: input.schedulerRunId,
     jobType: "OUTREACH",
     jobId: input.reviewId,
-    requestScope: `engagement-self-review:${input.reviewId}`,
+    requestScope: `engagement-self-review:${fingerprint}`,
     model,
     estimatedCostUsd: Number(process.env.SALESPILOT_ENGAGEMENT_SELF_REVIEW_ESTIMATED_COST_USD ?? "0.04"),
   });
@@ -53,9 +56,9 @@ export async function reviewEngagementDraft(input: {
           "Set approvedByAI true only when combinedScore is at least 75, factualAccuracy is at least 80, evidenceUse is at least 75, and unsupportedClaims is empty.",
           "Scores must be candid and internally consistent. Return exact JSON only.",
         ].join(" "),
-        input: JSON.stringify(input.context),
+        input: JSON.stringify(compactContext),
         text: { format: { type: "json_schema", name: "salespilot_engagement_self_review_v1", strict: true, schema: engagementSelfReviewJsonSchema } },
-        max_output_tokens: 3000,
+        max_output_tokens: 1600,
         store: false,
       }),
     });

@@ -29,6 +29,7 @@ export type ResolvedModel = {
  * 1. Task-specific model, e.g. OPENAI_MODEL_STRATEGY
  * 2. OPENAI_MODEL_DEFAULT
  * 3. Legacy OPENAI_MODEL (kept for backwards compatibility)
+ * 4. Cost-safe production default: gpt-5-mini
  */
 export function resolveOpenAIModel(task: IntelligenceTask): ResolvedModel {
   const taskEnv = ENV_BY_TASK[task];
@@ -45,9 +46,7 @@ export function resolveOpenAIModel(task: IntelligenceTask): ResolvedModel {
     return { task, model: legacyModel, source: "OPENAI_MODEL" };
   }
 
-  throw new Error(
-    `${taskEnv}, OPENAI_MODEL_DEFAULT or OPENAI_MODEL must be configured.`,
-  );
+  return { task, model: "gpt-5-mini", source: "COST_SAFE_DEFAULT" };
 }
 
 export function getConfiguredModelMap(): Record<IntelligenceTask, ResolvedModel | null> {

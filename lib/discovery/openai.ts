@@ -4,6 +4,7 @@ import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { normaliseDiscoveryResult } from "./normalise";
 import { CompanyDiscoveryResultSchema } from "./schemas";
+import { compactCompanyDiscoveryInput, stableFingerprint } from "@/lib/ai/cost-optimisation";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 
@@ -113,7 +114,9 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
 
   const model = resolveOpenAIModel("analysis").model;
   const startedAt = Date.now();
-  const reservation = await reserveAiRequest({ organisationId: input.organisationId, campaignId: input.campaignId, schedulerRunId: input.schedulerRunId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${input.jobId}:${input.excludedCompanies?.length ?? 0}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_COMPANY_DISCOVERY_ESTIMATED_COST_USD ?? "0.25") });
+  const compactInput = compactCompanyDiscoveryInput(input);
+  const fingerprint = stableFingerprint({ prompt: "company-discovery/v2-cost-optimised", model, compactInput });
+  const reservation = await reserveAiRequest({ organisationId: input.organisationId, campaignId: input.campaignId, schedulerRunId: input.schedulerRunId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${fingerprint}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_COMPANY_DISCOVERY_ESTIMATED_COST_USD ?? "0.25") });
   let response: Response;
   try {
     response = await fetch(ENDPOINT, {
@@ -135,16 +138,11 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
         "Never return a company present in excludedCompanies. Treat both its canonical domain and company name as already researched.",
         "Score industry fit, audience fit, operational fit, geography fit, and commercial fit independently.",
         "Record genuine uncertainties and risk flags instead of hiding them.",
-        "Prefer 8–12 high-confidence matches.",
+        "Prefer 6–10 high-confidence matches; quality is more important than volume.",
         "Use British English.",
       ].join(" "),
-      input: JSON.stringify({
-        approvedCampaign: input.campaign,
-        approvedBusinessUnderstanding: input.business,
-        customerWebsite: input.customerWebsite ?? null,
-        excludedCompanies: input.excludedCompanies ?? [],
-      }),
-      tools: [{ type: "web_search_preview", search_context_size: "medium" }],
+      input: JSON.stringify(compactInput),
+      tools: [{ type: "web_search_preview", search_context_size: "low" }],
       text: {
         format: {
           type: "json_schema",
@@ -153,7 +151,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
           schema: companyDiscoveryJsonSchema,
         },
       },
-      max_output_tokens: 11_000,
+      max_output_tokens: 6_500,
       store: false,
     }),
     });
