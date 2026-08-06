@@ -7,6 +7,8 @@ export type PersistedJobLike = {
   stage?: string | null;
   progress?: number | null;
   next_retry_at?: string | null;
+  next_attempt_at?: string | null;
+  attempt_count?: number | null;
   last_error_code?: string | null;
   result_summary_json?: Record<string, unknown> | null;
 };
@@ -52,6 +54,13 @@ export function isJobRetryScheduled(job: PersistedJobLike | null | undefined): b
   return resolvePersistedJobState(job) === "FAILED_RETRYABLE";
 }
 
+export function isJobPreparingFirstPass(job: PersistedJobLike | null | undefined): boolean {
+  return resolvePersistedJobState(job) === "QUEUED"
+    && String(job?.stage ?? "").toUpperCase() === "PREPARING"
+    && Number(job?.attempt_count ?? 0) === 0
+    && job?.result_summary_json?.expansionPending !== true;
+}
+
 export function canShowProgress(job: PersistedJobLike | null | undefined): boolean {
   return isJobRunning(job);
 }
@@ -64,7 +73,7 @@ export function truthfulProgress(job: PersistedJobLike | null | undefined): numb
 export function jobStateLabel(job: PersistedJobLike | null | undefined, options?: { queued?: string; running?: string; complete?: string; noResults?: string }): string {
   const state = resolvePersistedJobState(job);
   switch (state) {
-    case "QUEUED": return options?.queued ?? "Queued";
+    case "QUEUED": return isJobPreparingFirstPass(job) ? "Preparing" : (options?.queued ?? "Queued");
     case "RUNNING": return options?.running ?? "Researching";
     case "COMPLETED": return options?.complete ?? "Complete";
     case "NO_RESULTS": return options?.noResults ?? "No supported results found";
