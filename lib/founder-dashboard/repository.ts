@@ -7,6 +7,7 @@ type Organisation={id:string;name:string};
 type VersionRow={id:string;prompt_version:string|null};
 type TimelineRow={id:string;organisation_id:string;campaign_id:string;event_type:string;title:string;description:string|null;occurred_at:string};
 type CountRow={id:string;organisation_id?:string;campaign_id?:string;status?:string;review_status?:string;job_state?:string;created_at?:string;updated_at?:string};
+type OutcomeRow={id:string;organisation_id:string;campaign_id:string;engagement_id:string;opportunity_id:string;channel:string;route_quality:number|null;route_confidence:number|null;outcome:string;outcome_value:number|null;occurred_at:string};
 type LearningRow={id:string;organisation_id:string;campaign_id:string;engagement_id:string;opportunity_id:string;queue_outcome:string;engagement_score:number|null;confidence:number|null;human_action:string|null;edit_distance:number|null;actual_cost_usd:number;estimated_cost_usd:number;total_input_tokens:number;total_output_tokens:number;total_latency_ms:number;commercial_prompt_version:string|null;generation_prompt_version:string|null;review_prompt_version:string|null;commercial_model:string|null;generation_model:string|null;review_model:string|null;created_at:string};
 
 const stageLabels:Record<string,string>={BUSINESS_ANALYSIS:"Business Analysis",COMPANY_DISCOVERY:"Company Intelligence",CONTACT_DISCOVERY:"Buyer Intelligence",OPPORTUNITY_ANALYSIS:"Opportunity Intelligence",COMMERCIAL_REASONING:"Commercial Reasoning",OUTREACH:"Outreach Generation",SELF_REVIEW:"AI Self Review",REPLY_INTELLIGENCE:"Reply Intelligence"};
@@ -15,7 +16,7 @@ const dayKey=(value:string)=>value.slice(0,10);
 
 export async function getFounderDashboard(rangeDays=7){
   const since=new Date(Date.now()-Math.max(1,rangeDays)*86400000).toISOString();
-  const [usage,campaigns,organisations,commercial,drafts,reviews,timeline,companies,contacts,opportunities,engagements,queue,learning]=await Promise.all([
+  const [usage,campaigns,organisations,commercial,drafts,reviews,timeline,companies,contacts,opportunities,engagements,queue,learning,outcomes]=await Promise.all([
     databaseRequest<UsageRow[]>(`ai_usage_ledger?select=id,organisation_id,campaign_id,job_type,job_id,status,model,estimated_cost_usd,actual_cost_usd,input_tokens,output_tokens,web_search_calls,duration_ms,error_code,created_at,completed_at&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=5000`),
     databaseRequest<Campaign[]>(`campaigns?select=id,organisation_id,name,status,created_at&order=created_at.desc&limit=2000`),
     databaseRequest<Organisation[]>(`organisations?select=id,name&order=created_at.asc&limit=500`),
@@ -29,6 +30,7 @@ export async function getFounderDashboard(rangeDays=7){
     databaseRequest<CountRow[]>(`opportunity_engagements?select=id,organisation_id,campaign_id,status,created_at,updated_at&limit=10000`),
     databaseRequest<CountRow[]>(`engagement_send_queue?select=id,status&limit=10000`),
     databaseRequest<LearningRow[]>(`engagement_learning_records?select=id,organisation_id,campaign_id,engagement_id,opportunity_id,queue_outcome,engagement_score,confidence,human_action,edit_distance,actual_cost_usd,estimated_cost_usd,total_input_tokens,total_output_tokens,total_latency_ms,commercial_prompt_version,generation_prompt_version,review_prompt_version,commercial_model,generation_model,review_model,created_at&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=10000`),
+    databaseRequest<OutcomeRow[]>(`engagement_outcomes?select=id,organisation_id,campaign_id,engagement_id,opportunity_id,channel,route_quality,route_confidence,outcome,outcome_value,occurred_at&occurred_at=gte.${encodeURIComponent(since)}&order=occurred_at.desc&limit=10000`),
   ]);
   const campaignMap=new Map(campaigns.map(r=>[r.id,r]));
   const orgMap=new Map(organisations.map(r=>[r.id,r.name]));
@@ -91,6 +93,18 @@ export async function getFounderDashboard(rangeDays=7){
     return {id:campaign.id,name:campaign.name,organisation:orgMap.get(campaign.organisation_id)??"Unknown workspace",spend:campaignSpend,requests:campaignRows.length,opportunities:campaignOpportunities,reviewReady:campaignReviewReady,completedJourneys:campaignLearning.length,costPerOpportunity:campaignOpportunities?campaignSpend/campaignOpportunities:null,costPerReviewReady:campaignReviewReady?campaignSpend/campaignReviewReady:null};
   }).filter(r=>r.spend>0||r.opportunities>0||r.reviewReady>0).sort((a,b)=>b.spend-a.spend).slice(0,20);
 
+  const channelGroups=new Map<string,OutcomeRow[]>();
+  for(const outcome of outcomes) channelGroups.set(outcome.channel,[...(channelGroups.get(outcome.channel)??[]),outcome]);
+  const channelLearning=[...channelGroups.entries()].map(([channel,items])=>{
+    const engagements=new Set(items.map(item=>item.engagement_id));
+    const positive=new Set(items.filter(item=>["REPLIED","MEETING_BOOKED","QUALIFIED","WON"].includes(item.outcome)).map(item=>item.engagement_id));
+    const meetings=new Set(items.filter(item=>["MEETING_BOOKED","QUALIFIED","WON"].includes(item.outcome)).map(item=>item.engagement_id));
+    const wins=new Set(items.filter(item=>item.outcome==="WON").map(item=>item.engagement_id));
+    const quality=items.map(item=>item.route_quality).filter((value):value is number=>value!=null);
+    return {channel,engagements:engagements.size,responses:positive.size,meetings:meetings.size,wins:wins.size,responseRate:engagements.size?Math.round(positive.size/engagements.size*100):0,meetingRate:engagements.size?Math.round(meetings.size/engagements.size*100):0,averageRouteQuality:quality.length?Math.round(quality.reduce((a,b)=>a+b,0)/quality.length):0,wonValue:items.filter(item=>item.outcome==="WON").reduce((sum,item)=>sum+Number(item.outcome_value??0),0),sampleReady:engagements.size>=5};
+  }).sort((a,b)=>b.responseRate-a.responseRate||b.engagements-a.engagements);
+  const outcomeTotals={recorded:outcomes.length,responses:new Set(outcomes.filter(item=>["REPLIED","MEETING_BOOKED","QUALIFIED","WON"].includes(item.outcome)).map(item=>item.engagement_id)).size,meetings:new Set(outcomes.filter(item=>["MEETING_BOOKED","QUALIFIED","WON"].includes(item.outcome)).map(item=>item.engagement_id)).size,wins:new Set(outcomes.filter(item=>item.outcome==="WON").map(item=>item.engagement_id)).size,wonValue:outcomes.filter(item=>item.outcome==="WON").reduce((sum,item)=>sum+Number(item.outcome_value??0),0)};
+
   const successfulWithCost=successful.filter(r=>r.actual_cost_usd!=null && Number(r.actual_cost_usd)>=0).length;
   const miniOnly=rows.length>0 && rows.every(r=>r.model.toLowerCase().includes("gpt-5-mini"));
   const versionedG4=rows.filter(r=>["COMMERCIAL_REASONING","OUTREACH","SELF_REVIEW"].includes(r.job_type));
@@ -109,7 +123,7 @@ export async function getFounderDashboard(rangeDays=7){
     pipeline:{workspaces:organisations.length,campaigns:campaigns.filter(r=>r.status!=="ARCHIVED").length,companies:companies.length,approvedCompanies:companies.filter(r=>r.review_status==="APPROVED").length,contacts:contacts.length,approvedContacts:contacts.filter(r=>r.review_status==="APPROVED").length,opportunities:opportunities.length,approvedOpportunities:opportunities.filter(r=>r.status==="APPROVED"||r.status==="ENGAGED").length,engagements:engagements.length,queued:queue.filter(r=>r.status==="READY"||r.status==="QUEUED").length,learning:learning.length},
     stages,campaignCosts,prompts,models,daily,optimisation,
     economics:{completedOpportunities:completedOpportunities.length,reviewReadyEngagements:reviewReadyEngagements.length,completedJourneys,costPerOpportunity,costPerReviewReady,costPerCompletedJourney,opportunitiesPerDollar,reviewReadyPerDollar,completedJourneysPerDollar,projectedOpportunitiesForFive:opportunitiesPerDollar*5,projectedReviewReadyForFive:reviewReadyPerDollar*5,projectedCompletedJourneysForFive:completedJourneysPerDollar*5,attributedJourneyCost},
-    campaignEconomics,releaseGate,releaseReady:releaseGate.every(item=>item.passed),
+    campaignEconomics,channelLearning,outcomeTotals,releaseGate,releaseReady:releaseGate.every(item=>item.passed),
     highest:[...rows].sort((a,b)=>b.cost-a.cost).slice(0,12),
     timeline:timeline.map(row=>({...row,campaignName:campaignMap.get(row.campaign_id)?.name??"Unknown campaign",organisationName:orgMap.get(row.organisation_id)??"Unknown workspace"}))
   };

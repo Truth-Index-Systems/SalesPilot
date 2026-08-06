@@ -9,7 +9,7 @@ export type EngagementReviewOverview = {
   evidence_use_score: number | null; likelihood_of_response_score: number | null; ai_engagement_score: number | null; ai_confidence: number | null;
   review_notes: string | null; strengths_json: string[]; weaknesses_json: string[]; recommended_changes_json: string[]; unsupported_claims_json: string[];
   commercial_objective: string | null; commercial_buying_angle: string | null; commercial_primary_pain: string | null; value_theme: string | null;
-  buyer_priorities_json: string[]; likely_objections_json: string[]; recommended_tone: string | null; cta_strategy: string | null; commercial_reasoning: string | null; route_strategy_json: Record<string, unknown> | null; route_alignment_json: Record<string, unknown> | null;
+  buyer_priorities_json: string[]; likely_objections_json: string[]; recommended_tone: string | null; cta_strategy: string | null; commercial_reasoning: string | null; route_strategy_json: Record<string, unknown> | null; route_alignment_json: Record<string, unknown> | null; latest_outcome: string | null; latest_outcome_note: string | null; latest_outcome_at: string | null;
 };
 
 export type HumanReviewAction = "APPROVED" | "EDITED" | "REJECTED" | "REGENERATE_REQUESTED";

@@ -34,3 +34,11 @@ export async function recordEngagementExecution(id: string, action: "COPIED" | "
     p_organisation_id: context.organisationId, p_engagement_id: id, p_user_id: context.userId, p_action: action, p_metadata: metadata ?? {},
   }) });
 }
+
+export async function recordEngagementOutcome(id: string, outcome: "NO_RESPONSE" | "REPLIED" | "MEETING_BOOKED" | "QUALIFIED" | "WON" | "LOST", note?: string, outcomeValue?: number) {
+  const context = await requireOrganisationContext();
+  if (context.role === "VIEWER") throw new Error("ENGAGEMENT_OUTCOME_FORBIDDEN");
+  return databaseRequest("rpc/record_engagement_outcome", { method: "POST", body: JSON.stringify({
+    p_organisation_id: context.organisationId, p_engagement_id: id, p_user_id: context.userId, p_outcome: outcome, p_note: note ?? null, p_outcome_value: outcomeValue ?? null,
+  }) });
+}

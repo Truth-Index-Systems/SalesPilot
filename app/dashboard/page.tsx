@@ -89,6 +89,18 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
       </section>
 
       <section className="founder-panel">
+        <div className="founder-panel-head"><div><span>Market learning</span><h2>Channel performance</h2></div><strong>{data.outcomeTotals.recorded} outcomes</strong></div>
+        <div className="founder-metric-grid">
+          <article><span>Responses</span><strong>{data.outcomeTotals.responses}</strong><small>reply or stronger outcome</small></article>
+          <article><span>Meetings</span><strong>{data.outcomeTotals.meetings}</strong><small>booked or commercially advanced</small></article>
+          <article><span>Wins</span><strong>{data.outcomeTotals.wins}</strong><small>confirmed won opportunities</small></article>
+          <article><span>Won value</span><strong>${data.outcomeTotals.wonValue.toFixed(0)}</strong><small>recorded commercial value</small></article>
+        </div>
+        <div className="founder-table-wrap section"><table className="founder-table"><thead><tr><th>Channel</th><th>Sample</th><th>Response rate</th><th>Meeting rate</th><th>Wins</th><th>Route quality</th><th>Signal</th></tr></thead><tbody>{data.channelLearning.length?data.channelLearning.map(row=><tr key={row.channel}><td><strong>{row.channel.replaceAll("_"," ")}</strong></td><td>{row.engagements}</td><td>{row.responseRate}%</td><td>{row.meetingRate}%</td><td>{row.wins}</td><td>{row.averageRouteQuality}/100</td><td>{row.sampleReady?"Learning signal":"Collecting evidence"}</td></tr>):<tr><td colSpan={7}>No commercial outcomes recorded in this period.</td></tr>}</tbody></table></div>
+        <p className="founder-method-note">SalesPilot only treats a channel comparison as a learning signal after at least five completed engagements. Smaller samples remain visible but do not influence recommendations.</p>
+      </section>
+
+      <section className="founder-panel">
         <div className="founder-panel-head"><div><span>Request ledger</span><h2>Most expensive requests</h2></div></div>
         <div className="founder-table-wrap"><table className="founder-table"><thead><tr><th>Time</th><th>Workspace / campaign</th><th>Stage</th><th>Model</th><th>Prompt</th><th>Tokens</th><th>Latency</th><th>Cost</th></tr></thead><tbody>{data.highest.map(row=><tr key={row.id}><td>{new Date(row.created_at).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</td><td><strong>{row.campaignName}</strong><small>{row.organisationName}</small></td><td>{row.stage}</td><td><code>{row.model}</code></td><td><span className="founder-prompt">{row.promptVersion}</span></td><td>{number((row.input_tokens??0)+(row.output_tokens??0))}</td><td>{latency(row.duration_ms??0)}</td><td><strong>{money(row.cost)}</strong></td></tr>)}</tbody></table></div>
       </section>
