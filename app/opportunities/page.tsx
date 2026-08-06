@@ -49,10 +49,10 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.band);
 
   return <AppShell title="Opportunities" user={user} workspaceStats={{ campaigns: campaigns.length, companies: new Set(allRows.map(row => row.company_id)).size, replies: 0, opportunities: allRows.length }}>
-    <PageHeader eyebrow="Opportunities" title="Your next best sales opportunities" subtitle="SalesPilot combines company fit, buying authority, contactability and evidence into one ranked recommendation. Nothing discovered is hidden because of a low score." action={<span className="badge green"><ShieldCheck size={14}/> Evidence-led ranking</span>} />
+    <PageHeader eyebrow="Opportunities" title="Your next best sales opportunities" subtitle="SalesPilot combines company fit, commercial need, route quality and evidence into one ranked recommendation. Nothing discovered is hidden because of a low score." action={<span className="badge green"><ShieldCheck size={14}/> Evidence-led ranking</span>} />
 
     <Card className="opportunity-philosophy">
-      <div><span className="eyebrow">SalesPilot&apos;s recommendation model</span><h2>That&apos;s a great opportunity because there&apos;s a decision-maker I can reach with a strong reason to buy.</h2><p>Companies and contacts remain the intelligence foundation. This is the commercial decision layer built from both.</p></div>
+      <div><span className="eyebrow">SalesPilot&apos;s recommendation model</span><h2>That&apos;s a great opportunity because there&apos;s a strong commercial need and a credible route into the organisation.</h2><p>Company evidence and access routes remain fully visible beneath every recommendation.</p></div>
       <BriefcaseBusiness size={34}/>
     </Card>
 

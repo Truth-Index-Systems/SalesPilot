@@ -74,7 +74,8 @@
     "g4:commercial-reasoning-claim-hotfix-check": "node scripts/validate-commercial-reasoning-claim-hotfix.mjs",
     "campaign-fit-score:hotfix-check": "node scripts/validate-campaign-fit-score-hotfix.mjs",
     "outreach-claim:hotfix-check": "node scripts/validate-outreach-claim-hotfix.mjs",
-    "sql:hardening-check": "node scripts/validate-genesis-sql-hardening.mjs"
+    "sql:hardening-check": "node scripts/validate-genesis-sql-hardening.mjs",
+    "genesis:g43-check": "node scripts/validate-genesis-g43-route-scoring.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

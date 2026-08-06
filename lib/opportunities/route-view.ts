@@ -37,9 +37,10 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
   const emailStatus = row.primary_contact_email_status || row.primary_route_verification_status || null;
   const linkedinUrl = row.primary_contact_linkedin_url || null;
   const confidence = clampScore(
-    row.primary_contact_confidence ?? row.primary_route_score ?? row.contactability ?? 0,
+    row.route_confidence ?? row.primary_route_confidence ?? row.primary_contact_confidence ?? row.primary_route_score ?? row.contactability ?? 0,
   );
-  const quality = qualityFromConfidence(confidence);
+  const qualityScore = clampScore(row.route_quality ?? row.primary_route_score ?? confidence);
+  const quality = qualityFromConfidence(qualityScore);
   const role = row.primary_contact_role || row.primary_route_likely_reader || "Commercial decision maker";
 
   let type: AccessRouteView["type"] = "unverified";
@@ -61,7 +62,7 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
   if ((row.buying_authority ?? 0) >= 70) reasons.push("the role has strong purchasing authority");
   if ((row.contactability ?? 0) >= 70) reasons.push("the route is highly accessible");
 
-  const recommendation = row.primary_route_reason || row.contact_reason_selected || (
+  const recommendation = row.recommended_entry_strategy || row.primary_route_reason || row.contact_reason_selected || (
     reasons.length
       ? `Recommended because ${reasons.slice(0, 2).join(" and ")}.`
       : "SalesPilot is still gathering enough evidence to recommend a reliable entry route."

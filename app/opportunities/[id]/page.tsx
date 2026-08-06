@@ -16,7 +16,7 @@ function statusLabel(status: string) {
 }
 
 function componentLabel(key: string) {
-  return ({ companyFit: "Company fit", operationalFit: "Operational fit", buyingAuthority: "Buying authority", contactability: "Route accessibility", evidenceQuality: "Evidence quality", commercialValue: "Commercial value", urgency: "Urgency" } as Record<string, string>)[key] ?? key;
+  return ({ companyFit: "Company fit", operationalFit: "Operational fit", routeQuality: "Route quality", routeConfidence: "Route confidence", buyingAuthority: "Buying authority", contactability: "Route accessibility", routeAccessibility: "Route accessibility", evidenceQuality: "Evidence quality", commercialValue: "Commercial value", urgency: "Urgency" } as Record<string, string>)[key] ?? key;
 }
 
 export default async function OpportunityDetailPage({ params }: { params: Promise<{ id: string }> }) {

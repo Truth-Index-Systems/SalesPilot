@@ -12,12 +12,14 @@ export const OPPORTUNITY_STATUSES = [
 export type OpportunityStatus = (typeof OPPORTUNITY_STATUSES)[number];
 
 export type OpportunityScoreExplanation = {
-  version: "opportunity-score/v1";
+  version: "opportunity-score/v1" | "opportunity-score/v2-route-quality";
   weights: {
     companyFit: number;
     operationalFit: number;
-    buyingAuthority: number;
-    contactability: number;
+    buyingAuthority?: number;
+    contactability?: number;
+    routeQuality?: number;
+    routeConfidence?: number;
     evidenceQuality: number;
     commercialValue: number;
     urgency: number;
@@ -26,8 +28,10 @@ export type OpportunityScoreExplanation = {
   evidence: {
     companySources: number;
     contactSources: number;
-    contactChannel: string;
+    contactChannel?: string;
+    routeChannel?: string;
   };
+  recommendedEntryStrategy?: string;
   limitations: string[];
 };
 
@@ -43,6 +47,9 @@ export type OpportunityFoundation = {
   operational_fit: number | null;
   buying_authority: number | null;
   contactability: number | null;
+  route_quality: number | null;
+  route_confidence: number | null;
+  recommended_entry_strategy: string | null;
   commercial_value: number | null;
   evidence_quality: number | null;
   urgency: number | null;
@@ -84,6 +91,11 @@ export type OpportunityOverview = OpportunityFoundation & {
   primary_route_email: string | null;
   primary_route_verification_status: string | null;
   primary_route_score: number | null;
+  primary_route_confidence: number | null;
+  primary_route_response_likelihood: number | null;
+  primary_route_campaign_relevance: number | null;
+  primary_route_channel_type: string | null;
+  available_route_count: number;
   primary_route_likely_reader: string | null;
   primary_route_reason: string | null;
   primary_route_source_url: string | null;

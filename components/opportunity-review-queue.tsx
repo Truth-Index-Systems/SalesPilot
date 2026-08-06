@@ -91,8 +91,8 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
             <div className="opportunity-score-grid">
               <div><span>Company fit</span><strong>{row.company_fit ?? 0}</strong></div>
               <div><span>Operational fit</span><strong>{row.operational_fit ?? 0}</strong></div>
-              <div><span>Buying authority</span><strong>{row.buying_authority ?? 0}</strong></div>
-              <div><span>Route accessibility</span><strong>{row.contactability ?? 0}</strong></div>
+              <div><span>Route quality</span><strong>{row.route_quality ?? 0}</strong></div>
+              <div><span>Route confidence</span><strong>{row.route_confidence ?? 0}</strong></div>
             </div>
             <div className="opportunity-channel-row">
               <div className={channel ? "available" : "unknown"}><Mail size={15}/><span>{channel || "Email route not found"}</span></div>
