@@ -8,8 +8,13 @@ const EvidenceReference = z.object({
 });
 
 export const OutreachGenerationSchema = z.object({
-  schemaVersion: z.literal("engagement-outreach-generation/v1"),
-  promptVersion: z.literal("engagement-outreach-generation/v1"),
+  schemaVersion: z.literal("engagement-outreach-generation/v2-route-aligned"),
+  promptVersion: z.literal("engagement-outreach-generation/v2-route-aligned"),
+  routeAlignment: z.object({
+    routeType: z.enum(["DIRECT_EMAIL","LINKEDIN","PHONE","REFERRAL","GENERIC_INBOX","WEBSITE_FORM","OTHER"]),
+    entryApproach: z.string().min(1).max(500),
+    routeReason: z.string().min(1).max(500),
+  }),
   subject: z.string().min(1).max(140),
   opening: z.string().min(1).max(500),
   personalisation: z.string().min(1).max(800),
@@ -30,13 +35,14 @@ export const outreachGenerationJsonSchema = {
   type: "object",
   additionalProperties: false,
   required: [
-    "schemaVersion", "promptVersion", "subject", "opening", "personalisation",
+    "schemaVersion", "promptVersion", "routeAlignment", "subject", "opening", "personalisation",
     "buyingAngle", "primaryPain", "valueProposition", "supportingEvidence",
     "callToAction", "tone", "confidence", "reasoning", "limitations",
   ],
   properties: {
-    schemaVersion: { type: "string", enum: ["engagement-outreach-generation/v1"] },
-    promptVersion: { type: "string", enum: ["engagement-outreach-generation/v1"] },
+    schemaVersion: { type: "string", enum: ["engagement-outreach-generation/v2-route-aligned"] },
+    promptVersion: { type: "string", enum: ["engagement-outreach-generation/v2-route-aligned"] },
+    routeAlignment: { type: "object", additionalProperties: false, required: ["routeType", "entryApproach", "routeReason"], properties: { routeType: { type: "string", enum: ["DIRECT_EMAIL","LINKEDIN","PHONE","REFERRAL","GENERIC_INBOX","WEBSITE_FORM","OTHER"] }, entryApproach: { type: "string" }, routeReason: { type: "string" } } },
     subject: { type: "string" },
     opening: { type: "string" },
     personalisation: { type: "string" },

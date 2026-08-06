@@ -26,7 +26,7 @@ export async function generateOutreach(input: {
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model = resolveOpenAIModel("analysis").model;
   const compactContext = compactForAi(input.context, { evidenceLimit: 4, depth: 6 }) as Record<string, unknown>;
-  const fingerprint = stableFingerprint({ prompt: "outreach-generation/v1-cost-optimised", model, compactContext });
+  const fingerprint = stableFingerprint({ prompt: "outreach-generation/v2-route-aligned", model, compactContext });
   const startedAt = Date.now();
   const reservation = await reserveAiRequest({
     organisationId: input.organisationId,
@@ -51,7 +51,10 @@ export async function generateOutreach(input: {
         instructions: [
           "You are SalesPilot Engagement Intelligence, writing the first outreach for an exceptional enterprise salesperson.",
           "Your objective is to win a relevant business conversation, not to summarise research or force a sale.",
-          "Use the completed commercial analysis as the messaging strategy and use only facts and evidence supplied in the input.",
+          "Use the completed commercial analysis and its route strategy as the messaging strategy, and use only facts and evidence supplied in the input.",
+          "The draft must align with the recommended access route, channel, authority level and accessibility constraints. Do not write the same message for every role or channel.",
+          "Reflect the recommended entry strategy in the opening, value framing and CTA without exposing internal scoring or saying SalesPilot selected a route.",
+          "Where the route is indirect or lower-authority, write to earn an introduction or escalation rather than pretending the recipient is the final buyer.",
           "Never invent company facts, personal information, initiatives, budgets, relationships, urgency, results or familiarity.",
           "Personalisation must be meaningful and commercially relevant. Do not use superficial praise, generic compliments or fake familiarity.",
           "Keep the message concise, calm and professional in British English. The CTA must be low-friction and specific.",
@@ -60,7 +63,7 @@ export async function generateOutreach(input: {
           "Return exact JSON only. Do not include greetings, sign-offs or sender details outside the structured fields.",
         ].join(" "),
         input: JSON.stringify(compactContext),
-        text: { format: { type: "json_schema", name: "salespilot_outreach_generation_v1", strict: true, schema: outreachGenerationJsonSchema } },
+        text: { format: { type: "json_schema", name: "salespilot_outreach_generation_v2_route_aligned", strict: true, schema: outreachGenerationJsonSchema } },
         max_output_tokens: 1800,
         store: false,
       }),

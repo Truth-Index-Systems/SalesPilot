@@ -2,8 +2,18 @@ import { z } from "zod";
 
 const Score = z.number().int().min(0).max(100);
 export const CommercialReasoningSchema = z.object({
-  schemaVersion: z.literal("engagement-commercial-reasoning/v1"),
-  promptVersion: z.literal("engagement-commercial-reasoning/v1"),
+  schemaVersion: z.literal("engagement-commercial-reasoning/v2-route-strategy"),
+  promptVersion: z.literal("engagement-commercial-reasoning/v2-route-strategy"),
+  routeStrategy: z.object({
+    routeType: z.enum(["DIRECT_EMAIL","LINKEDIN","PHONE","REFERRAL","GENERIC_INBOX","WEBSITE_FORM","OTHER"]),
+    routeQuality: Score,
+    routeConfidence: Score,
+    recommendedEntryStrategy: z.string().min(1).max(700),
+    channelRationale: z.string().min(1).max(500),
+    authorityRationale: z.string().min(1).max(500),
+    accessibilityRationale: z.string().min(1).max(500),
+    fallbackPlan: z.string().min(1).max(500),
+  }),
   commercialObjective: z.string().min(1).max(500),
   buyingAngle: z.string().min(1).max(500),
   primaryPain: z.string().min(1).max(500),
@@ -27,10 +37,11 @@ export type CommercialReasoning = z.infer<typeof CommercialReasoningSchema>;
 
 export const commercialReasoningJsonSchema = {
   type: "object", additionalProperties: false,
-  required: ["schemaVersion","promptVersion","commercialObjective","buyingAngle","primaryPain","urgency","commercialRisk","valueTheme","buyerPriorities","likelyObjections","recommendedTone","ctaStrategy","evidenceReferences","limitations","confidence","reasoning"],
+  required: ["schemaVersion","promptVersion","routeStrategy","commercialObjective","buyingAngle","primaryPain","urgency","commercialRisk","valueTheme","buyerPriorities","likelyObjections","recommendedTone","ctaStrategy","evidenceReferences","limitations","confidence","reasoning"],
   properties: {
-    schemaVersion:{type:"string",enum:["engagement-commercial-reasoning/v1"]},
-    promptVersion:{type:"string",enum:["engagement-commercial-reasoning/v1"]},
+    schemaVersion:{type:"string",enum:["engagement-commercial-reasoning/v2-route-strategy"]},
+    promptVersion:{type:"string",enum:["engagement-commercial-reasoning/v2-route-strategy"]},
+    routeStrategy:{type:"object",additionalProperties:false,required:["routeType","routeQuality","routeConfidence","recommendedEntryStrategy","channelRationale","authorityRationale","accessibilityRationale","fallbackPlan"],properties:{routeType:{type:"string",enum:["DIRECT_EMAIL","LINKEDIN","PHONE","REFERRAL","GENERIC_INBOX","WEBSITE_FORM","OTHER"]},routeQuality:{type:"integer",minimum:0,maximum:100},routeConfidence:{type:"integer",minimum:0,maximum:100},recommendedEntryStrategy:{type:"string"},channelRationale:{type:"string"},authorityRationale:{type:"string"},accessibilityRationale:{type:"string"},fallbackPlan:{type:"string"}}},
     commercialObjective:{type:"string"}, buyingAngle:{type:"string"}, primaryPain:{type:"string"},
     urgency:{type:"object",additionalProperties:false,required:["score","explanation"],properties:{score:{type:"integer",minimum:0,maximum:100},explanation:{type:"string"}}},
     commercialRisk:{type:"string"}, valueTheme:{type:"string"},

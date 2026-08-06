@@ -25,7 +25,7 @@ export async function reviewEngagementDraft(input: {
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model = resolveOpenAIModel("analysis").model;
   const compactContext = compactForAi(input.context, { evidenceLimit: 4, depth: 6 }) as Record<string, unknown>;
-  const fingerprint = stableFingerprint({ prompt: "self-review/v1-cost-optimised", model, compactContext });
+  const fingerprint = stableFingerprint({ prompt: "self-review/v2-route-alignment", model, compactContext });
   const startedAt = Date.now();
   const reservation = await reserveAiRequest({
     organisationId: input.organisationId,
@@ -50,7 +50,8 @@ export async function reviewEngagementDraft(input: {
         instructions: [
           "You are SalesPilot's independent engagement quality reviewer.",
           "Judge whether the supplied first outreach is likely to win a relevant business conversation.",
-          "Review the draft against the supplied commercial analysis and authoritative evidence; do not add new facts.",
+          "Review the draft against the supplied commercial analysis, recommended access route and authoritative evidence; do not add new facts.",
+          "Penalise drafts that ignore the selected route, misuse the channel, overstate the recipient's authority, or fail to follow the recommended entry strategy.",
           "Penalise generic personalisation, vague value propositions, inflated claims, fake familiarity, weak CTAs, verbosity and unsupported statements.",
           "Treat factual accuracy and evidence use as hard gates. List every unsupported claim you can identify.",
           "Set approvedByAI true only when combinedScore is at least 75, factualAccuracy is at least 80, evidenceUse is at least 75, and unsupportedClaims is empty.",
