@@ -121,7 +121,14 @@ export async function parseStructuredAiResponse<T>(params: {
   }
   if (params.allowRepair !== false) {
     try {
-      const value = await requestRepair(params);
+      const value = await requestRepair({
+        raw,
+        schema: params.schema,
+        jsonSchema: params.jsonSchema,
+        schemaName: params.schemaName,
+        apiKey: params.apiKey,
+        model: params.model,
+      });
       console.info("Structured AI response recovered", { schemaName: params.schemaName, recovery: "MODEL_REPAIR" });
       return { value, recovery: "MODEL_REPAIR" };
     } catch (repairError) {
