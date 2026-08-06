@@ -4,6 +4,7 @@ import { LaunchCampaignRequestSchema } from "@/lib/campaigns/schemas";
 import { launchCampaignService } from "@/features/campaigns/campaign-launch.service";
 import { requireOrganisationContext } from "@/lib/auth/organisation-context";
 import { DatabaseRequestError } from "@/lib/database/postgrest";
+import { normaliseBusinessAnalysis } from "@/lib/intelligence/fit-score";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,8 @@ function safeError(error: unknown) {
 
 export async function POST(request: Request) {
   try {
-    const input = LaunchCampaignRequestSchema.parse(await request.json());
+    const parsed = LaunchCampaignRequestSchema.parse(await request.json());
+    const input = { ...parsed, businessAnalysis: normaliseBusinessAnalysis(parsed.businessAnalysis) };
     if (!input.businessAnalysis.payload.campaigns.some(item => item.id === input.selectedProposalId)) throw new Error("SELECTED_PROPOSAL_NOT_FOUND");
     const context = await requireOrganisationContext({ canLaunch: true });
     const campaign = await launchCampaignService(input, context);

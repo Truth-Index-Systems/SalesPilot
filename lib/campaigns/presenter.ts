@@ -1,4 +1,5 @@
 import type { CampaignDetail, CampaignSummary } from "./schemas";
+import { campaignMatchLabel } from "@/lib/intelligence/fit-score";
 
 export function presentCampaignStatus(status: CampaignSummary["status"]): string {
   switch (status) {
@@ -18,9 +19,7 @@ export function presentAutomationMode(mode: CampaignSummary["automationMode"]): 
 }
 
 export function presentMatch(fitScore: number): string {
-  if (fitScore >= 90) return "Strongest match";
-  if (fitScore >= 84) return "Strong match";
-  return "Good match";
+  return campaignMatchLabel(fitScore);
 }
 
 export type PresentedCampaignDetail = CampaignDetail & {

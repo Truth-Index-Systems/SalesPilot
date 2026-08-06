@@ -14,6 +14,7 @@ import {
 } from "@/components/icons";
 import type { AiEnvelope } from "@/lib/ai/contracts";
 import type { BusinessDnaPayload } from "@/lib/ai/schemas/business-dna";
+import { campaignMatchLabel, normaliseBusinessAnalysis } from "@/lib/intelligence/fit-score";
 
 type DiscoveryError = {
   code: string;
@@ -127,7 +128,7 @@ function readCampaignDraft(): CampaignDraft | null {
       version: 2,
       savedAt,
       step: typeof parsed.step === "number" ? Math.min(3, Math.max(1, parsed.step)) : 3,
-      result: parsed.result,
+      result: normaliseBusinessAnalysis(parsed.result),
       selectedProposalId: parsed.selectedProposalId,
       websiteUrl: parsed.websiteUrl ?? parsed.result.payload.company.website,
       pagesRead: typeof parsed.pagesRead === "number" ? parsed.pagesRead : 0,
@@ -729,12 +730,7 @@ export function CampaignWizard() {
 
           <div className="proposal-grid">
             {proposals.map((proposal, index) => {
-              const matchLabel =
-                proposal.fitScore >= 90
-                  ? "Strongest match"
-                  : proposal.fitScore >= 84
-                    ? "Strong match"
-                    : "Good match";
+              const matchLabel = campaignMatchLabel(proposal.fitScore);
 
               const isSelected = selected === index;
 

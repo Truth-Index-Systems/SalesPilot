@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createBusinessAnalysisJob, getBusinessAnalysisJob } from "@/lib/intelligence/business-analysis-jobs";
+import { normaliseBusinessAnalysis } from "@/lib/intelligence/fit-score";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,7 +49,7 @@ function publicJob(job: Awaited<ReturnType<typeof getBusinessAnalysisJob>>) {
       };
     })() : null,
     pagesRead: job.pages_read,
-    analysis: job.analysis_json,
+    analysis: job.analysis_json ? normaliseBusinessAnalysis(job.analysis_json as any) : null,
     updatedAt: job.updated_at,
   };
 }

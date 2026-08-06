@@ -70,7 +70,7 @@ export const businessDiscoveryJsonSchema = {
             id: { type: "string" }, name: { type: "string" }, objective: { type: "string" }, audience: { type: "string" },
             buyerRoles: { type: "array", minItems: 1, items: { type: "string" } }, messageAngle: { type: "string" },
             recommendedMode: { type: "string", enum: ["autopilot", "approval", "assisted"] },
-            fitScore: { type: "integer", minimum: 0, maximum: 100 }, confidence: { type: "number", minimum: 0, maximum: 1 },
+            fitScore: { type: "integer", minimum: 0, maximum: 100, description: "Campaign fit on a 0–100 scale. Never use a 0–10 scale." }, confidence: { type: "number", minimum: 0, maximum: 1, description: "Evidence confidence as a decimal from 0 to 1." },
             why: { type: "array", minItems: 1, items: { type: "string" } }, risks: { type: "array", items: { type: "string" } }
           }
         }},
