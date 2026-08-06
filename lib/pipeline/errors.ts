@@ -37,7 +37,7 @@ export function classifyPipelineError(error: unknown): ClassifiedPipelineError {
   if (upper.includes("429") || upper.includes("RATE_LIMIT")) return { code: "RATE_LIMIT", message, retryable: true };
   if (upper.includes("NETWORK") || upper.includes("FETCH FAILED") || upper.includes("ECONN")) return { code: "NETWORK", message, retryable: true };
   if (upper.includes("JSON") && (upper.includes("PARSE") || upper.includes("SYNTAX"))) return { code: "JSON_PARSE", message, retryable: true };
-  if (upper.includes("INVALID_AI") || upper.includes("SCHEMA") || upper.includes("STRUCTURED_OUTPUT")) return { code: "INVALID_AI_OUTPUT", message, retryable: true };
+  if (upper.includes("INVALID_AI") || upper.includes("SCHEMA") || upper.includes("STRUCTURED_OUTPUT") || upper.includes("INCOMPLETE_RESPONSE") || upper.includes("DISCOVERY_INCOMPLETE")) return { code: "INVALID_AI_OUTPUT", message, retryable: true };
   if (upper.includes("AI_GOVERNANCE_BLOCKED")) return { code: "AI_GOVERNANCE_BLOCKED", message, retryable: false };
   if (upper.includes("OPENAI_API_KEY_NOT_CONFIGURED") || upper.includes("CONFIGURATION")) return { code: "CONFIGURATION", message, retryable: false };
   if (upper.includes("AUTH") || upper.includes("UNAUTHORIZED") || upper.includes("FORBIDDEN")) return { code: "AUTHENTICATION", message, retryable: false };

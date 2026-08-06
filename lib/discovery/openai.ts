@@ -41,7 +41,7 @@ const companyDiscoveryJsonSchema = {
     companies: {
       type: "array",
       minItems: 1,
-      maxItems: 20,
+      maxItems: 8,
       items: {
         type: "object",
         additionalProperties: false,
@@ -73,21 +73,22 @@ const companyDiscoveryJsonSchema = {
               commercialFit: scoreSchema,
             },
           },
-          why: { type: "array", items: { type: "string" } },
-          uncertainties: { type: "array", items: { type: "string" } },
-          riskFlags: { type: "array", items: { type: "string" } },
+          why: { type: "array", minItems: 1, maxItems: 4, items: { type: "string", maxLength: 320 } },
+          uncertainties: { type: "array", maxItems: 3, items: { type: "string", maxLength: 280 } },
+          riskFlags: { type: "array", maxItems: 3, items: { type: "string", maxLength: 240 } },
           evidence: {
             type: "array",
             minItems: 1,
+            maxItems: 4,
             items: {
               type: "object",
               additionalProperties: false,
               required: ["claim", "sourceUrl", "sourceTitle", "excerpt"],
               properties: {
-                claim: { type: "string" },
+                claim: { type: "string", maxLength: 320 },
                 sourceUrl: { type: "string" },
-                sourceTitle: { type: ["string", "null"] },
-                excerpt: { type: ["string", "null"] },
+                sourceTitle: { type: ["string", "null"], maxLength: 180 },
+                excerpt: { type: ["string", "null"], maxLength: 420 },
               },
             },
           },
@@ -138,11 +139,13 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
         "Never return a company present in excludedCompanies. Treat both its canonical domain and company name as already researched.",
         "Score industry fit, audience fit, operational fit, geography fit, and commercial fit independently.",
         "Record genuine uncertainties and risk flags instead of hiding them.",
-        "Prefer 6–10 high-confidence matches; quality is more important than volume.",
+        "Return 5–8 high-confidence matches when supported; quality is more important than volume.",
+        "For each company, include only the 1–4 strongest official-site evidence items and keep explanations concise.",
         "Use British English.",
       ].join(" "),
       input: JSON.stringify(compactInput),
       tools: [{ type: "web_search_preview", search_context_size: "low" }],
+      reasoning: { effort: "low" },
       text: {
         format: {
           type: "json_schema",
@@ -151,7 +154,10 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
           schema: companyDiscoveryJsonSchema,
         },
       },
-      max_output_tokens: 6_500,
+      // GPT-5 reasoning tokens share max_output_tokens with the final JSON.
+      // 9k plus low reasoning effort prevents incomplete structured responses
+      // while the tighter schema keeps actual output materially below this cap.
+      max_output_tokens: 9_000,
       store: false,
     }),
     });
@@ -166,15 +172,67 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
     await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), webSearchCalls: 1, durationMs: Date.now()-startedAt, responseId: typeof (json as any)?.id === "string" ? (json as any).id : null, errorCode: `HTTP_${response.status}`, errorMessage: JSON.stringify(errorResponse?.error ?? null) }).catch(()=>undefined);
     throw new Error(`OPENAI_DISCOVERY_FAILED:${response.status}:${JSON.stringify(errorResponse?.error ?? null)}`);
   }
-  await completeAiRequest({ ledgerId: reservation.ledgerId, ok: true, usage: responseUsage(json), webSearchCalls: 1, durationMs: Date.now()-startedAt, responseId: typeof (json as any)?.id === "string" ? (json as any).id : null });
+  const responseId = typeof (json as any)?.id === "string" ? (json as any).id : null;
+  const responseStatus = typeof (json as any)?.status === "string" ? (json as any).status : null;
+  const incompleteReason = typeof (json as any)?.incomplete_details?.reason === "string"
+    ? (json as any).incomplete_details.reason
+    : null;
+
+  if (responseStatus === "incomplete") {
+    await completeAiRequest({
+      ledgerId: reservation.ledgerId,
+      ok: false,
+      usage: responseUsage(json),
+      webSearchCalls: 1,
+      durationMs: Date.now()-startedAt,
+      responseId,
+      errorCode: "INCOMPLETE_RESPONSE",
+      errorMessage: incompleteReason ?? "OpenAI returned an incomplete company-discovery response",
+    }).catch(()=>undefined);
+    throw new Error(`OPENAI_DISCOVERY_INCOMPLETE:${incompleteReason ?? "UNKNOWN"}`);
+  }
 
   let decodedOutput: unknown;
   try {
     decodedOutput = JSON.parse(outputText(json));
-  } catch {
+  } catch (error) {
+    await completeAiRequest({
+      ledgerId: reservation.ledgerId,
+      ok: false,
+      usage: responseUsage(json),
+      webSearchCalls: 1,
+      durationMs: Date.now()-startedAt,
+      responseId,
+      errorCode: "INVALID_JSON",
+      errorMessage: error instanceof Error ? error.message : "Company discovery returned invalid JSON",
+    }).catch(()=>undefined);
     throw new Error("DISCOVERY_RESPONSE_INVALID_JSON");
   }
 
-  const parsed = CompanyDiscoveryResultSchema.parse(decodedOutput);
+  let parsed: ReturnType<typeof CompanyDiscoveryResultSchema.parse>;
+  try {
+    parsed = CompanyDiscoveryResultSchema.parse(decodedOutput);
+  } catch (error) {
+    await completeAiRequest({
+      ledgerId: reservation.ledgerId,
+      ok: false,
+      usage: responseUsage(json),
+      webSearchCalls: 1,
+      durationMs: Date.now()-startedAt,
+      responseId,
+      errorCode: "INVALID_SCHEMA",
+      errorMessage: error instanceof Error ? error.message.slice(0, 1000) : "Company discovery failed schema validation",
+    }).catch(()=>undefined);
+    throw new Error("DISCOVERY_RESPONSE_INVALID_SCHEMA");
+  }
+
+  await completeAiRequest({
+    ledgerId: reservation.ledgerId,
+    ok: true,
+    usage: responseUsage(json),
+    webSearchCalls: 1,
+    durationMs: Date.now()-startedAt,
+    responseId,
+  });
   return normaliseDiscoveryResult(parsed, { customerWebsite: input.customerWebsite });
 }

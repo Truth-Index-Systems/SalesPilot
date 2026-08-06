@@ -111,7 +111,15 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
   } catch (error) {
     const safeMessage=safeWorkerError(error);
     const classified=classifyPipelineError(error);
-    await activity(job.session_id,"DISCOVERY_FAILED","Company discovery paused","SalesPilot could not complete this attempt. No unverified recommendations were marked ready.").catch(()=>undefined);
+    await activity(
+      job.session_id,
+      "DISCOVERY_FAILED",
+      "Company discovery paused",
+      classified.code === "INVALID_AI_OUTPUT"
+        ? "The research response did not complete cleanly, so SalesPilot held back every recommendation and scheduled a safe retry."
+        : "SalesPilot could not complete this attempt. No unverified recommendations were marked ready.",
+      { errorCode: classified.code },
+    ).catch(()=>undefined);
     await databaseRequest("rpc/record_company_discovery_failure",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_error_code:classified.code,p_error_message:safeMessage,p_retryable:classified.retryable})}).catch(()=>undefined);
     throw error;
   }
