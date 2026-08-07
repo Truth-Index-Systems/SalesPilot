@@ -11,6 +11,8 @@ import { buildAccessRoute, routeConfidenceClass } from "@/lib/opportunities/rout
 import { formatDateTime } from "@/lib/date-time";
 import { getG5ApprovalStrategyForOpportunity, getG5StrategyStatusForOpportunity } from "@/lib/engagement/g5-assisted-approval";
 import { G5AssistedApprovalActions } from "@/components/g5-assisted-approval-actions";
+import { getG5LiveTimelineForOpportunity } from "@/lib/engagement/g5-live-timeline";
+import { G5EngagementTimeline } from "@/components/g5-engagement-timeline";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +27,7 @@ function componentLabel(key: string) {
 export default async function OpportunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePageUser(`/opportunities/${id}`);
-  const [opportunity, all, campaigns, engagementStrategy, engagementStatus] = await Promise.all([getOpportunity(id), listOpportunities(), listCampaigns(), getG5ApprovalStrategyForOpportunity(id), getG5StrategyStatusForOpportunity(id)]);
+  const [opportunity, all, campaigns, engagementStrategy, engagementStatus, engagementTimeline] = await Promise.all([getOpportunity(id), listOpportunities(), listCampaigns(), getG5ApprovalStrategyForOpportunity(id), getG5StrategyStatusForOpportunity(id), getG5LiveTimelineForOpportunity(id)]);
   if (!opportunity) notFound();
   const score = opportunity.opportunity_score ?? 0;
   const explanation = opportunity.score_explanation_json;
@@ -118,6 +120,11 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
       </div>
       <div className="g5-evidence-used section"><h3>Evidence used in this engagement</h3>{outreach.evidenceUsed.length ? outreach.evidenceUsed.map(item => <div className="review-history-item" key={`${item.sourceId}-${item.supportedClaim}`}><div><strong>{item.supportedClaim}</strong><span>Source: {item.sourceId}</span></div><span className="badge green">Verified</span></div>) : <div className="verified-empty"><span>No direct evidence reference was required in the final message.</span></div>}</div>
       <G5AssistedApprovalActions strategyId={engagementStrategy.id} channel={outreach.channel} state={engagementStrategy.state} hasSecondary={Boolean(channelStrategy.secondary)} subject={outreach.content.subject} body={outreachBody} callToAction={outreach.callToAction}/>
+    </Card>}
+
+    {engagementTimeline && <Card className="section g5-engagement-timeline-card">
+      <div className="section-head"><div><div className="card-title">Engagement activity</div><div className="card-subtitle">Live progress from commercial reasoning through approval and execution. SalesPilot refreshes this view automatically while work is active.</div></div><span className="badge green">G5 live</span></div>
+      <G5EngagementTimeline timeline={engagementTimeline}/>
     </Card>}
 
     <div className="grid cols-2 section">

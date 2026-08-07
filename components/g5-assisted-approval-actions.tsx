@@ -27,7 +27,7 @@ export function G5AssistedApprovalActions({ strategyId, channel, state, hasSecon
     finally { setBusy(null); }
   }
 
-  if (state === "APPROVED") return <div className="g5-approval-complete"><strong>Approved</strong><span>Execution is deliberately locked until the queue release.</span></div>;
+  if (state === "APPROVED") return <div className="g5-approval-complete"><strong>Approved</strong><span>SalesPilot is validating the approved route and preparing deterministic execution.</span></div>;
 
   return <div className="g5-approval-actions">
     {editing && <div className="g5-outreach-editor">
