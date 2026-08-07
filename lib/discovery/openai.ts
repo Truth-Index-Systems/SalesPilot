@@ -4,6 +4,7 @@ import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { normaliseDiscoveryResult } from "./normalise";
 import { CompanyDiscoveryResultSchema } from "./schemas";
+import { CompanyDiscoveryGatewaySchema, canonicaliseCompanyDiscoveryOutput } from "./structured-output";
 import { compactCompanyDiscoveryInput, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 import type { CompanySearchPlan } from "./search-plan";
@@ -189,8 +190,8 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
 
   let parsed: ReturnType<typeof CompanyDiscoveryResultSchema.parse>;
   try {
-    const gateway = await parseStructuredAiResponse({ response: json, schema: CompanyDiscoveryResultSchema, jsonSchema: companyDiscoveryJsonSchema, schemaName: "salespilot_company_discovery_v2", apiKey, model });
-    parsed = gateway.value;
+    const gateway = await parseStructuredAiResponse({ response: json, schema: CompanyDiscoveryGatewaySchema, jsonSchema: companyDiscoveryJsonSchema, schemaName: "salespilot_company_discovery_v2", apiKey, model });
+    parsed = canonicaliseCompanyDiscoveryOutput(gateway.value);
   } catch (error) {
     const safe = safeStructuredAiError(error);
     await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), webSearchCalls: 1, durationMs: Date.now()-startedAt, responseId, errorCode: safe.code, errorMessage: safe.message }).catch(()=>undefined);

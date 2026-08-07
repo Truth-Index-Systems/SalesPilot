@@ -33,7 +33,7 @@ export const DiscoveredCompanySchema = z.object({
 export const CompanyDiscoveryResultSchema = z.object({
   schemaVersion: z.literal("company-discovery/v2"),
   searchSummary: z.string().min(1).max(700),
-  companies: z.array(DiscoveredCompanySchema).min(1).max(20),
+  companies: z.array(DiscoveredCompanySchema).max(20),
 });
 
 export type DiscoveredCompany = z.infer<typeof DiscoveredCompanySchema>;

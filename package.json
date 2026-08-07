@@ -92,7 +92,8 @@
     "genesis:g4-discovery-state-check": "node scripts/validate-g4-discovery-state-machine.mjs",
     "genesis:g4-legacy-audit-check": "node scripts/validate-g4-legacy-leak-audit.mjs",
     "genesis:g4-deterministic-plan-check": "node scripts/validate-g4-deterministic-search-planning.mjs",
-    "genesis:g4-orchestration-root-cause-check": "node scripts/validate-g4-orchestration-root-cause-fix.mjs"
+    "genesis:g4-orchestration-root-cause-check": "node scripts/validate-g4-orchestration-root-cause-fix.mjs",
+    "genesis:g4-company-output-boundary-check": "node scripts/validate-g4-company-discovery-output-boundary.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
