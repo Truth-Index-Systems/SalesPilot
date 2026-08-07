@@ -53,7 +53,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     await activity(job.session_id,"SEARCH_PREPARED","Approved strategy verified","The audience, buyer roles and commercial angle are ready for company research.");
     failurePhase = "PLANNING";
     await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"PLANNING",p_progress:28})});
-    await activity(job.session_id,"SEARCH_PLAN_STARTED","Building the market search plan","SalesPilot is translating the campaign into operational conditions, company archetypes and high-value evidence sources.",{searchPass,searchStrategy});
+    await activity(job.session_id,"SEARCH_PLAN_STARTED","Building the market search plan","SalesPilot is deterministically translating the approved campaign into operational conditions, company archetypes and high-value evidence sources before any external research begins.",{searchPass,searchStrategy});
     const searchPlan = await buildCompanySearchPlan({
       organisationId: job.organisation_id,
       campaignId: job.campaign_id,

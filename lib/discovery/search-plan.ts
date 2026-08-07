@@ -1,12 +1,6 @@
 import "server-only";
 
 import { z } from "zod";
-import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
-import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
-import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
-import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
-
-const ENDPOINT = "https://api.openai.com/v1/responses";
 
 const SearchArchetypeSchema = z.object({
   name: z.string().min(1).max(120),
@@ -30,36 +24,6 @@ export const CompanySearchPlanSchema = z.object({
 
 export type CompanySearchPlan = z.output<typeof CompanySearchPlanSchema>;
 
-const companySearchPlanJsonSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["schemaVersion","commercialProblem","operationalConditions","companyArchetypes","buyerRoleSynonyms","geographyVariants","sourcePriority","exclusionRules","diversificationRule"],
-  properties: {
-    schemaVersion: { type: "string", enum: ["company-search-plan/v1"] },
-    commercialProblem: { type: "string" },
-    operationalConditions: { type: "array", minItems: 3, maxItems: 12, items: { type: "string" } },
-    companyArchetypes: {
-      type: "array", minItems: 3, maxItems: 8,
-      items: {
-        type: "object", additionalProperties: false,
-        required: ["name","operatingReality","sectors","searchTerms","evidenceSignals"],
-        properties: {
-          name: { type: "string" },
-          operatingReality: { type: "string" },
-          sectors: { type: "array", minItems: 1, maxItems: 8, items: { type: "string" } },
-          searchTerms: { type: "array", minItems: 2, maxItems: 10, items: { type: "string" } },
-          evidenceSignals: { type: "array", minItems: 2, maxItems: 10, items: { type: "string" } },
-        },
-      },
-    },
-    buyerRoleSynonyms: { type: "array", minItems: 3, maxItems: 16, items: { type: "string" } },
-    geographyVariants: { type: "array", minItems: 1, maxItems: 12, items: { type: "string" } },
-    sourcePriority: { type: "array", minItems: 3, maxItems: 8, items: { type: "string" } },
-    exclusionRules: { type: "array", minItems: 2, maxItems: 10, items: { type: "string" } },
-    diversificationRule: { type: "string" },
-  },
-} as const;
-
 type SearchPlanInput = {
   organisationId: string;
   campaignId: string;
@@ -72,79 +36,152 @@ type SearchPlanInput = {
   searchStrategy: string;
 };
 
+function text(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) return value.map(text).filter(Boolean).join(" · ");
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).map(text).filter(Boolean).join(" · ");
+  }
+  return "";
+}
+
+function unique(values: string[], limit: number): string[] {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const value of values.map(item => item.trim()).filter(Boolean)) {
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    output.push(value);
+    if (output.length >= limit) break;
+  }
+  return output;
+}
+
+function includesAny(haystack: string, needles: string[]): boolean {
+  return needles.some(needle => haystack.includes(needle));
+}
+
+function roleSynonyms(source: string): string[] {
+  const roles = source.split(/[·,;|/\n]+/).map(value => value.trim()).filter(Boolean);
+  return unique([
+    ...roles,
+    "Head of Operations",
+    "Operations Director",
+    "Operations Manager",
+    "Regional Operations Manager",
+    "Site Manager",
+    "Plant Manager",
+    "General Manager",
+    "Continuous Improvement Manager",
+    "Transformation Director",
+    "Managing Director",
+  ], 16);
+}
+
+function geographyVariants(source: string, pass: number, strategy: string): string[] {
+  const lower = source.toLowerCase();
+  const values = ["United Kingdom", "UK-wide"];
+  if (includesAny(lower, ["global", "international", "worldwide", "multi-country"])) values.push("Europe", "International");
+  if (includesAny(lower, ["ireland", "irish"])) values.push("Ireland");
+  if (includesAny(lower, ["united states", "usa", "north america"])) values.push("United States", "North America");
+  if (pass > 1 || strategy === "BROADER_GEOGRAPHY_AND_SIZE") values.push("Europe", "English-speaking markets");
+  return unique(values, 12);
+}
+
+function buildArchetypes(context: string, strategy: string): CompanySearchPlan["companyArchetypes"] {
+  const lower = context.toLowerCase();
+  const operational = includesAny(lower, ["shift", "handover", "site", "plant", "warehouse", "depot", "operations", "production", "maintenance", "safety", "downtime"]);
+  const software = includesAny(lower, ["software", "saas", "platform", "system", "app", "automation", "digital"]);
+  const compliance = includesAny(lower, ["compliance", "audit", "approval", "controlled", "record", "governance", "safety"]);
+  const multiSite = includesAny(lower, ["multi-site", "multisite", "multiple sites", "regional", "locations", "distributed"]);
+
+  const commonSignals = unique([
+    operational ? "Official evidence of operational sites, shift work, production, warehousing, maintenance or service delivery" : "Official evidence of the operating condition described by the campaign",
+    multiSite ? "Locations, facilities or regional operating footprint" : "A clearly evidenced operating footprint",
+    compliance ? "Careers, reports or policies showing governance, safety, compliance or controlled processes" : "Careers or operations evidence showing the relevant workflow",
+    "Relevant leadership or operational buyer roles on official pages or job descriptions",
+  ], 8);
+
+  const archetypes: CompanySearchPlan["companyArchetypes"] = [];
+  const add = (name: string, reality: string, sectors: string[], terms: string[]) => {
+    archetypes.push({ name, operatingReality: reality, sectors, searchTerms: unique(terms, 10), evidenceSignals: commonSignals });
+  };
+
+  if (operational) {
+    add("Multi-site operational organisations", "Organisations coordinating work, accountability and performance across several operational locations.", ["Logistics", "Manufacturing", "Facilities management", "Transport", "Utilities"], ["multi-site operations locations", "regional operations sites", "operational locations company", "site operations careers"]);
+    add("Shift-based production and logistics", "Businesses where teams hand work between shifts and continuity failures can create delay, downtime, safety or quality risk.", ["Manufacturing", "Warehousing", "Distribution", "Food production", "Automotive"], ["shift operations plant", "24/7 warehouse operations", "production shift careers", "distribution centre operations"]);
+    add("Safety and compliance-sensitive operations", "Organisations that require controlled records, approvals, accountability and auditable operational processes.", ["Utilities", "Engineering", "Healthcare operations", "Food and beverage", "Infrastructure"], ["operational compliance sites", "safety critical operations company", "quality operations careers", "controlled operational records"]);
+    add("Field and service operations", "Distributed teams carrying out maintenance, engineering, facilities or customer operations across sites and regions.", ["Field services", "Engineering services", "Facilities", "Telecommunications", "Construction services"], ["regional field operations", "maintenance operations locations", "facilities operations careers", "service delivery sites"]);
+  } else {
+    add("Core ideal-customer organisations", "Companies whose operating model and commercial priorities closely match the approved campaign audience.", ["B2B services", "Technology-enabled businesses", "Professional services"], ["approved audience companies", "buyer role company", "business need operations"]);
+    add("High-complexity organisations", "Businesses with enough operational or organisational complexity for the proposed solution to create measurable value.", ["Mid-market", "Enterprise", "Multi-location businesses"], ["multi-location company", "operational complexity careers", "regional business operations"]);
+    add("Change and transformation buyers", "Organisations publicly investing in process improvement, modernisation, automation or measurable efficiency.", ["Business services", "Technology", "Industrial services"], ["digital transformation operations", "process improvement careers", "automation initiative company"]);
+  }
+
+  if (software) {
+    add("Manual-to-digital transition opportunities", "Teams replacing spreadsheets, email, paper or fragmented processes with governed digital workflows.", ["Operational businesses", "Professional services", "Regulated services"], ["manual process digital transformation", "spreadsheet workflow operations", "process modernisation company", "workflow automation initiative"]);
+  }
+
+  if (strategy === "ADJACENT_OPERATIONAL_SECTORS") {
+    add("Adjacent sectors with the same operating problem", "Companies outside the primary sector that share the same workflow, accountability or continuity problem.", ["Healthcare operations", "Hospitality groups", "Retail distribution", "Public infrastructure"], ["distributed operational teams", "shift handover operations", "multi-location service operations", "operational continuity"]);
+  }
+
+  if (strategy === "ALTERNATIVE_BUYER_LANGUAGE") {
+    add("Alternative buyer-language matches", "Companies describing the need through continuous improvement, operational excellence, transformation, governance or risk language.", ["Manufacturing", "Logistics", "Business services", "Infrastructure"], ["operational excellence careers", "continuous improvement operations", "business transformation sites", "operational governance"]);
+  }
+
+  return archetypes.slice(0, 8);
+}
+
+/**
+ * Build a deterministic market-search specification.
+ *
+ * This phase must never call AI or the public internet. It translates the
+ * already-approved Business DNA and campaign into a bounded search contract.
+ * AI/web research begins only after the worker enters SEARCHING.
+ */
 export async function buildCompanySearchPlan(input: SearchPlanInput): Promise<CompanySearchPlan> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
+  const campaignText = text(input.campaign);
+  const businessText = text(input.business);
+  const context = `${campaignText} ${businessText}`.trim();
+  const objective = text(input.campaign.objective) || text(input.business.summary) || "Find organisations with a commercially evidenced need for the approved offer.";
+  const audience = text(input.campaign.audience);
+  const buyers = text(input.campaign.buyerRoles);
 
-  const model = resolveOpenAIModel("analysis").model;
-  const compactInput = compactForAi({
-    campaign: input.campaign,
-    business: input.business,
-    customerWebsite: input.customerWebsite ?? null,
-    searchPass: input.searchPass,
-    searchStrategy: input.searchStrategy,
-  }, { evidenceLimit: 4, depth: 5 });
-  const fingerprint = stableFingerprint({ prompt: "company-search-plan/v1", model, compactInput });
-  const startedAt = Date.now();
-  const reservation = await reserveAiRequest({
-    organisationId: input.organisationId,
-    campaignId: input.campaignId,
-    schedulerRunId: input.schedulerRunId,
-    jobType: "COMPANY_DISCOVERY",
-    jobId: input.jobId,
-    requestScope: `company-search-plan:${fingerprint}`,
-    model,
-    estimatedCostUsd: Number(process.env.SALESPILOT_COMPANY_SEARCH_PLAN_ESTIMATED_COST_USD ?? "0.06"),
-  });
+  const operationalConditions = unique([
+    audience ? `Matches the approved audience: ${audience}` : "Matches the approved customer profile",
+    objective ? `Has operating conditions connected to this commercial objective: ${objective}` : "Has an evidenced need connected to the campaign objective",
+    "Shows sufficient organisational scale, complexity or repetition for the offer to create measurable value",
+    "Has official evidence of relevant operations, locations, roles, initiatives, risks or workflows",
+    input.searchPass > 1 ? `Has not been exhausted by earlier search pass ${input.searchPass - 1}` : "Can be verified independently before recommendation",
+  ], 12);
 
-  let response: Response;
-  try {
-    response = await fetch(ENDPOINT, {
-      method: "POST",
-      cache: "no-store",
-      signal: AbortSignal.timeout(90_000),
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        instructions: [
-          "You are SalesPilot's Company Discovery search strategist.",
-          "Do not find or name companies. Build the market-search plan that will be used by a separate web-search stage.",
-          "Translate the approved campaign into operating realities and commercial conditions, not product-category keywords.",
-          "Create diverse company archetypes that experience the problem, including adjacent sectors when the same operational need exists.",
-          "Prefer search signals such as operational footprint, locations, shift work, production, logistics, maintenance, safety, compliance, downtime and distributed teams where relevant.",
-          "Prioritise official operations pages, locations pages, careers and job descriptions, annual or sustainability reports, procurement pages, case studies and official news before generic homepages.",
-          "The plan must diversify across archetypes rather than repeatedly searching synonyms for the same narrow segment.",
-          input.searchPass > 1
-            ? `This is expansion pass ${input.searchPass}. Use strategy ${input.searchStrategy} to cover market space not exhausted by the earlier pass while preserving the approved commercial problem.`
-            : "This is the primary pass. Build broad market coverage before qualification.",
-          "Use British English.",
-        ].join(" "),
-        input: JSON.stringify(compactInput),
-        reasoning: { effort: "low" },
-        text: { format: { type: "json_schema", name: "salespilot_company_search_plan_v1", strict: true, schema: companySearchPlanJsonSchema } },
-        max_output_tokens: 4_500,
-        store: false,
-      }),
-    });
-  } catch (error) {
-    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, errorCode: "NETWORK", errorMessage: error instanceof Error ? error.message : "Search planning request failed" }).catch(()=>undefined);
-    throw error;
-  }
+  const plan = {
+    schemaVersion: "company-search-plan/v1" as const,
+    commercialProblem: objective.slice(0, 500),
+    operationalConditions,
+    companyArchetypes: buildArchetypes(context, input.searchStrategy),
+    buyerRoleSynonyms: roleSynonyms(buyers),
+    geographyVariants: geographyVariants(context, input.searchPass, input.searchStrategy),
+    sourcePriority: [
+      "Official operations, facilities and locations pages",
+      "Official careers pages and job descriptions",
+      "Official annual, sustainability, safety or regulatory reports",
+      "Official procurement and supplier pages",
+      "Official case studies, project pages and company news",
+      "Corporate homepage only as supporting context",
+    ],
+    exclusionRules: [
+      "Exclude the customer's own company, domains and related brands",
+      "Exclude vendors that merely sell a similarly named product unless they independently match the approved buyer profile",
+      "Exclude directories, listicles, social-only profiles and unsupported aggregators as primary evidence",
+      "Do not retain companies whose official evidence cannot support the commercial fit",
+    ],
+    diversificationRule: input.searchPass > 1
+      ? `Expansion pass ${input.searchPass} (${input.searchStrategy}) must explore archetypes, terminology or geography not exhausted by earlier passes while preserving the evidence gate.`
+      : "Build a broad candidate pool across at least three distinct company archetypes before qualification; do not let one keyword family dominate the results.",
+  };
 
-  const json: unknown = await response.json().catch(() => null);
-  const responseId = typeof (json as any)?.id === "string" ? (json as any).id : null;
-  if (!response.ok) {
-    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), durationMs: Date.now()-startedAt, responseId, errorCode: `HTTP_${response.status}`, errorMessage: JSON.stringify((json as any)?.error ?? null) }).catch(()=>undefined);
-    throw new Error(`OPENAI_SEARCH_PLAN_FAILED:${response.status}`);
-  }
-
-  try {
-    const gateway = await parseStructuredAiResponse({ response: json, schema: CompanySearchPlanSchema, jsonSchema: companySearchPlanJsonSchema, schemaName: "salespilot_company_search_plan_v1", apiKey, model });
-    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: true, usage: responseUsage(json), durationMs: Date.now()-startedAt, responseId }).catch(()=>undefined);
-    return gateway.value;
-  } catch (error) {
-    const safe = safeStructuredAiError(error);
-    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), durationMs: Date.now()-startedAt, responseId, errorCode: safe.code, errorMessage: safe.message }).catch(()=>undefined);
-    throw new Error(`SEARCH_PLAN_RESPONSE_${safe.code}`);
-  }
+  return CompanySearchPlanSchema.parse(plan);
 }

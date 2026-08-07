@@ -90,7 +90,8 @@
     "genesis:g4-api-refresh-check": "node scripts/validate-g4-api-lifecycle-refresh.mjs",
     "genesis:g4-search-order-check": "node scripts/validate-g4-company-search-order.mjs",
     "genesis:g4-discovery-state-check": "node scripts/validate-g4-discovery-state-machine.mjs",
-    "genesis:g4-legacy-audit-check": "node scripts/validate-g4-legacy-leak-audit.mjs"
+    "genesis:g4-legacy-audit-check": "node scripts/validate-g4-legacy-leak-audit.mjs",
+    "genesis:g4-deterministic-plan-check": "node scripts/validate-g4-deterministic-search-planning.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

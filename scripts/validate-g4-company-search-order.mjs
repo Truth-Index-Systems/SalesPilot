@@ -8,8 +8,8 @@ const cost=fs.readFileSync("lib/ai/cost-optimisation.ts","utf8");
 
 const checks=[
   [planner.includes('company-search-plan/v1'),"search-plan schema missing"],
-  [planner.includes('Do not find or name companies'),"planning stage must not perform discovery"],
-  [planner.includes('operations pages, locations pages, careers'),"source-priority planning missing"],
+  [planner.includes('must never call AI or the public internet'),"planning stage must remain deterministic"],
+  [planner.includes('Official operations, facilities and locations pages'),"source-priority planning missing"],
   [service.includes('buildCompanySearchPlan'),"service does not build a search plan"],
   [service.indexOf('buildCompanySearchPlan') < service.indexOf('discoverCompanies({'),"search plan must run before discovery"],
   [discovery.includes('Return 10–12 diverse candidates'),"broad candidate pool missing"],
