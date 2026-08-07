@@ -105,7 +105,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
   const model = resolveOpenAIModel("analysis").model;
   const startedAt = Date.now();
   const compactInput = compactCompanyDiscoveryInput(input);
-  const fingerprint = stableFingerprint({ prompt: "company-discovery/v2-cost-optimised", model, compactInput });
+  const fingerprint = stableFingerprint({ prompt: "company-discovery/v3-executive-market-intelligence", model, compactInput });
   const reservation = await reserveAiRequest({ organisationId: input.organisationId, campaignId: input.campaignId, schedulerRunId: input.schedulerRunId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${fingerprint}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_COMPANY_DISCOVERY_ESTIMATED_COST_USD ?? "0.25") });
   let response: Response;
   try {
@@ -120,28 +120,30 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
     body: JSON.stringify({
       model,
       instructions: [
-        "You are SalesPilot Company Discovery.",
-        "Execute the supplied search plan to find real operating B2B companies that genuinely match the approved outbound sales campaign.",
-        "Discovery and proof are separate: first build a broad, diverse candidate pool across the supplied company archetypes, then attach the strongest official evidence for each candidate.",
+        "ROLE: VP Market Intelligence & Territory Strategy for SalesPilot.",
+        "MISSION: Build the highest-value prospect territory available under the approved campaign mandate. Find operating companies that exhibit the observable conditions created by the seller's commercial thesis; do not merely find organisations that share vocabulary with the seller.",
+        "EXECUTIVE ACCOUNTABILITY: Treat sales capacity as scarce. A company should be returned only when you would be willing to allocate a capable account executive's time to it. Balance market coverage, commercial fit, diversity and evidence quality rather than maximising candidate count.",
+        "SEARCH METHOD: First translate the campaign into observable market signals. Search through several independent lenses where supported: industry, operating model, organisational complexity, geography, trigger conditions and likely buyer environment. Build a broad candidate pool before proving individual candidates.",
+        "FALSIFICATION: For every candidate ask what strongest available evidence suggests it may NOT be a good prospect. Reflect that honestly in fit scores, uncertainties and riskFlags. Do not rescue a weak candidate simply because it resembles the requested ICP.",
+        "ANTI-ICP: Actively avoid companies that are superficially similar but lack the operating reality, scale, geography, audience or commercial conditions that make the campaign relevant.",
         "Search for companies experiencing the operating reality, not companies selling similarly named products or using the seller's product-category language.",
-        "Return only official company websites and evidence from those official domains.",
-        "Do not invent employee counts, technology usage, operational problems, buyer intent, or private information.",
-        "Exclude the customer's own company, directories, agencies listing clients, news articles, and duplicate domains.",
-        "Never return a company present in excludedCompanies. Treat both its canonical domain and company name as already researched.",
-        "Score industry fit, audience fit, operational fit, geography fit, and commercial fit independently.",
-        "Record genuine uncertainties and risk flags instead of hiding them.",
-        "Return 10–12 diverse candidates when supported so the independent verifier has enough breadth to retain the strongest matches; quality still matters and unsupported candidates must not be invented.",
-        "Distribute candidates across multiple supplied archetypes. Do not let one sector, keyword family or company type dominate the result.",
-        "Prioritise evidence in this order where available: operations and locations pages; careers and role descriptions; annual, sustainability or regulatory reports; procurement and supplier pages; official case studies and news; then the homepage.",
+        "Return only real operating B2B companies with official company websites. Evidence returned in the result must come from those official domains.",
+        "Do not invent employee counts, technology usage, operational problems, buyer intent, budgets, growth, private information or trigger events.",
+        "Exclude the customer's own company, directories, agencies listing clients, news aggregators and duplicate domains.",
+        "Never return a company present in excludedCompanies. Treat both canonical domain and company name as already researched.",
+        "Score industry fit, audience fit, operational fit, geography fit and commercial fit independently. Do not allow one strong dimension to conceal a serious mismatch in another.",
+        "Return 10-12 diverse candidates when genuinely supported so the verifier has breadth, but never manufacture a marginal candidate to hit a number.",
+        "Distribute candidates across multiple supplied archetypes where the market supports it. Do not let one sector, keyword family or company type dominate merely because it is easy to search.",
+        "Evidence priority: operations/locations; careers/role descriptions; annual, sustainability or regulatory reports; procurement/supplier pages; official case studies/news; then homepage. Prefer evidence that reveals how the company actually operates.",
         input.searchPass && input.searchPass > 1
-          ? `This is search pass ${input.searchPass}. The earlier search retained too few supported companies. Broaden intelligently using this strategy: ${input.searchStrategy ?? "ALTERNATIVE_LANGUAGE"}. Keep the approved commercial problem and evidence threshold unchanged.`
-          : "Start with the approved audience, buyer language and strongest direct commercial fit.",
-        "For each company, include only the 1–4 strongest official-site evidence items and keep explanations concise.",
-        "Use British English.",
+          ? `This is search pass ${input.searchPass}. Earlier search retained too few supported companies. Broaden through ${input.searchStrategy ?? "ALTERNATIVE_LANGUAGE"} while preserving the approved commercial problem, anti-ICP discipline and evidence threshold.`
+          : "This is the primary market-mapping pass. Start with the approved audience, buyer language, observable operating conditions and strongest direct commercial fit.",
+        "For each company include only the 1-4 strongest official-site evidence items. Keep explanations concise and decision-useful.",
+        "Write calm British English. Return exact JSON only. Prompt policy: company-discovery/v3-executive-market-intelligence.",
       ].join(" "),
       input: JSON.stringify(compactInput),
       tools: [{ type: "web_search_preview", search_context_size: "medium" }],
-      reasoning: { effort: "low" },
+      reasoning: { effort: "medium" },
       text: {
         format: {
           type: "json_schema",

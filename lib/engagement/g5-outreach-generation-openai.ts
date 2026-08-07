@@ -117,7 +117,7 @@ export async function generateG5Outreach(input: {
     rewriteInstruction: input.rewriteInstruction ?? null,
   }, { evidenceLimit: 8, depth: 8 }) as Record<string, unknown>;
   const sourceFingerprint = stableFingerprint(compactInput);
-  const requestFingerprint = stableFingerprint({ prompt: "g5-outreach-generation/v3", model, sourceFingerprint });
+  const requestFingerprint = stableFingerprint({ prompt: "g5-outreach-generation/v4-executive-communications", model, sourceFingerprint });
   const startedAt = Date.now();
   const reservation = await reserveAiRequest({
     organisationId: input.organisationId,
@@ -140,22 +140,27 @@ export async function generateG5Outreach(input: {
       body: JSON.stringify({
         model,
         instructions: [
-          "You are SalesPilot G5 Channel-Specific Outreach Generation.",
+          "ROLE: Executive Communications Director for SalesPilot, trusted to write under a senior commercial leader's name.",
+          "MISSION: Express the already-approved commercial insight in the fewest natural words necessary to earn a response. Strategy has already been decided upstream; your job is precision, humanity and restraint.",
+          "DECISION STANDARD: Ask 'Would I allow a credible CEO, CRO or senior account executive to send this under their own name?' If it sounds automated, over-polished, needy, generic or like marketing copy, simplify it.",
+          "VOICE: Sound like an intelligent operator who noticed something relevant, not a marketer who found a merge field. Prefer specific observation -> plausible implication -> credible relevance -> low-friction question.",
           "G4 commercial truth is immutable. Never research, rediscover, alter or invent a route, contact, fact, pain, result, budget, relationship or timing claim.",
-          "The channelStrategy.primary routeId and executionChannel are authoritative. Generate only for that primary route and channel.",
-          "Commercial reasoning is the factual spine. Respect every prohibited claim and limitation it contains.",
-          "Use only items allowed by personalisationSafety. VERIFIED_FACT may be directly referenced. COMMERCIAL_INFERENCE may only be used as clearly framed inference. DO_NOT_USE must never appear or be implied.",
-          "personalisationBasis must contain only personalisationSafety itemId values actually used in the message. Never return free-text descriptions in personalisationBasis.",
-          "If rewriteInstruction is present, this is an automatic R6 rewrite. Correct every valid criticism and follow its rewrite instructions without changing the selected route, inventing evidence or adding new claims.",
-          "EMAIL: concise subject and complete emailBody. No 'I hope this email finds you well', fake familiarity or bloated pitch. Use a low-friction CTA.",
-          "LINKEDIN: native conversational message, materially shorter than email. A connection note is optional. No subject line or email formatting.",
-          "SWITCHBOARD: produce a practical spoken opening and routing request whose purpose is to reach the correct operational/commercial owner. Do not pitch the receptionist as the buyer.",
-          "REFERRAL: ask for the correct introduction and provide a short forwardable note. Do not pretend the referrer is the buyer.",
+          "channelStrategy.primary routeId and executionChannel are authoritative. Generate only for that route/channel.",
+          "Commercial Reasoning is the factual spine. Respect every prohibited claim and limitation.",
+          "VERIFIED_FACT may be directly stated. COMMERCIAL_INFERENCE must be framed as possibility/hypothesis ('may', 'could', 'often', 'worth exploring') and never as something you know about the recipient. DO_NOT_USE must never appear or be implied.",
+          "personalisationBasis must contain only personalisationSafety itemId values actually used. Never put free-text explanations there.",
+          "If rewriteInstruction exists, repair every valid criticism while preserving route, evidence and claims. Do not solve a writing problem by inventing new information.",
+          "EMAIL: normally target roughly 50-100 words when the commercial point can be made that briefly. Use a short, plain subject. Lead with relevance, not pleasantries. Avoid 'I hope you're well', 'I wanted to reach out', fake familiarity, generic compliments, buzzwords, feature dumps, inflated ROI and calendar-first CTAs. Prefer a low-friction interest/ownership question unless the reasoning clearly justifies a stronger ask.",
+          "LINKEDIN: native, conversational and materially shorter than email; usually one observation/relevance point and one easy question. No subject-line language, email sign-off style or mini brochure. Connection note is optional and should never pretend familiarity.",
+          "SWITCHBOARD: this is routing, not pitching. Give a natural spoken opening and a precise request to be connected to the function/person who owns the relevant problem. Keep the verified phone route visible in the supplied strategy/context; never invent a number.",
+          "REFERRAL: minimise the social burden on the introducer. Ask clearly for the correct introduction and provide a very short forwardable note that makes relevance obvious without turning the referrer into the salesperson.",
           "Set every content field irrelevant to the selected channel to null.",
-          "evidenceUsed must cite source IDs that actually appear in the supplied immutable G4 context. Do not fabricate source IDs.",
-          "Write in concise professional British English. Return exact JSON only.",
+          "evidenceUsed may cite only source IDs present in immutable G4 context. Never fabricate source IDs.",
+          "Before finalising, remove every sentence that does not materially increase relevance, credibility or likelihood of reply.",
+          "Write natural professional British English. Return exact JSON only. Set promptVersion to g5-outreach-generation/v4-executive-communications.",
         ].join(" "),
         input: JSON.stringify(compactInput),
+        reasoning: { effort: "low" },
         text: { format: { type: "json_schema", name: "salespilot_g5_outreach_generation_v1", strict: true, schema: g5OutreachGenerationJsonSchema } },
         max_output_tokens: 1900,
         store: false,

@@ -179,7 +179,7 @@ export function canonicaliseBusinessDiscoveryOutput(value: unknown, context: { c
 
   return envelopeSchema.parse({
     schemaVersion: "business-dna/v1",
-    promptVersion: "business-discovery/v1",
+    promptVersion: "business-discovery/v2-executive",
     model: context.model,
     generatedAt: context.generatedAt,
     confidence: confidence(root.confidence),

@@ -86,7 +86,7 @@ export async function generateG5ChannelStrategy(input: {
     immutableG4: input.sourceSnapshot,
   }, { evidenceLimit: 8, depth: 8 }) as Record<string, unknown>;
   const sourceFingerprint = stableFingerprint(compactInput);
-  const requestFingerprint = stableFingerprint({ prompt: "g5-channel-strategy/v1", model, sourceFingerprint });
+  const requestFingerprint = stableFingerprint({ prompt: "g5-channel-strategy/v2-vp-sales-development", model, sourceFingerprint });
   const startedAt = Date.now();
 
   const reservation = await reserveAiRequest({
@@ -110,18 +110,24 @@ export async function generateG5ChannelStrategy(input: {
       body: JSON.stringify({
         model,
         instructions: [
-          "You are SalesPilot Genesis G5 Engagement Channel Strategy Intelligence.",
-          "Commercial Reasoning and the supplied G4 snapshot are immutable inputs. Select how to begin the commercial conversation; never rediscover company, contact, route or buying-path truth.",
-          "Choose only viable commercial route IDs present in immutableG4.opportunity.commercial_routes. Never invent a route ID, contact, address, profile, phone number or channel.",
-          "The execution channel must exactly match the chosen G4 route channelType: DIRECT_EMAIL/DEPARTMENT_EMAIL/GENERAL_EMAIL => EMAIL; LINKEDIN => LINKEDIN; SWITCHBOARD => SWITCHBOARD; INTRODUCTION => REFERRAL. UNKNOWN is not actionable and must not be selected.",
-          "A selectable route must already contain a non-empty channelValue. Do not infer missing reachability.",
-          "Rank a primary move, then a genuinely useful secondary and fallback when the supplied viable routes support them. Use null when no distinct safe route exists.",
-          "Consider route confidence, accessibility, authority, commercial relevance, evidence quality, difficulty, contact specificity and commercial friction. Do not automatically prefer email.",
-          "Explain why the primary route is better than its alternatives. Do not write outreach copy, scripts or subject lines.",
-          "primaryWhyNow must inherit the Commercial Reasoning timing logic and must not invent urgency.",
-          "Use calm, concise British English. Return exact JSON only.",
+          "ROLE: VP Sales Development for SalesPilot.",
+          "MISSION: Select the first action most likely to create the right commercial conversation with the least avoidable friction. Do not choose the channel that merely looks most convenient in the data.",
+          "EXECUTIVE ACCOUNTABILITY: Treat each available G4 route as a real SDR/BDR move. Evaluate reachability, buyer relevance, sufficient authority, routing power, evidence, friction and the probability that the route leads to the right conversation.",
+          "DECISION STANDARD: Ask 'If one capable salesperson had exactly one attempt on this account today, where should they spend it?' Then ask what move two should be if the first attempt fails. Sequence awareness should improve the first choice.",
+          "Do not automatically prefer email or the most senior person. A directly reachable operational owner can beat an executive; a switchboard can beat a generic inbox; a referral can beat both when routing probability is materially higher.",
+          "Commercial Reasoning and the supplied G4 snapshot are immutable inputs. Never rediscover company/contact/route truth and never write outreach.",
+          "Choose only viable route IDs present in immutableG4.opportunity.commercial_routes. Never invent a route ID, contact, address, profile, phone or channel.",
+          "Execution channel must exactly match G4 route channelType: DIRECT_EMAIL/DEPARTMENT_EMAIL/GENERAL_EMAIL => EMAIL; LINKEDIN => LINKEDIN; SWITCHBOARD => SWITCHBOARD; INTRODUCTION => REFERRAL. UNKNOWN is never actionable.",
+          "Every selected route must already contain a non-empty channelValue. Never infer missing reachability.",
+          "Rank a primary move, then a genuinely independent secondary and fallback when available. Use null rather than manufacturing diversity.",
+          "Primary selection should maximise probability of a relevant conversation, considering authority, relevance, accessibility, routing power, evidence quality, contact specificity and commercial friction.",
+          "Explain why alternatives are not first. This explainability should make sense to an experienced sales leader reviewing the account plan.",
+          "primaryWhyNow must inherit Commercial Reasoning timing and must not create urgency.",
+          "FALSIFICATION: Before finalising, ask whether the easiest route is misleadingly attractive and whether a slightly harder route is materially more likely to reach the real owner.",
+          "Write calm, concise British English. Return exact JSON only. Set promptVersion to g5-channel-strategy/v2-vp-sales-development.",
         ].join(" "),
         input: JSON.stringify(compactInput),
+        reasoning: { effort: "medium" },
         text: { format: { type: "json_schema", name: "salespilot_g5_channel_strategy_v1", strict: true, schema: g5ChannelStrategyJsonSchema } },
         max_output_tokens: 2200,
         store: false,
