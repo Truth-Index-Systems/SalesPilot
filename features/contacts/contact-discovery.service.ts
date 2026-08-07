@@ -21,7 +21,8 @@ export async function runNextRouteIntelligence(context:WorkerExecutionContext,op
       databaseRequest<any[]>(`company_versions?company_id=eq.${job.company_id}&organisation_id=eq.${job.organisation_id}&order=version_number.desc&limit=1&select=payload_json`),
       databaseRequest<any[]>(`company_evidence?company_id=eq.${job.company_id}&organisation_id=eq.${job.organisation_id}&order=created_at.asc&limit=20&select=claim,source_url,source_title,excerpt,verified,excerpt_matched`),
     ]);
-    const companyIntelligence={...company,companyDiscovery:companyVersions[0]?.payload_json??{},companyEvidence};
+    const priorRouteMemory=await databaseRequest<any[]>("rpc/get_route_intelligence_memory",{method:"POST",body:JSON.stringify({p_company_id:job.company_id})}).catch(()=>[]);
+    const companyIntelligence={...company,companyDiscovery:companyVersions[0]?.payload_json??{},companyEvidence,priorRouteMemory:priorRouteMemory[0]??null};
     const campaigns=await databaseRequest<any[]>(`campaign_detail?id=eq.${job.campaign_id}&organisation_id=eq.${job.organisation_id}&limit=1`);
     const campaign=campaigns[0]; if(!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
     const campaignRows=await databaseRequest<any[]>(`campaigns?id=eq.${job.campaign_id}&organisation_id=eq.${job.organisation_id}&limit=1&select=business_profile_id`);

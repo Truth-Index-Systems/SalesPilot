@@ -82,15 +82,16 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     const contactFoundation = await syncContactDiscoveryFoundations(runId);
     const contactPlan = await planContactDiscoveryDispatch(runId);
     const burstCampaignId = contactPlan.campaign_id;
+    // G4.7 first-pass Route Intelligence is intentionally deep. Running several
+    // web-research jobs in parallel causes correlated OpenAI/Vercel timeouts and
+    // lowers route quality. Execute one deep route investigation per scheduler
+    // cycle; subsequent cron cycles pick up the remaining companies immediately.
     const contact = contactPlan.dispatch_count === 0
       ? null
-      : contactPlan.dispatch_count > 1 && burstCampaignId
-        ? await Promise.all(
-            Array.from({ length: contactPlan.dispatch_count }, () =>
-              settle(() => runNextRouteIntelligence(context, { campaignId: burstCampaignId, freshOnly: true })),
-            ),
-          )
-        : await settle(() => runNextRouteIntelligence(context));
+      : await settle(() => runNextRouteIntelligence(
+          context,
+          burstCampaignId ? { campaignId: burstCampaignId, freshOnly: true } : {},
+        ));
     const opportunity = await syncOpportunityFoundations(runId);
     const opportunityScoring = await scoreOpportunityIntelligence(runId);
     const engagement = await buildEngagements(runId);
