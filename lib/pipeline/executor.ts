@@ -7,7 +7,8 @@ export type WorkerExecutionOutcome =
   | "CONTINUING"
   | "ROUTE_EXPANSION_QUEUED"
   | "ROUTE_RESEARCH_EXHAUSTED"
-  | "SUPERSEDED";
+  | "SUPERSEDED"
+  | "DEFERRED";
 
 export type WorkerExecutionResult = {
   worker: WorkerKind;

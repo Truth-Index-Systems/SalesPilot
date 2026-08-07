@@ -6,6 +6,7 @@ import { classifyPipelineError } from "@/lib/pipeline/errors";
 import { createResultSummary } from "@/lib/pipeline/result-summary";
 import { safePipelineFailureReason } from "@/lib/pipeline/safe-error";
 import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
+import { aiGovernanceBlockReason } from "@/lib/ai/governance";
 
 function safeError(error:unknown){return safePipelineFailureReason(error,"Route research encountered a technical interruption and will retry safely.");}
 
@@ -35,7 +36,9 @@ export async function runNextRouteIntelligence(context:WorkerExecutionContext,op
     await databaseRequest("rpc/update_contact_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"VALIDATING",p_progress:72,p_candidates:result.contacts.length})});
     await databaseRequest("rpc/save_route_intelligence_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_organisation_map:result.organisationMap,p_buying_paths:result.buyingPaths,p_routes:result.routes,p_research_summary:result.researchSummary})});
     await databaseRequest("rpc/save_company_contact_channels_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_channels:result.companyContactChannels})});
-    const saved=result.contacts.length===0?0:Number(await databaseRequest<number>("rpc/save_contact_discovery_batch_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_contacts:result.contacts,p_research_summary:result.researchSummary,p_uncertainties:result.uncertainties,p_unresolved_roles:result.unresolvedRoles})}));
+    const batchSaved=result.contacts.length===0?0:Number(await databaseRequest<number>("rpc/save_contact_discovery_batch_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_contacts:result.contacts,p_research_summary:result.researchSummary,p_uncertainties:result.uncertainties,p_unresolved_roles:result.unresolvedRoles})}));
+    const routeContacts=Number(await databaseRequest<number>("rpc/reconcile_route_contacts_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId})}));
+    const saved=Math.max(batchSaved,routeContacts);
     const readinessRows=await databaseRequest<Array<{action:"READY"|"EXPAND"|"EXHAUSTED";primary_ready:boolean;fallback_ready:boolean;route_count:number;expansion_pass:number}>>("rpc/evaluate_contact_discovery_route_readiness_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_research_summary:result.researchSummary,p_uncertainties:result.uncertainties,p_unresolved_roles:result.unresolvedRoles})});
     const readiness=readinessRows[0];
     if(readiness?.action==="EXPAND") return {worker:"CONTACT_DISCOVERY",processed:true,outcome:"ROUTE_EXPANSION_QUEUED",sessionId:job.session_id,saved};
@@ -45,7 +48,7 @@ export async function runNextRouteIntelligence(context:WorkerExecutionContext,op
     }
     const finalSaved=Number(await databaseRequest<number>("rpc/finalize_contact_discovery_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_result_summary:createResultSummary(readiness?.action==="EXHAUSTED"?"ROUTE_RESEARCH_EXHAUSTED":"COMPLETED_WITH_RESULTS",saved,startedAt)})}));
     return {worker:"CONTACT_DISCOVERY",processed:true,outcome:"COMPLETED_WITH_RESULTS",sessionId:job.session_id,saved:finalSaved};
-  }catch(error){if(isPipelineOwnershipLost(error)){console.info("Route Intelligence worker superseded; stale worker result discarded",{sessionId:job.session_id,schedulerRunId:context.schedulerRunId});return {worker:"CONTACT_DISCOVERY",processed:false,outcome:"SUPERSEDED",sessionId:job.session_id};}const classified=classifyPipelineError(error);await databaseRequest("rpc/record_contact_discovery_failure_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_error_code:classified.code,p_error_message:safeError(error),p_retryable:classified.retryable})}).catch(()=>undefined);throw error;}
+  }catch(error){const governanceReason=aiGovernanceBlockReason(error);if(governanceReason){await databaseRequest("rpc/defer_contact_discovery_governance_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_reason_code:governanceReason})}).catch(()=>undefined);return {worker:"CONTACT_DISCOVERY",processed:false,outcome:"DEFERRED",sessionId:job.session_id};}if(isPipelineOwnershipLost(error)){console.info("Route Intelligence worker superseded; stale worker result discarded",{sessionId:job.session_id,schedulerRunId:context.schedulerRunId});return {worker:"CONTACT_DISCOVERY",processed:false,outcome:"SUPERSEDED",sessionId:job.session_id};}const classified=classifyPipelineError(error);await databaseRequest("rpc/record_contact_discovery_failure_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_error_code:classified.code,p_error_message:safeError(error),p_retryable:classified.retryable})}).catch(()=>undefined);throw error;}
 }
 
 // Database/session naming remains Contact Discovery for backwards compatibility.

@@ -1,9 +1,10 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
+import { aiGovernanceBlockReason } from "@/lib/ai/governance";
 import { reviewG5Outreach } from "./g5-self-review-openai";
 
-export type G5SelfReviewWorkerResult={processed:boolean;outcome:"NO_JOB"|"PASS"|"REWRITE"|"BLOCK"|"FAILED_RETRYABLE"|"SUPERSEDED";strategyId?:string;opportunityId?:string};
+export type G5SelfReviewWorkerResult={processed:boolean;outcome:"NO_JOB"|"PASS"|"REWRITE"|"BLOCK"|"FAILED_RETRYABLE"|"SUPERSEDED"|"DEFERRED";strategyId?:string;opportunityId?:string};
 type Claim={strategy_id:string;lease_token:string;opportunity_id:string};
 type Context={organisation_id:string;campaign_id:string;commercial_reasoning_json:Record<string,unknown>;channel_strategy_json:Record<string,unknown>;source_snapshot_json:Record<string,unknown>;personalisation_safety_json:Record<string,unknown>;outreach_generation_json:Record<string,unknown>;rewrite_count:number};
 
@@ -18,6 +19,8 @@ export async function runNextG5SelfReview(schedulerRunId:string):Promise<G5SelfR
     void result;
     return {processed:true,outcome:reviewed.result.outcome,strategyId:claim.strategy_id,opportunityId:claim.opportunity_id};
   }catch(error){
+    const governanceReason=aiGovernanceBlockReason(error);
+    if(governanceReason){await databaseRequest("rpc/defer_g5_engagement_governance_owned",{method:"POST",body:JSON.stringify({p_strategy_id:claim.strategy_id,p_scheduler_run_id:schedulerRunId,p_lease_token:claim.lease_token,p_active_state:"SELF_REVIEW",p_resume_state:"SELF_REVIEW",p_reason_code:governanceReason})}).catch(()=>undefined);return {processed:false,outcome:"DEFERRED",strategyId:claim.strategy_id,opportunityId:claim.opportunity_id};}
     if(isPipelineOwnershipLost(error)||(error instanceof Error&&error.message.includes("G5_ENGAGEMENT_OWNERSHIP_LOST"))) return {processed:false,outcome:"SUPERSEDED",strategyId:claim.strategy_id,opportunityId:claim.opportunity_id};
     await databaseRequest("rpc/fail_g5_self_review_owned",{method:"POST",body:JSON.stringify({p_strategy_id:claim.strategy_id,p_scheduler_run_id:schedulerRunId,p_lease_token:claim.lease_token,p_reason:error instanceof Error?error.message:"G5_SELF_REVIEW_FAILED",p_retry_after_seconds:60})}).catch(()=>undefined);
     return {processed:true,outcome:"FAILED_RETRYABLE",strategyId:claim.strategy_id,opportunityId:claim.opportunity_id};

@@ -18,7 +18,7 @@ function classify(error:unknown){
   if(/timeout|abort/i.test(message))return {code:"TIMEOUT",message:"An external research request timed out. This analysis can retry safely.",retryable:true};
   if(/AI_GOVERNANCE_BLOCKED/i.test(message)){
     const reason=["PLATFORM_DISABLED","AUTONOMY_DISABLED","REQUEST_LIMIT","COST_LIMIT","CAMPAIGN_LIMIT"].find(value=>message.includes(value))??"LIMIT_REACHED";
-    return {code:"AI_GOVERNANCE_BLOCKED",message:`AI_GOVERNANCE_BLOCKED:${reason}`,retryable:false};
+    return {code:"AI_GOVERNANCE_BLOCKED",message:`AI_GOVERNANCE_BLOCKED:${reason}`,retryable:true};
   }
   if(/not configured|authentication|401/i.test(message))return {code:"CONFIGURATION",message:"The protected AI service configuration is incomplete.",retryable:false};
   if(/STRUCTURED_AI_OUTPUT|JSON|structured output|invalid response|unterminated string|unexpected end/i.test(message))return {code:"INVALID_AI_OUTPUT",message:"SalesPilot received an incomplete structured response. This stage can be retried safely.",retryable:true};

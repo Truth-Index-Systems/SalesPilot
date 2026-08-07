@@ -26,6 +26,16 @@ export function estimateActualCost(usage:Usage|undefined,webSearchCalls=0){
   return (((usage?.input_tokens??0)/1_000_000)*inputRate)+(((usage?.output_tokens??0)/1_000_000)*outputRate)+(webSearchCalls*searchRate);
 }
 
+export function aiGovernanceBlockReason(error: unknown): string | null {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const match = message.match(/AI_GOVERNANCE_BLOCKED:([A-Z0-9_]+)/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+export function isAiGovernanceDeferred(error: unknown): boolean {
+  return aiGovernanceBlockReason(error) !== null;
+}
+
 export async function reserveAiRequest(context:AiGovernanceContext){
   if(!platformEnabled())throw new Error("AI_GOVERNANCE_BLOCKED:PLATFORM_DISABLED");
   const result=await databaseRequest<Reservation[]|Reservation>("rpc/reserve_ai_request",{method:"POST",body:JSON.stringify({

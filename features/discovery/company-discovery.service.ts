@@ -8,6 +8,7 @@ import { classifyPipelineError } from "@/lib/pipeline/errors";
 import { createResultSummary } from "@/lib/pipeline/result-summary";
 import { safePipelineFailureReason } from "@/lib/pipeline/safe-error";
 import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
+import { aiGovernanceBlockReason } from "@/lib/ai/governance";
 
 function safeWorkerError(error: unknown): string {
   return safePipelineFailureReason(error, "Company Discovery encountered a technical interruption and will retry safely.");
@@ -199,6 +200,15 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       saved: Number(finalSaved),
     };
   } catch (error) {
+    const governanceReason = aiGovernanceBlockReason(error);
+    if (governanceReason) {
+      await databaseRequest("rpc/defer_company_discovery_governance_owned", {
+        method: "POST",
+        body: JSON.stringify({ p_session_id: job.session_id, p_scheduler_run_id: context.schedulerRunId, p_reason_code: governanceReason }),
+      }).catch(() => undefined);
+      await activity(job.session_id, context.schedulerRunId, "AI_ALLOWANCE_DEFERRED", "Research paused by current AI allowance", "SalesPilot kept this company-discovery job intact. It will resume automatically after the workspace allowance permits another AI request.", { reasonCode: governanceReason, failurePhase }).catch(() => undefined);
+      return { worker: "COMPANY_DISCOVERY", processed: false, outcome: "DEFERRED", sessionId: job.session_id };
+    }
     if (isPipelineOwnershipLost(error)) {
       console.info("Company Discovery worker superseded; stale worker result discarded", { sessionId: job.session_id, schedulerRunId: context.schedulerRunId });
       return { worker: "COMPANY_DISCOVERY", processed: false, outcome: "SUPERSEDED", sessionId: job.session_id };
