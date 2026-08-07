@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { runNextCompanyDiscovery } from "@/features/discovery/company-discovery.service";
-import { runNextContactDiscovery } from "@/features/contacts/contact-discovery.service";
+import { runNextRouteIntelligence } from "@/features/contacts/contact-discovery.service";
 import type { WorkerExecutionResult } from "./executor";
 import { syncOpportunityFoundations } from "@/lib/opportunities/builder";
 import type { OpportunityScoringSummary, OpportunitySyncSummary } from "@/lib/opportunities/domain";
@@ -87,10 +87,10 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       : contactPlan.dispatch_count > 1 && burstCampaignId
         ? await Promise.all(
             Array.from({ length: contactPlan.dispatch_count }, () =>
-              settle(() => runNextContactDiscovery(context, { campaignId: burstCampaignId, freshOnly: true })),
+              settle(() => runNextRouteIntelligence(context, { campaignId: burstCampaignId, freshOnly: true })),
             ),
           )
-        : await settle(() => runNextContactDiscovery(context));
+        : await settle(() => runNextRouteIntelligence(context));
     const opportunity = await syncOpportunityFoundations(runId);
     const opportunityScoring = await scoreOpportunityIntelligence(runId);
     const engagement = await buildEngagements(runId);

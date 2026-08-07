@@ -38,5 +38,16 @@ export function normaliseContactDiscoveryResult(result:ContactDiscoveryResult,co
    evidenceExcerpt:clean(channel.evidenceExcerpt,900),
   });
  }
- return{...result,contacts,companyContactChannels};
+ const routes=result.routes.map(route=>{
+  const evidence=route.evidence.map(item=>({...item,claim:clean(item.claim,500),sourceTitle:item.sourceTitle?clean(item.sourceTitle,240):null,excerpt:item.excerpt?clean(item.excerpt,900):null,sourceDomain:hostname(item.sourceUrl),verified:allowedSource(item.sourceUrl,item.sourceKind,domain),excerptMatched:Boolean(item.excerpt&&clean(item.excerpt).length>=20)})).filter(item=>item.verified&&item.claim&&item.sourceUrl);
+  let channelValue=route.channelValue;
+  if(["DIRECT_EMAIL","DEPARTMENT_EMAIL","GENERAL_EMAIL"].includes(route.channelType)) channelValue=validCompanyEmail(channelValue,domain);
+  if(route.channelType==="LINKEDIN") channelValue=linkedinProfile(channelValue);
+  const channelType=channelValue?route.channelType:"UNKNOWN";
+  const personSupported=evidence.some(item=>item.evidenceType==="IDENTITY")&&evidence.some(item=>item.evidenceType==="ROLE");
+  const evidenceQuality=evidence.length?Math.round(evidence.reduce((sum,item)=>sum+item.qualityScore,0)/evidence.length):0;
+  const confidence=Math.min(route.confidence,evidence.length?100:45);
+  return {...route,channelType,channelValue,contactName:personSupported?route.contactName:null,contactRole:personSupported?route.contactRole:null,evidence,evidenceQuality,confidence};
+ });
+ return{...result,contacts,companyContactChannels,routes};
 }

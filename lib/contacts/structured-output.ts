@@ -12,6 +12,9 @@ const EMAIL_STATUSES = new Set(["VERIFIED","LIKELY","UNKNOWN"]);
 const LINKEDIN_STATUSES = new Set(["VERIFIED","HIGH_CONFIDENCE","UNKNOWN"]);
 const CHANNEL_TYPES = new Set(["NAMED","DEPARTMENTAL","GENERAL"]);
 const CHANNEL_VERIFICATION = new Set(["PUBLIC_VERIFIED","PATTERN_LIKELY"]);
+const ROUTE_TYPES = new Set(["PRIMARY","OPERATIONAL","TRANSFORMATION","PROCUREMENT","TECHNICAL","EXECUTIVE","REGIONAL","FALLBACK"]);
+const ROUTE_CHANNEL_TYPES = new Set(["DIRECT_EMAIL","LINKEDIN","DEPARTMENT_EMAIL","GENERAL_EMAIL","SWITCHBOARD","INTRODUCTION","UNKNOWN"]);
+const ROUTE_DIFFICULTIES = new Set(["LOW","MEDIUM","HIGH"]);
 
 function record(value: unknown): JsonRecord | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : null;
@@ -141,6 +144,58 @@ function canonicalChannel(value: unknown) {
   };
 }
 
+
+function canonicalOrganisationMap(value: unknown) {
+  const item = record(value) ?? {};
+  return {
+    summary: text(item.summary, 1200, "SalesPilot mapped the likely commercial ownership structure from existing company intelligence and route research."),
+    departments: strings(item.departments, 24, 180),
+    businessUnits: strings(item.businessUnits, 24, 180),
+    buyingCentres: strings(item.buyingCentres, 20, 180),
+    hierarchy: strings(item.hierarchy, 24, 300),
+    ownershipSignals: strings(item.ownershipSignals, 20, 400),
+  };
+}
+
+function canonicalBuyingPath(value: unknown, index: number) {
+  const item = record(value); if (!item) return null;
+  const entryRole = text(item.entryRole, 180); const targetRole = text(item.targetRole, 180);
+  const steps = strings(item.steps, 10, 180);
+  if (!entryRole || !targetRole || !steps.length) return null;
+  return {
+    name: text(item.name, 180, `Buying path ${index + 1}`),
+    routeType: enumValue(item.routeType, ROUTE_TYPES, index === 0 ? "PRIMARY" : "FALLBACK"),
+    objective: text(item.objective, 500, "Reach the relevant commercial owner."),
+    entryRole, targetRole, steps,
+    rationale: text(item.rationale, 900, "Route inferred from the supported organisation and buying structure."),
+    confidence: score(item.confidence),
+  };
+}
+
+function canonicalRoute(value: unknown, index: number) {
+  const item = record(value); if (!item) return null;
+  const entryRole = text(item.entryRole, 180); const targetRole = text(item.targetRole, 180);
+  if (!entryRole || !targetRole) return null;
+  const evidence = (Array.isArray(item.evidence) ? item.evidence : []).map(canonicalEvidence).filter(Boolean).slice(0, 12);
+  const channelType = enumValue(item.channelType, ROUTE_CHANNEL_TYPES, "UNKNOWN");
+  return {
+    routeKey: text(item.routeKey, 120, `route-${index + 1}`).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0,120) || `route-${index + 1}`,
+    routeType: enumValue(item.routeType, ROUTE_TYPES, index === 0 ? "PRIMARY" : "FALLBACK"),
+    label: text(item.label, 180, `${entryRole} to ${targetRole}`),
+    entryRole, targetRole, department: nullableText(item.department, 180),
+    contactName: nullableText(item.contactName, 180), contactRole: nullableText(item.contactRole, 180),
+    channelType, channelValue: nullableText(item.channelValue, 500),
+    authority: score(item.authority), accessibility: score(item.accessibility),
+    commercialRelevance: score(item.commercialRelevance), evidenceQuality: score(item.evidenceQuality),
+    resilience: score(item.resilience), confidence: score(item.confidence),
+    difficulty: enumValue(item.difficulty, ROUTE_DIFFICULTIES, "HIGH"),
+    rationale: text(item.rationale, 1200, "Commercial route identified from supported public evidence."),
+    nextStep: text(item.nextStep, 900, "Continue route research before outreach."),
+    fallbackReason: nullableText(item.fallbackReason, 700),
+    evidence,
+  };
+}
+
 /**
  * Converts a structurally valid model object into the canonical persisted v3 contract.
  * This performs only deterministic safety work: clipping, enum fallback, score clamping,
@@ -151,10 +206,14 @@ export function canonicaliseContactDiscoveryOutput(value: unknown, expectedCompa
   const root = record(value) ?? {};
   const contacts = (Array.isArray(root.contacts) ? root.contacts : []).map(canonicalContact).filter(Boolean).slice(0, 20);
   const companyContactChannels = (Array.isArray(root.companyContactChannels) ? root.companyContactChannels : []).map(canonicalChannel).filter(Boolean).slice(0, 30);
+  const buyingPaths = (Array.isArray(root.buyingPaths) ? root.buyingPaths : []).map(canonicalBuyingPath).filter(Boolean).slice(0, 12);
+  const routes = (Array.isArray(root.routes) ? root.routes : []).map(canonicalRoute).filter(Boolean).slice(0, 16);
   return ContactDiscoveryResultSchema.parse({
     schemaVersion: "contact-discovery/v3",
     companyId: expectedCompanyId,
-    researchSummary: text(root.researchSummary, 900, "Contact research completed."),
+    researchSummary: text(root.researchSummary, 900, "Route intelligence research completed."),
+    organisationMap: canonicalOrganisationMap(root.organisationMap),
+    buyingPaths, routes,
     contacts,
     companyContactChannels,
     unresolvedRoles: strings(root.unresolvedRoles, 20, 180),

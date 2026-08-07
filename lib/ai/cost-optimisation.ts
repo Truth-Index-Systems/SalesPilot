@@ -80,6 +80,7 @@ export function compactCompanyDiscoveryInput(input: { campaign: Record<string, u
   }, { evidenceLimit: 6, depth: 5 });
 }
 
-export function compactContactDiscoveryInput(input: { company: Record<string, unknown>; campaign: Record<string, unknown>; business: Record<string, unknown> }) {
-  return compactForAi({ company: input.company, campaign: input.campaign, business: input.business }, { evidenceLimit: 6, depth: 5 });
+export function compactContactDiscoveryInput(input: { company: Record<string, unknown>; campaign: Record<string, unknown>; business: Record<string, unknown>; routeExpansionPass?: number }) {
+  const firstPass = Number(input.routeExpansionPass ?? 0) === 0;
+  return compactForAi({ company: input.company, campaign: input.campaign, business: input.business, routeExpansionPass: input.routeExpansionPass ?? 0 }, { evidenceLimit: firstPass ? 12 : 8, depth: 6 });
 }

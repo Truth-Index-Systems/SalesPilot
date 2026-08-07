@@ -24,6 +24,9 @@ export async function scoreOpportunityIntelligence(
     "rpc/score_opportunity_intelligence",
     { method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }) },
   );
+  await databaseRequest<number>("rpc/apply_route_intelligence_opportunity_scoring", {
+    method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }),
+  });
   if (Array.isArray(result)) return result[0] ?? EMPTY;
   return result ?? EMPTY;
 }

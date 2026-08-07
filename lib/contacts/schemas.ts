@@ -70,9 +70,60 @@ export const CompanyContactChannelSchema = z.object({
   evidenceExcerpt: z.string().min(1).max(900),
 });
 
+
+export const RouteTypeSchema = z.enum(["PRIMARY","OPERATIONAL","TRANSFORMATION","PROCUREMENT","TECHNICAL","EXECUTIVE","REGIONAL","FALLBACK"]);
+export const RouteChannelTypeSchema = z.enum(["DIRECT_EMAIL","LINKEDIN","DEPARTMENT_EMAIL","GENERAL_EMAIL","SWITCHBOARD","INTRODUCTION","UNKNOWN"]);
+export const RouteDifficultySchema = z.enum(["LOW","MEDIUM","HIGH"]);
+
+export const OrganisationMapSchema = z.object({
+  summary: z.string().min(1).max(1200),
+  departments: z.array(z.string().min(1).max(180)).max(24),
+  businessUnits: z.array(z.string().min(1).max(180)).max(24),
+  buyingCentres: z.array(z.string().min(1).max(180)).max(20),
+  hierarchy: z.array(z.string().min(1).max(300)).max(24),
+  ownershipSignals: z.array(z.string().min(1).max(400)).max(20),
+});
+
+export const BuyingPathSchema = z.object({
+  name: z.string().min(1).max(180),
+  routeType: RouteTypeSchema,
+  objective: z.string().min(1).max(500),
+  entryRole: z.string().min(1).max(180),
+  targetRole: z.string().min(1).max(180),
+  steps: z.array(z.string().min(1).max(180)).min(1).max(10),
+  rationale: z.string().min(1).max(900),
+  confidence: z.number().int().min(0).max(100),
+});
+
+export const CommercialRouteSchema = z.object({
+  routeKey: z.string().min(1).max(120),
+  routeType: RouteTypeSchema,
+  label: z.string().min(1).max(180),
+  entryRole: z.string().min(1).max(180),
+  targetRole: z.string().min(1).max(180),
+  department: z.string().max(180).optional().nullable(),
+  contactName: z.string().max(180).optional().nullable(),
+  contactRole: z.string().max(180).optional().nullable(),
+  channelType: RouteChannelTypeSchema,
+  channelValue: z.string().max(500).optional().nullable(),
+  authority: z.number().int().min(0).max(100),
+  accessibility: z.number().int().min(0).max(100),
+  commercialRelevance: z.number().int().min(0).max(100),
+  evidenceQuality: z.number().int().min(0).max(100),
+  resilience: z.number().int().min(0).max(100),
+  confidence: z.number().int().min(0).max(100),
+  difficulty: RouteDifficultySchema,
+  rationale: z.string().min(1).max(1200),
+  nextStep: z.string().min(1).max(900),
+  fallbackReason: z.string().max(700).optional().nullable(),
+  evidence: z.array(ContactEvidenceSchema).max(12),
+});
+
 export const ContactDiscoveryResultSchema = z.object({
   schemaVersion: z.literal("contact-discovery/v3"), companyId: z.string().uuid(),
-  researchSummary: z.string().min(1).max(900), contacts: z.array(DiscoveredContactSchema).max(20),
+  researchSummary: z.string().min(1).max(900), organisationMap: OrganisationMapSchema,
+  buyingPaths: z.array(BuyingPathSchema).max(12), routes: z.array(CommercialRouteSchema).max(16),
+  contacts: z.array(DiscoveredContactSchema).max(20),
   companyContactChannels: z.array(CompanyContactChannelSchema).max(30),
   unresolvedRoles: z.array(z.string().min(1).max(180)).max(20), uncertainties: z.array(z.string().min(1).max(500)).max(12),
 });
@@ -86,3 +137,7 @@ export type ContactConfidence = z.infer<typeof ContactConfidenceSchema>;
 export type DiscoveredContact = z.infer<typeof DiscoveredContactSchema>;
 export type CompanyContactChannel = z.infer<typeof CompanyContactChannelSchema>;
 export type ContactDiscoveryResult = z.infer<typeof ContactDiscoveryResultSchema>;
+
+export type OrganisationMap = z.infer<typeof OrganisationMapSchema>;
+export type BuyingPath = z.infer<typeof BuyingPathSchema>;
+export type CommercialRoute = z.infer<typeof CommercialRouteSchema>;

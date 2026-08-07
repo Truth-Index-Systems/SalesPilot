@@ -3,7 +3,7 @@ import type { OpportunityOverview } from "@/lib/opportunities/domain";
 export type AccessRouteView = {
   personName: string | null;
   role: string;
-  type: "direct_email" | "linkedin" | "email_route" | "unverified";
+  type: "direct_email" | "linkedin" | "email_route" | "switchboard" | "introduction" | "unverified";
   typeLabel: string;
   email: string | null;
   emailStatus: string | null;
@@ -52,19 +52,23 @@ function confidencePresentation(confidence: number) {
 }
 
 export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
-  const email = row.primary_contact_email || row.primary_route_email || null;
-  const emailStatus = row.primary_contact_email_status || row.primary_route_verification_status || null;
-  const linkedinUrl = row.primary_contact_linkedin_url || null;
+  const intelligentChannel = row.commercial_route_channel_value || null;
+  const intelligentType = row.commercial_route_channel_type || null;
+  const intelligentEmail = intelligentChannel && ["DIRECT_EMAIL","DEPARTMENT_EMAIL","GENERAL_EMAIL"].includes(intelligentType || "") ? intelligentChannel : null;
+  const intelligentLinkedIn = intelligentChannel && intelligentType === "LINKEDIN" ? intelligentChannel : null;
+  const email = intelligentEmail || row.primary_contact_email || row.primary_route_email || null;
+  const emailStatus = intelligentEmail ? "ROUTE_VERIFIED" : row.primary_contact_email_status || row.primary_route_verification_status || null;
+  const linkedinUrl = intelligentLinkedIn || row.primary_contact_linkedin_url || null;
   const confidence = clampScore(
-    row.route_confidence ?? row.primary_route_confidence ?? row.primary_contact_confidence ?? row.primary_route_score ?? row.contactability ?? 0,
+    row.commercial_route_confidence ?? row.route_confidence ?? row.primary_route_confidence ?? row.primary_contact_confidence ?? row.primary_route_score ?? row.contactability ?? 0,
   );
-  const qualityScore = clampScore(row.route_quality ?? row.primary_route_score ?? confidence);
+  const qualityScore = clampScore(row.commercial_route_quality ?? row.route_quality ?? row.primary_route_score ?? confidence);
   const quality = qualityFromConfidence(qualityScore);
-  const role = row.primary_contact_role || row.primary_route_likely_reader || "Commercial decision maker";
+  const role = row.commercial_route_target_role || row.commercial_route_contact_role || row.primary_contact_role || row.primary_route_likely_reader || "Commercial decision maker";
 
   let type: AccessRouteView["type"] = "unverified";
   let typeLabel = "Route research in progress";
-  if (email && row.primary_contact_name) {
+  if (email && (row.commercial_route_contact_name || row.primary_contact_name)) {
     type = "direct_email";
     typeLabel = "Direct email";
   } else if (linkedinUrl) {
@@ -73,6 +77,12 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
   } else if (email) {
     type = "email_route";
     typeLabel = "Verified email route";
+  } else if (intelligentType === "SWITCHBOARD" && intelligentChannel) {
+    type = "switchboard";
+    typeLabel = "Switchboard route";
+  } else if (intelligentType === "INTRODUCTION" && intelligentChannel) {
+    type = "introduction";
+    typeLabel = "Introduction route";
   }
 
   const reasons: string[] = [];
@@ -81,20 +91,20 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
   if ((row.buying_authority ?? 0) >= 70) reasons.push("the role has strong purchasing authority");
   if ((row.contactability ?? 0) >= 70) reasons.push("the route is highly accessible");
 
-  const recommendation = row.recommended_entry_strategy || row.primary_route_reason || row.contact_reason_selected || (
+  const recommendation = row.commercial_route_rationale || row.recommended_entry_strategy || row.primary_route_reason || row.contact_reason_selected || (
     reasons.length
       ? `Recommended because ${reasons.slice(0, 2).join(" and ")}.`
       : "SalesPilot is still gathering enough evidence to recommend a reliable entry route."
   );
   const confidencePresentationValue = confidencePresentation(confidence);
-  const nextStep = email
-    ? `Approach ${row.primary_contact_name || role} through the supported email route and anchor the opening message to the identified commercial need.`
+  const nextStep = row.commercial_route_next_step || (email
+    ? `Approach ${row.commercial_route_contact_name || row.primary_contact_name || role} through the supported email route and anchor the opening message to the identified commercial need.`
     : linkedinUrl
-      ? `Use LinkedIn to establish relevance with ${row.primary_contact_name || role}, then earn a direct conversation or introduction.`
-      : "Continue route research before beginning outreach.";
+      ? `Use LinkedIn to establish relevance with ${row.commercial_route_contact_name || row.primary_contact_name || role}, then earn a direct conversation or introduction.`
+      : "Continue route research before beginning outreach.");
 
   return {
-    personName: row.primary_contact_name,
+    personName: row.commercial_route_contact_name || row.primary_contact_name,
     role,
     type,
     typeLabel,
@@ -109,7 +119,7 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
     confidenceSummary: confidencePresentationValue.summary,
     recommendation,
     nextStep,
-    isReady: Boolean(email || linkedinUrl),
+    isReady: Boolean(email || linkedinUrl || (intelligentChannel && intelligentType && intelligentType !== "UNKNOWN")),
   };
 }
 

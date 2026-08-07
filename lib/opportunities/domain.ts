@@ -12,7 +12,7 @@ export const OPPORTUNITY_STATUSES = [
 export type OpportunityStatus = (typeof OPPORTUNITY_STATUSES)[number];
 
 export type OpportunityScoreExplanation = {
-  version: "opportunity-score/v1" | "opportunity-score/v2-route-quality";
+  version: "opportunity-score/v1" | "opportunity-score/v2-route-quality" | "opportunity-score/v3-route-intelligence";
   weights: {
     companyFit: number;
     operationalFit: number;
@@ -99,11 +99,36 @@ export type OpportunityOverview = OpportunityFoundation & {
   primary_route_likely_reader: string | null;
   primary_route_reason: string | null;
   primary_route_source_url: string | null;
+  commercial_route_id: string | null;
+  commercial_route_type: string | null;
+  commercial_route_label: string | null;
+  commercial_route_entry_role: string | null;
+  commercial_route_target_role: string | null;
+  commercial_route_department: string | null;
+  commercial_route_contact_name: string | null;
+  commercial_route_contact_role: string | null;
+  commercial_route_channel_type: string | null;
+  commercial_route_channel_value: string | null;
+  commercial_route_quality: number | null;
+  commercial_route_confidence: number | null;
+  commercial_route_authority: number | null;
+  commercial_route_accessibility: number | null;
+  commercial_route_evidence_quality: number | null;
+  commercial_route_resilience: number | null;
+  commercial_route_difficulty: string | null;
+  commercial_route_rationale: string | null;
+  commercial_route_next_step: string | null;
+  commercial_route_count: number;
+  commercial_route_evidence_count: number;
+  organisation_map: Record<string, unknown> | null;
+  buying_paths: Array<Record<string, unknown>> | null;
 };
 
 export type OpportunityDetail = OpportunityOverview & {
   company_evidence: Array<Record<string, unknown>>;
   contact_evidence: Array<Record<string, unknown>>;
+  commercial_routes: Array<Record<string, unknown>>;
+  commercial_route_evidence: Array<Record<string, unknown>>;
   history: Array<Record<string, unknown>>;
 };
 
