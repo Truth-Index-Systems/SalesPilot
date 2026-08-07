@@ -9,6 +9,7 @@ import { companyCounts, getDiscoveryActivity, getDiscoveryForCampaign } from "@/
 import { DiscoveryRetryButton } from "@/components/discovery-retry-button";
 import { DiscoveryActivityTicker } from "@/components/discovery-activity-ticker";
 import { CampaignControlActions } from "@/components/campaign-control-actions";
+import { CampaignAutoRefresh } from "@/components/campaign-auto-refresh";
 import { contactCounts, listContactDiscoveryForCampaign } from "@/lib/contacts/repository";
 import { listCampaignOpportunities } from "@/lib/opportunities/repository";
 import type { OpportunityOverview } from "@/lib/opportunities/domain";
@@ -111,6 +112,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const journey = journeyLabels.map((label, index) => [label, index < stageIndex ? "complete" : index === stageIndex ? "current" : "future"] as const);
 
   return <AppShell title={campaign.name} user={user} workspaceStats={{ campaigns: campaignCount, companies: companyCount, replies: 0, opportunities: opportunityCount }}>
+    <CampaignAutoRefresh active={!campaignPaused} intervalMs={2000}/>
     <PageHeader eyebrow="Outbound sales campaign" title={campaign.name} subtitle="Your approved campaign, current position and next milestone in one place." action={<div className="campaign-page-actions"><span className={`badge ${campaignPaused ? "amber" : "green"}`}>{campaignPaused ? "Paused" : `${campaign.matchLabel} · ${campaign.fitScore}/100`}</span><CampaignControlActions campaignId={id} campaignName={campaign.name} status={record.status}/></div>}/>
 
     <section className="campaign-summary-strip" aria-label="Campaign summary">
@@ -137,7 +139,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         <span>{opportunityCount > 0 ? "Current commercial stage" : "Current intelligence stage"}</span>
         <strong>{opportunityApproved > 0 ? "Engagement" : opportunityCount > 0 ? "Opportunity Review" : contactsActive ? "Route Research" : "Company Discovery"}</strong>
         <small>{opportunityCount > 0 ? `${opportunityRecommended} recommended · top score ${topOpportunity?.opportunity_score ?? 0}/100` : contactsActive ? `${contactResearching} companies researching · ${pendingContactCount} contacts awaiting review` : reviewComplete ? "Building buyer and reachability intelligence" : stageLabel}</small>
-        {opportunityCount > 0 ? <Link className="campaign-stage-link" href={`/opportunities?campaign=${id}`}>Open campaign opportunities →</Link> : contactsActive ? <Link className="campaign-stage-link" href={`/contacts?campaign=${id}`}>View supporting contacts →</Link> : null}
+        {pendingCompanyCount > 0 ? <Link className="campaign-stage-link" href={`/companies?campaign=${id}&status=PENDING_REVIEW`}>Review {pendingCompanyCount} compan{pendingCompanyCount === 1 ? "y" : "ies"} →</Link> : opportunityCount > 0 ? <Link className="campaign-stage-link" href={`/opportunities?campaign=${id}`}>Open campaign opportunities →</Link> : contactsActive ? <Link className="campaign-stage-link" href={`/contacts?campaign=${id}`}>View supporting contacts →</Link> : null}
       </div>
       <div className="campaign-roadmap" aria-label="Sales campaign journey">
         {journey.map(([label, state], index) => <div className={`roadmap-stage ${state}`} key={label}>
@@ -146,6 +148,12 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         </div>)}
       </div>
     </div>
+
+    {pendingCompanyCount > 0 && <Card className="campaign-contact-status company-review-callout">
+      <div><span className="eyebrow">Company approval</span><h3>{pendingCompanyCount} verified compan{pendingCompanyCount === 1 ? "y is" : "ies are"} ready for your judgement</h3><p>SalesPilot has completed the evidence check. Approve the commercial matches you want to progress or reject the ones that should not enter the campaign route.</p></div>
+      <div className="campaign-contact-metrics"><div><span>Awaiting review</span><strong>{pendingCompanyCount}</strong></div><div><span>Approved</span><strong>{approvedCompanyCount}</strong></div><div><span>Not selected</span><strong>{rejectedCompanyCount}</strong></div></div>
+      <Link className="button primary" href={`/companies?campaign=${id}&status=PENDING_REVIEW`}>Review companies</Link>
+    </Card>}
 
     {opportunityCount > 0 && <Card className="campaign-contact-status opportunity-campaign-status">
       <div><span className="eyebrow">Opportunities</span><h3>{opportunityApproved > 0 ? "Opportunities approved for engagement" : opportunityRecommended > 0 ? "Your strongest opportunities are ready" : "Commercial opportunities are ready to review"}</h3><p>SalesPilot has combined company fit, commercial need, route quality and evidence into one ranked recommendation. Supporting company and route records remain available for deeper inspection.</p></div>

@@ -2,6 +2,7 @@ import "server-only";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { ContactDiscoveryResultSchema } from "./schemas";
+import { ContactDiscoveryGatewaySchema, canonicaliseContactDiscoveryOutput } from "./structured-output";
 import { normaliseContactDiscoveryResult } from "./normalise";
 import { compactContactDiscoveryInput, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
@@ -62,7 +63,10 @@ export async function discoverContacts(input:{organisationId:string;campaignId:s
   const json:unknown=await response.json().catch(()=>null);
   if(!response.ok){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null,errorCode:`HTTP_${response.status}`,errorMessage:JSON.stringify((json as any)?.error??null)}).catch(()=>undefined);throw new Error(`OPENAI_CONTACT_DISCOVERY_FAILED:${response.status}:${JSON.stringify((json as any)?.error??null)}`);}
   let parsed:ReturnType<typeof ContactDiscoveryResultSchema.parse>;
-  try{const gateway=await parseStructuredAiResponse({response:json,schema:ContactDiscoveryResultSchema,jsonSchema:schema,schemaName:"salespilot_contact_discovery_v3",apiKey,model});parsed=gateway.value;}catch(error){const safe=safeStructuredAiError(error);await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null,errorCode:safe.code,errorMessage:safe.message}).catch(()=>undefined);throw new Error(`CONTACT_DISCOVERY_RESPONSE_${safe.code}`);}
+  try{
+    const gateway=await parseStructuredAiResponse({response:json,schema:ContactDiscoveryGatewaySchema,jsonSchema:schema,schemaName:"salespilot_contact_discovery_v3",apiKey,model});
+    parsed=canonicaliseContactDiscoveryOutput(gateway.value,String(input.company.id??input.company.company_id??""));
+  }catch(error){const safe=safeStructuredAiError(error);await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null,errorCode:safe.code,errorMessage:safe.message}).catch(()=>undefined);throw new Error(`CONTACT_DISCOVERY_RESPONSE_${safe.code}`);}
   if(parsed.companyId!==String(input.company.id))throw new Error("CONTACT_DISCOVERY_COMPANY_MISMATCH");
   await completeAiRequest({ledgerId:reservation.ledgerId,ok:true,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null});
   return normaliseContactDiscoveryResult(parsed,String(input.company.website_url??""));
