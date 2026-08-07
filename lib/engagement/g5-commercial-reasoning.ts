@@ -1,7 +1,7 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
-import { claimG5EngagementStrategy, failG5EngagementStrategy, seedG5EngagementStrategies } from "./g5-state-machine";
+import { failG5EngagementStrategy, seedG5EngagementStrategies } from "./g5-state-machine";
 import { generateG5CommercialReasoning } from "./g5-commercial-reasoning-openai";
 
 export type G5CommercialReasoningWorkerResult = {
@@ -20,12 +20,11 @@ type G5ReasoningContext = {
 export async function runNextG5CommercialReasoning(schedulerRunId: string): Promise<G5CommercialReasoningWorkerResult> {
   await seedG5EngagementStrategies(schedulerRunId);
 
-  const claim = await claimG5EngagementStrategy({
-    schedulerRunId,
-    expectedState: "WAITING",
-    nextState: "REASONING",
-    leaseSeconds: 180,
-  });
+  const claims = await databaseRequest<Array<{ strategy_id: string; lease_token: string; opportunity_id: string; source_engagement_id: string | null }>>(
+    "rpc/claim_g5_commercial_reasoning",
+    { method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId, p_lease_seconds: 180 }) },
+  );
+  const claim = claims[0] ?? null;
   if (!claim) return { processed: false, outcome: "NO_JOB" };
 
   try {

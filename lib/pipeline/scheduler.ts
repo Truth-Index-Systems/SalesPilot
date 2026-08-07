@@ -6,7 +6,6 @@ import type { WorkerExecutionResult } from "./executor";
 import { syncOpportunityFoundations } from "@/lib/opportunities/builder";
 import type { OpportunityScoringSummary, OpportunitySyncSummary } from "@/lib/opportunities/domain";
 import { scoreOpportunityIntelligence } from "@/lib/opportunities/scoring";
-import { buildEngagements } from "@/lib/engagement/builder";
 import type { EngagementBuilderResult } from "@/lib/engagement/types";
 import { runNextG5CommercialReasoning, type G5CommercialReasoningWorkerResult } from "@/lib/engagement/g5-commercial-reasoning";
 import { runNextG5ChannelStrategy, type G5ChannelStrategyWorkerResult } from "@/lib/engagement/g5-channel-strategy";
@@ -16,8 +15,7 @@ import { runNextG5SelfReview, type G5SelfReviewWorkerResult } from "@/lib/engage
 import { runNextG5EngagementQuality, type G5EngagementQualityWorkerResult } from "@/lib/engagement/g5-engagement-quality";
 import { runG5ExecutionCycle, type G5ExecutionResult } from "@/lib/engagement/g5-execution";
 import { runG5AutopilotApproval, type G5AutopilotApprovalResult } from "@/lib/engagement/g5-autopilot";
-import { buildEngagementLearning } from "@/lib/learning/service";
-import { syncEngagementStrategies, syncEngagementLearningGuidance, reconcileEngagementFailures, type EngagementStrategySyncResult, type EngagementLearningGuidanceResult } from "@/lib/engagement/strategy";
+import type { EngagementStrategySyncResult, EngagementLearningGuidanceResult } from "@/lib/engagement/strategy";
 import type { EngagementLearningBuilderResult } from "@/lib/learning/types";
 import {
   acquirePipelineSchedulerLease,
@@ -153,14 +151,12 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     const opportunityScoring = opportunity && hasSchedulerBudget(schedulerStartedAt, 8_000)
       ? await scoreOpportunityIntelligence(runId)
       : null;
-    const engagement = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await buildEngagements(runId) : null;
-    const engagementStrategy = engagement && hasSchedulerBudget(schedulerStartedAt, 8_000)
-      ? await syncEngagementStrategies(runId)
-      : null;
-    const engagementLearningGuidance = engagement && hasSchedulerBudget(schedulerStartedAt, 8_000)
-      ? await syncEngagementLearningGuidance(runId)
-      : null;
-    if (engagement && hasSchedulerBudget(schedulerStartedAt, 8_000)) await reconcileEngagementFailures(runId);
+    // G5 freeze boundary: the legacy G4 engagement domain is no longer scheduler-driven.
+    // G5 seeds directly from approved Opportunities and owns every engagement stage onward.
+    // Keep these result fields null for response-shape compatibility only.
+    const engagement: EngagementBuilderResult | null = null;
+    const engagementStrategy: EngagementStrategySyncResult | null = null;
+    const engagementLearningGuidance: EngagementLearningGuidanceResult | null = null;
 
     // G5 owns engagement intelligence from the approved Opportunity boundary onward.
     // Run at most ONE G5 AI worker per scheduler cycle. R2 gets first refusal for
@@ -214,7 +210,8 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     const engagementQueue: G5ExecutionResult | null = hasSchedulerBudget(schedulerStartedAt, 8_000)
       ? await runG5ExecutionCycle(runId)
       : null;
-    const engagementLearning = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await buildEngagementLearning(runId) : null;
+    // Legacy G4 learning is frozen. R11 records factual G5 events; learning is deferred to G6/G7.
+    const engagementLearning: EngagementLearningBuilderResult | null = null;
 
     await recordPipelineSchedulerOutcome(runId, company, contact, {
       contactFoundation,
