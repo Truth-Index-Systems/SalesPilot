@@ -46,7 +46,12 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
     : outreach?.channel === "LINKEDIN" ? (outreach.content.linkedinMessage || outreach.content.linkedinConnectionNote)
     : outreach?.channel === "SWITCHBOARD" ? outreach.content.switchboardOpening
     : outreach?.channel === "REFERRAL" ? outreach.content.referralRequest : null;
-  const selectedCommercialRoute = channelStrategy?.primary?.routeId ? commercialRoutes.find((item: any) => item.id === channelStrategy.primary.routeId) : null;
+  const selectedCommercialRoute = channelStrategy?.primary?.routeId ? commercialRoutes.find((item: any) => item.id === channelStrategy.primary.routeId) as Record<string, unknown> | undefined : null;
+  const selectedCommercialRouteLabel = typeof selectedCommercialRoute?.label === "string" && selectedCommercialRoute.label.trim()
+    ? selectedCommercialRoute.label
+    : typeof selectedCommercialRoute?.targetRole === "string" && selectedCommercialRoute.targetRole.trim()
+      ? selectedCommercialRoute.targetRole
+      : channelStrategy?.primary?.selectionReason || "Selected commercial route";
 
   return <AppShell title={opportunity.company_name} user={user} workspaceStats={{ campaigns: campaigns.length, companies: new Set(all.map(row => row.company_id)).size, replies: 0, opportunities: all.length }}>
     <PageHeader eyebrow={`Opportunity #${opportunity.rank} · ${opportunity.campaign_name}`} title={opportunity.company_name} subtitle="One commercial recommendation combining the business match, the best access route, reachability and transparent evidence." action={<span className="badge green"><ShieldCheck size={14}/> {statusLabel(opportunity.status)}</span>} />
@@ -98,7 +103,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
       <div className="section-head"><div><span className="eyebrow">G5 engagement intelligence</span><div className="card-title">Recommended first engagement</div><div className="card-subtitle">The commercial argument, chosen G4 route and independently reviewed first-touch message in one approval surface.</div></div><span className={`badge ${engagementStrategy.state === "APPROVED" ? "green" : ""}`}>{engagementStrategy.state === "APPROVED" ? "Approved" : "Ready for approval"}</span></div>
       <div className="g5-approval-summary section">
         <div className="g5-confidence-panel"><strong>{engagementStrategy.engagement_confidence}</strong><span>Engagement confidence</span><small>Separate from Opportunity Score</small></div>
-        <div className="g5-first-move"><span>Recommended first move</span><strong>{channelStrategy.primary.executionChannel}</strong><small>{selectedCommercialRoute?.label || selectedCommercialRoute?.targetRole || channelStrategy.primary.selectionReason}</small></div>
+        <div className="g5-first-move"><span>Recommended first move</span><strong>{channelStrategy.primary.executionChannel}</strong><small>{selectedCommercialRouteLabel}</small></div>
         <div className="g5-first-move"><span>Why this route</span><strong>{channelStrategy.primary.selectionReason}</strong><small>{channelStrategy.primaryWhyNow}</small></div>
       </div>
       <div className="grid cols-2 section g5-commercial-argument">
