@@ -29,7 +29,7 @@ export async function getCompany(id: string) {
 
 export async function getDiscoveryForCampaign(campaignId: string) {
   const context = await requireOrganisationContext();
-  const rows = await databaseRequest<any[]>(`discovery_sessions?campaign_id=eq.${encodeURIComponent(campaignId)}&organisation_id=eq.${context.organisationId}&order=updated_at.desc&limit=1`);
+  const rows = await databaseRequest<any[]>(`discovery_sessions?campaign_id=eq.${encodeURIComponent(campaignId)}&organisation_id=eq.${context.organisationId}&order=cycle_number.desc,updated_at.desc,created_at.desc&limit=1`);
   return rows[0] ?? null;
 }
 

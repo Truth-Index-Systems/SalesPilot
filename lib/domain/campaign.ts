@@ -1,6 +1,6 @@
 /** Canonical persisted campaign domain. Historical transient pipeline stage names
  * do not belong in campaign.status; stage/progress is derived from worker state. */
-export type CampaignStatus = "DRAFT"|"PREPARING"|"READY"|"PAUSED"|"FAILED"|"ARCHIVED";
+export type CampaignStatus = "DRAFT"|"PREPARING"|"READY"|"PAUSED"|"ARCHIVED";
 export type AutomationMode = "AUTOPILOT"|"APPROVAL"|"ASSISTED";
 export type Campaign = {
   id:string; organisationId:string; name:string; status:CampaignStatus; automationMode:AutomationMode;

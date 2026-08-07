@@ -18,7 +18,7 @@ must(page.includes('blockingDiscoveryNeedsAttention'), 'campaign page must disti
 must(page.includes('backgroundDiscoveryNeedsAttention'), 'campaign page must distinguish replenishment failure');
 must(page.includes('Company replenishment paused'), 'non-blocking replenishment diagnostic missing');
 must(page.includes('routeHandoffReady'), 'route handoff must not depend on discovery completion state');
-must(repo.includes('order=updated_at.desc&limit=1'), 'discovery repository must select deterministic current state');
-must(status.includes('order=updated_at.desc&limit=1'), 'discovery status API must select deterministic current state');
+must(repo.includes('order=cycle_number.desc,updated_at.desc,created_at.desc&limit=1'), 'discovery repository must select deterministic current state');
+must(status.includes('order=cycle_number.desc,updated_at.desc,created_at.desc&limit=1'), 'discovery status API must select deterministic current state');
 
 console.log('G4.7.9 company discovery legacy recovery/freeze checks passed');

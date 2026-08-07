@@ -6,7 +6,6 @@ export function presentCampaignStatus(status: CampaignSummary["status"]): string
     case "PREPARING": return "SalesPilot is preparing this campaign";
     case "READY": return "Ready for the next stage";
     case "PAUSED": return "Paused";
-    case "FAILED": return "This campaign needs attention";
     case "ARCHIVED": return "Archived";
     case "DRAFT": return "Draft";
   }

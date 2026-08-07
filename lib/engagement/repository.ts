@@ -8,7 +8,6 @@ import type {
   EngagementHistory,
   EngagementOverview,
   EngagementStatus,
-  EngagementSyncSummary,
   EngagementUpdate,
 } from "./types";
 
@@ -79,14 +78,4 @@ export async function updateEngagement(id: string, update: EngagementUpdate): Pr
 
 export function changeEngagementStatus(id: string, status: EngagementStatus) {
   return updateEngagement(id, { status });
-}
-
-export async function syncOpportunityEngagementBridge(schedulerRunId: string): Promise<EngagementSyncSummary> {
-  const empty: EngagementSyncSummary = { created: 0, updated: 0, cancelled: 0, readyForDraft: 0, needsRoute: 0 };
-  const result = await databaseRequest<EngagementSyncSummary | EngagementSyncSummary[]>(
-    "rpc/sync_opportunity_engagement_bridge",
-    { method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }) },
-  );
-  if (Array.isArray(result)) return result[0] ?? empty;
-  return result ?? empty;
 }

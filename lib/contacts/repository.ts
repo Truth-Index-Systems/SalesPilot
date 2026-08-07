@@ -43,7 +43,7 @@ export async function getContact(id: string) {
 export async function getContactDiscoveryForCompany(campaignId: string, companyId: string) {
   const context = await requireOrganisationContext();
   const rows = await databaseRequest<any[]>(
-    `contact_discovery_sessions?organisation_id=eq.${context.organisationId}&campaign_id=eq.${encodeURIComponent(campaignId)}&company_id=eq.${encodeURIComponent(companyId)}&limit=1`,
+    `contact_discovery_sessions?organisation_id=eq.${context.organisationId}&campaign_id=eq.${encodeURIComponent(campaignId)}&company_id=eq.${encodeURIComponent(companyId)}&order=updated_at.desc,created_at.desc&limit=1`,
   );
   return rows[0] ?? null;
 }

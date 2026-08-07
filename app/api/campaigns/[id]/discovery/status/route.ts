@@ -7,7 +7,7 @@ export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){
  try{
   const {id}=await params;
   const context=await requireOrganisationContext();
-  const sessions=await databaseRequest<any[]>(`discovery_sessions?campaign_id=eq.${encodeURIComponent(id)}&organisation_id=eq.${context.organisationId}&order=updated_at.desc&limit=1`);
+  const sessions=await databaseRequest<any[]>(`discovery_sessions?campaign_id=eq.${encodeURIComponent(id)}&organisation_id=eq.${context.organisationId}&order=cycle_number.desc,updated_at.desc,created_at.desc&limit=1`);
   if(!sessions[0]) return NextResponse.json({ok:true,discovery:null,activities:[],companyCount:0});
   const [activities,companies]=await Promise.all([
    databaseRequest<any[]>(`discovery_activity?campaign_id=eq.${encodeURIComponent(id)}&organisation_id=eq.${context.organisationId}&order=occurred_at.desc&limit=8`),
