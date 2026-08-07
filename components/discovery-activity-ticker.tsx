@@ -5,7 +5,7 @@ import { CheckCircle2 } from "@/components/icons";
 import { isJobActive, isJobRetryScheduled, isJobRunning, jobStateLabel, resolvePersistedJobState } from "@/lib/pipeline/presentation";
 
 type Activity={id:string;title:string;description?:string|null;occurred_at:string};
-type Discovery={status:string;job_state?:string|null;stage:string;progress:number;recommendations_saved:number;next_retry_at?:string|null};
+type Discovery={status:string;job_state?:string|null;stage:string;progress:number;recommendations_saved:number;next_retry_at?:string|null;next_attempt_at?:string|null;attempt_count?:number|null;last_error_code?:string|null;updated_at?:string|null};
 
 function snapshot(discovery:Discovery|null,activities:Activity[],companyCount:number){
  return JSON.stringify({
@@ -15,6 +15,10 @@ function snapshot(discovery:Discovery|null,activities:Activity[],companyCount:nu
   progress:discovery?.progress??null,
   saved:discovery?.recommendations_saved??null,
   retry:discovery?.next_retry_at??null,
+  nextAttempt:discovery?.next_attempt_at??null,
+  attempts:discovery?.attempt_count??null,
+  errorCode:discovery?.last_error_code??null,
+  updatedAt:discovery?.updated_at??null,
   companyCount,
   activities:activities.slice(0,8).map(item=>[item.id,item.title,item.occurred_at]),
  });
