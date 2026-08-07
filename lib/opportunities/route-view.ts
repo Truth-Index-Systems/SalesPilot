@@ -8,6 +8,7 @@ export type AccessRouteView = {
   email: string | null;
   emailStatus: string | null;
   linkedinUrl: string | null;
+  phone: string | null;
   confidence: number;
   quality: number;
   qualityStars: string;
@@ -59,6 +60,7 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
   const email = intelligentEmail || row.primary_contact_email || row.primary_route_email || null;
   const emailStatus = intelligentEmail ? "ROUTE_VERIFIED" : row.primary_contact_email_status || row.primary_route_verification_status || null;
   const linkedinUrl = intelligentLinkedIn || row.primary_contact_linkedin_url || null;
+  const phone = intelligentChannel && intelligentType === "SWITCHBOARD" ? intelligentChannel : null;
   const confidence = clampScore(
     row.commercial_route_confidence ?? row.route_confidence ?? row.primary_route_confidence ?? row.primary_contact_confidence ?? row.primary_route_score ?? row.contactability ?? 0,
   );
@@ -88,6 +90,7 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
   const reasons: string[] = [];
   if (email) reasons.push("a supported email route is available");
   if (linkedinUrl) reasons.push("a public LinkedIn profile is available");
+  if (phone) reasons.push(`a verified switchboard number (${phone}) is available`);
   if ((row.buying_authority ?? 0) >= 70) reasons.push("the role has strong purchasing authority");
   if ((row.contactability ?? 0) >= 70) reasons.push("the route is highly accessible");
 
@@ -101,7 +104,9 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
     ? `Approach ${row.commercial_route_contact_name || row.primary_contact_name || role} through the supported email route and anchor the opening message to the identified commercial need.`
     : linkedinUrl
       ? `Use LinkedIn to establish relevance with ${row.commercial_route_contact_name || row.primary_contact_name || role}, then earn a direct conversation or introduction.`
-      : "Continue route research before beginning outreach.");
+      : phone
+        ? `Call ${phone} and use the verified switchboard route to reach ${row.commercial_route_contact_name || row.primary_contact_name || role}.`
+        : "Continue route research before beginning outreach.");
 
   return {
     personName: row.commercial_route_contact_name || row.primary_contact_name,
@@ -111,6 +116,7 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
     email,
     emailStatus,
     linkedinUrl,
+    phone,
     confidence,
     quality,
     qualityStars: stars(quality),

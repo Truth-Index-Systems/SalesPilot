@@ -104,6 +104,7 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
             <div className="opportunity-channel-row">
               <div className={channel ? "available" : "unknown"}><Mail size={15}/><span>{channel || "Email route not found"}</span></div>
               <div className={route.linkedinUrl ? "available" : "unknown"}><ExternalLink size={15}/><span>{route.linkedinUrl ? "LinkedIn route available" : "LinkedIn route unknown"}</span></div>
+              {route.phone && <div className="available"><ContactRound size={15}/><span>{route.phone}</span></div>}
               <div><ShieldCheck size={15}/><span>{row.status === "BUILDING" ? `${Number(row.company_evidence_count)} company evidence source${Number(row.company_evidence_count) === 1 ? "" : "s"} · route evidence building` : `${Number(row.company_evidence_count) + Number(row.contact_evidence_count) + Number(row.commercial_route_evidence_count || 0)} evidence sources · ${row.commercial_route_count || 0} viable routes`}</span></div>
             </div>
             </Link>

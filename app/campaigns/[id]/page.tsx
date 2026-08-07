@@ -112,6 +112,10 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const contactResearching = contactSessions.filter(session => resolvePersistedJobState(session) === "RUNNING").length;
   const contactQueued = contactSessions.filter(session => resolvePersistedJobState(session) === "QUEUED").length;
   const contactRetryScheduled = contactSessions.filter(isJobRetryScheduled).length;
+  const routeMarketScanTotal = contactSessions.length;
+  const routeMarketScanComplete = contactSessions.filter(session => Number(session.route_expansion_pass ?? 0) >= 1 || isJobComplete(session)).length;
+  const routeMarketScanPending = Math.max(0, routeMarketScanTotal - routeMarketScanComplete);
+  const routeDepthFocused = contactSessions.some(session => Boolean(session.depth_focus_started_at) && !isJobComplete(session) && resolvePersistedJobState(session) !== "CANCELLED");
   const contactResearchComplete = contactSessions.length > 0 && contactSessions.every(session => isJobComplete(session) || resolvePersistedJobState(session) === "CANCELLED");
   const contactReviewComplete = contactResearchComplete && contactCount > 0 && pendingContactCount === 0;
   const contactsActive = approvedCompanyCount > 0 && (contactResearching > 0 || contactQueued > 0 || contactRetryScheduled > 0 || contactCount > 0 || contactSessions.length > 0);
@@ -184,8 +188,8 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     </Card>}
 
     {approvedCompanyCount > 0 && <Card className="campaign-contact-status">
-      <div><span className="eyebrow">Supporting route research</span><h3>{contactReviewComplete ? "Decision-makers approved" : contactResearching ? "SalesPilot is researching decision-makers" : pendingContactCount ? "Contacts are awaiting your judgement" : "Approved companies are entering route research"}</h3><p>{contactReviewComplete ? "Approved buyers are being composed into ranked opportunities." : "SalesPilot retains the underlying buyer research here so every opportunity remains transparent and auditable."}</p></div>
-      <div className="campaign-contact-metrics"><div><span>Researching</span><strong>{contactResearching}</strong></div><div><span>Awaiting review</span><strong>{pendingContactCount}</strong></div><div><span>Approved</span><strong>{approvedContactCount}</strong></div></div>
+      <div><span className="eyebrow">Supporting route research</span><h3>{contactReviewComplete ? "Decision-makers approved" : routeMarketScanPending > 0 ? "SalesPilot is scanning every approved company" : routeDepthFocused ? "Market scan complete · deep research underway" : contactResearching ? "SalesPilot is completing route research" : pendingContactCount ? "Contacts are awaiting your judgement" : "Approved companies are entering route research"}</h3><p>{contactReviewComplete ? "Approved buyers are being composed into ranked opportunities." : routeMarketScanPending > 0 ? `First-pass market coverage: ${routeMarketScanComplete} of ${routeMarketScanTotal} companies researched. SalesPilot will deepen the strongest accounts after every approved company has had its first pass.` : "The first-pass market scan is complete. SalesPilot is now completing the strongest accounts one at a time so opportunities arrive as finished commercial briefings."}</p></div>
+      <div className="campaign-contact-metrics"><div><span>Market scan</span><strong>{routeMarketScanComplete}/{routeMarketScanTotal}</strong></div><div><span>Deep research</span><strong>{routeDepthFocused ? "Active" : routeMarketScanPending > 0 ? "Waiting" : "Ready"}</strong></div><div><span>Awaiting review</span><strong>{pendingContactCount}</strong></div></div>
       <Link className="button secondary" href={`/contacts?campaign=${id}`}>{pendingContactCount ? "Review routes" : "View routes"}</Link>
     </Card>}
 

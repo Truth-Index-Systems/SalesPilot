@@ -54,6 +54,13 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
     : typeof selectedCommercialRoute?.targetRole === "string" && selectedCommercialRoute.targetRole.trim()
       ? selectedCommercialRoute.targetRole
       : channelStrategy?.primary?.selectionReason || "Selected commercial route";
+  const selectedCommercialRouteChannelType = typeof selectedCommercialRoute?.channelType === "string" ? selectedCommercialRoute.channelType : null;
+  const selectedCommercialRouteChannelValue = typeof selectedCommercialRoute?.channelValue === "string" && selectedCommercialRoute.channelValue.trim()
+    ? selectedCommercialRoute.channelValue.trim()
+    : null;
+  const selectedCommercialRouteDisplay = selectedCommercialRouteChannelType === "SWITCHBOARD" && selectedCommercialRouteChannelValue
+    ? `${selectedCommercialRouteLabel} · ${selectedCommercialRouteChannelValue}`
+    : selectedCommercialRouteLabel;
 
   return <AppShell title={opportunity.company_name} user={user} workspaceStats={{ campaigns: campaigns.length, companies: new Set(all.map(row => row.company_id)).size, replies: 0, opportunities: all.length }}>
     <PageHeader eyebrow={`Opportunity #${opportunity.rank} · ${opportunity.campaign_name}`} title={opportunity.company_name} subtitle="One commercial recommendation combining the business match, the best access route, reachability and transparent evidence." action={<span className="badge green"><ShieldCheck size={14}/> {statusLabel(opportunity.status)}</span>} />
@@ -83,7 +90,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
           <div><span>Recommended route</span><strong>{route.typeLabel}</strong><small>{route.confidenceSummary}</small></div>
         </div>
         <div className="route-strategy-callout section"><Target size={18}/><div><span>Recommended entry strategy</span><strong>{route.nextStep}</strong></div></div>
-        <div className="contact-channel-strip section"><div className={route.email ? "contact-channel verified" : "contact-channel unknown"}><Mail size={14}/><div><span>Best email route</span><strong>{route.email || "Unknown"}</strong><small>{route.emailStatus || "Not found"}</small></div></div><div className={route.linkedinUrl ? "contact-channel verified" : "contact-channel unknown"}><ExternalLink size={14}/><div><span>LinkedIn route</span><strong>{route.linkedinUrl ? "Profile matched" : "Unknown"}</strong><small>{route.linkedinUrl ? "Public profile available" : "Not found"}</small></div></div></div>
+        <div className="contact-channel-strip section"><div className={route.email ? "contact-channel verified" : "contact-channel unknown"}><Mail size={14}/><div><span>Best email route</span><strong>{route.email || "Unknown"}</strong><small>{route.emailStatus || "Not found"}</small></div></div><div className={route.linkedinUrl ? "contact-channel verified" : "contact-channel unknown"}><ExternalLink size={14}/><div><span>LinkedIn route</span><strong>{route.linkedinUrl ? "Profile matched" : "Unknown"}</strong><small>{route.linkedinUrl ? "Public profile available" : "Not found"}</small></div></div>{route.phone && <div className="contact-channel verified"><ContactRound size={14}/><div><span>Switchboard / phone</span><strong>{route.phone}</strong><small>Verified route number</small></div></div>}</div>
       </Card>
     </div>
 
@@ -95,7 +102,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
       </Card>
       <Card>
         <div className="section-head"><div><div className="card-title">Alternative commercial routes</div><div className="card-subtitle">Independent fallback paths protect the opportunity when one contact or channel fails.</div></div><span className="badge green">{commercialRoutes.filter((item:any)=>item.isViable).length} viable</span></div>
-        {commercialRoutes.length ? <div className="review-history section">{commercialRoutes.slice(0,6).map((item:any)=><div className="review-history-item" key={item.id}><div><strong>{item.label || item.targetRole}</strong><span>{item.entryRole} → {item.targetRole} · {String(item.channelType || "UNKNOWN").replaceAll("_"," ").toLowerCase()}</span><small>{item.rationale}</small></div><span className="badge">{Number(item.routeQuality || 0)}/100</span></div>)}</div> : <div className="verified-empty section"><span>Alternative route research is still in progress.</span></div>}
+        {commercialRoutes.length ? <div className="review-history section">{commercialRoutes.slice(0,6).map((item:any)=>{const routeChannel=String(item.channelType || "UNKNOWN");const routeValue=typeof item.channelValue === "string" && item.channelValue.trim() ? item.channelValue.trim() : null;return <div className="review-history-item" key={item.id}><div><strong>{item.label || item.targetRole}</strong><span>{item.entryRole} → {item.targetRole} · {routeChannel.replaceAll("_"," ").toLowerCase()}{routeChannel === "SWITCHBOARD" && routeValue ? ` · ${routeValue}` : ""}</span><small>{item.rationale}</small></div><span className="badge">{Number(item.routeQuality || 0)}/100</span></div>})}</div> : <div className="verified-empty section"><span>Alternative route research is still in progress.</span></div>}
       </Card>
     </div>}
 
@@ -105,7 +112,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
       <div className="section-head"><div><span className="eyebrow">G5 engagement intelligence</span><div className="card-title">Recommended first engagement</div><div className="card-subtitle">The commercial argument, chosen G4 route and independently reviewed first-touch message in one approval surface.</div></div><span className={`badge ${engagementStrategy.state === "APPROVED" ? "green" : ""}`}>{engagementStrategy.state === "APPROVED" ? "Approved" : "Ready for approval"}</span></div>
       <div className="g5-approval-summary section">
         <div className="g5-confidence-panel"><strong>{engagementStrategy.engagement_confidence}</strong><span>Engagement confidence</span><small>Separate from Opportunity Score</small></div>
-        <div className="g5-first-move"><span>Recommended first move</span><strong>{channelStrategy.primary.executionChannel}</strong><small>{selectedCommercialRouteLabel}</small></div>
+        <div className="g5-first-move"><span>Recommended first move</span><strong>{channelStrategy.primary.executionChannel}</strong><small>{selectedCommercialRouteDisplay}</small></div>
         <div className="g5-first-move"><span>Why this route</span><strong>{channelStrategy.primary.selectionReason}</strong><small>{channelStrategy.primaryWhyNow}</small></div>
       </div>
       <div className="grid cols-2 section g5-commercial-argument">
@@ -115,6 +122,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
       <div className="g5-message-preview section">
         <div className="section-head"><div><h3>Outreach</h3><p>{outreach.channel === "EMAIL" ? "Email" : outreach.channel === "LINKEDIN" ? "LinkedIn" : outreach.channel === "SWITCHBOARD" ? "Switchboard script" : "Referral request"} · {outreach.tone.toLowerCase()} tone</p></div><span className="badge green">AI reviewed</span></div>
         {outreach.channel === "EMAIL" && outreach.content.subject && <div className="g5-message-subject"><span>Subject</span><strong>{outreach.content.subject}</strong></div>}
+        {outreach.channel === "SWITCHBOARD" && selectedCommercialRouteChannelValue && <div className="g5-message-subject"><span>Phone number</span><strong>{selectedCommercialRouteChannelValue}</strong></div>}
         <div className="g5-message-body">{outreachBody}</div>
         <div className="g5-message-cta"><span>Call to action</span><strong>{outreach.callToAction}</strong></div>
       </div>
