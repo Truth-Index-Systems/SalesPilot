@@ -6,7 +6,8 @@ export type WorkerExecutionOutcome =
   | "COMPLETED_NO_RESULTS"
   | "CONTINUING"
   | "ROUTE_EXPANSION_QUEUED"
-  | "ROUTE_RESEARCH_EXHAUSTED";
+  | "ROUTE_RESEARCH_EXHAUSTED"
+  | "SUPERSEDED";
 
 export type WorkerExecutionResult = {
   worker: WorkerKind;

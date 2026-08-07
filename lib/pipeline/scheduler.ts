@@ -85,7 +85,7 @@ async function settle(work: () => Promise<WorkerExecutionResult>): Promise<Settl
 export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const schedulerStartedAt = Date.now();
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
-  const lease = await acquirePipelineSchedulerLease(owner);
+  const lease = await acquirePipelineSchedulerLease(owner, 290);
   if (!lease.acquired || !lease.run_id) {
     return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, outreachGeneration: null, engagementSelfReview: null, engagementQueue: null, engagementLearning: null };
   }

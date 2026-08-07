@@ -16,7 +16,7 @@ export type SchedulerPreparation = {
   expiredContactLeasesRecovered: number;
 };
 
-export async function acquirePipelineSchedulerLease(owner: string, leaseSeconds = 240): Promise<SchedulerLease> {
+export async function acquirePipelineSchedulerLease(owner: string, leaseSeconds = 290): Promise<SchedulerLease> {
   const rows = await databaseRequest<SchedulerLease[]>("rpc/acquire_pipeline_scheduler_lease", {
     method: "POST",
     body: JSON.stringify({ p_owner: owner, p_lease_seconds: leaseSeconds }),
