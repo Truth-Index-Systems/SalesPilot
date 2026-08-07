@@ -248,11 +248,15 @@ export function CampaignWizard() {
   }
 
   async function runAnalysisJob(jobId: string, accessToken: string) {
-    await fetch("/api/intelligence/business-discovery/run", {
+    const response = await fetch("/api/intelligence/business-discovery/run", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ jobId, accessToken }),
     });
+    const data = await response.json().catch(() => null) as { ok?: boolean; error?: DiscoveryError } | null;
+    if (!response.ok || data?.ok === false) {
+      throw new Error(data?.error?.message ?? "Business analysis worker request failed.");
+    }
   }
 
   async function monitorAnalysisJob(jobId: string, accessToken: string, resume = false) {
@@ -265,9 +269,9 @@ export function CampaignWizard() {
 
       if (["QUEUED", "FAILED_RETRYABLE"].includes(job.status)) {
         const retryDue = !job.nextRetryAt || new Date(job.nextRetryAt).getTime() <= Date.now();
-        if (retryDue) void runAnalysisJob(jobId, accessToken);
+        if (retryDue) void runAnalysisJob(jobId, accessToken).catch(reason => console.warn("Business analysis dispatch failed", reason));
       } else if (job.status === "RUNNING" && resume) {
-        void runAnalysisJob(jobId, accessToken);
+        void runAnalysisJob(jobId, accessToken).catch(reason => console.warn("Business analysis resume dispatch failed", reason));
       }
 
       for (let count = 0; count < 180; count += 1) {
@@ -287,8 +291,19 @@ export function CampaignWizard() {
           return;
         }
         if (job.status === "FAILED_RETRYABLE") {
-          setError(job.error ?? { code: "ANALYSIS_RETRY", title: "Analysis paused safely", message: "SalesPilot saved the work after an interruption.", hint: "Use Try again when the retry time arrives." });
-          return;
+          // Retryable infrastructure/structured-output interruptions are an
+          // implementation detail. Keep the analysis experience alive and
+          // automatically resume when the persisted retry becomes due.
+          setError(null);
+          const retryAt = job.nextRetryAt ? new Date(job.nextRetryAt).getTime() : Date.now();
+          const waitMs = Math.max(1_000, Math.min(5_000, retryAt - Date.now()));
+          await new Promise(resolve => window.setTimeout(resolve, waitMs));
+          if (!job.nextRetryAt || new Date(job.nextRetryAt).getTime() <= Date.now()) {
+            void runAnalysisJob(jobId, accessToken).catch(reason => console.warn("Business analysis automatic retry dispatch failed", reason));
+          }
+          job = await fetchAnalysisJob(jobId, accessToken);
+          setAnalysisJob(job);
+          continue;
         }
         await new Promise(resolve => window.setTimeout(resolve, 2000));
         job = await fetchAnalysisJob(jobId, accessToken);

@@ -1,5 +1,5 @@
-import { AiEnvelopeSchema, type AiEnvelope } from "@/lib/ai/contracts";
-import { BusinessDnaPayloadSchema, type BusinessDnaPayload } from "@/lib/ai/schemas/business-dna";
+import { type AiEnvelope } from "@/lib/ai/contracts";
+import { type BusinessDnaPayload } from "@/lib/ai/schemas/business-dna";
 import { businessDiscoveryJsonSchema } from "@/lib/intelligence/business-discovery-schema";
 import type { WebsiteSource } from "@/lib/intelligence/website-reader";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
@@ -7,9 +7,9 @@ import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/gov
 import { stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { normaliseBusinessAnalysis } from "@/lib/intelligence/fit-score";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
+import { BusinessDiscoveryGatewaySchema, canonicaliseBusinessDiscoveryOutput } from "@/lib/intelligence/business-structured-output";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
-const envelopeSchema = AiEnvelopeSchema(BusinessDnaPayloadSchema);
 
 function getConfig() {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -66,8 +66,8 @@ export async function analyseBusiness(params: { organisationId:string|null; jobI
         const message = json && typeof json === "object" && "error" in json ? JSON.stringify((json as { error: unknown }).error) : `HTTP ${response.status}`;
         throw new Error(`OpenAI request failed: ${message}`);
       }
-      const parsed = await parseStructuredAiResponse({ response: json, schema: envelopeSchema, jsonSchema: businessDiscoveryJsonSchema, schemaName: "salespilot_business_discovery", apiKey, model });
-      const result = normaliseBusinessAnalysis(parsed.value);
+      const parsed = await parseStructuredAiResponse({ response: json, schema: BusinessDiscoveryGatewaySchema, jsonSchema: businessDiscoveryJsonSchema, schemaName: "salespilot_business_discovery", apiKey, model });
+      const result = normaliseBusinessAnalysis(canonicaliseBusinessDiscoveryOutput(parsed.value, { canonicalWebsite: params.website, model, generatedAt: now }));
       await completeAiRequest({ ledgerId: reservation.ledgerId, ok: true, usage: responseUsage(json), durationMs: Date.now()-startedAt, responseId: typeof (json as any)?.id === "string" ? (json as any).id : null });
       return result;
     } catch (error) {

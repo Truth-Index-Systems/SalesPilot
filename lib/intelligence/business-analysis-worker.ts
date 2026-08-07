@@ -38,6 +38,7 @@ export async function runBusinessAnalysisJob(id:string,token:string){
     return {claimed:true as const,completed:true as const};
   }catch(error){
     const failure=classify(error);
+    console.warn("Business analysis job interrupted", { jobId:id, code:failure.code, retryable:failure.retryable, errorName:error instanceof Error ? error.name : typeof error, errorMessage:error instanceof Error ? error.message.slice(0,500) : "unknown" });
     await failBusinessAnalysisJob(id,token,failure.code,failure.message,failure.retryable);
     return {claimed:true as const,completed:false as const,failure};
   }
