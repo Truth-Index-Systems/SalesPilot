@@ -54,7 +54,7 @@ export async function researchRouteIntelligence(input:{organisationId:string;cam
   const apiKey=process.env.OPENAI_API_KEY?.trim();if(!apiKey)throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model=resolveOpenAIModel("analysis").model;
   const compactInput=compactContactDiscoveryInput(input);
-  const fingerprint=stableFingerprint({prompt:"contact-discovery/v3-cost-optimised",model,compactInput});
+  const fingerprint=stableFingerprint({prompt:"contact-discovery/v3-depth-first-source-diversity",model,compactInput});
   const startedAt=Date.now();
   const reservation=await reserveAiRequest({organisationId:input.organisationId,campaignId:input.campaignId,schedulerRunId:input.schedulerRunId,jobType:"CONTACT_DISCOVERY",jobId:input.jobId,requestScope:`contact-discovery:${fingerprint}`,model,estimatedCostUsd:Number(process.env.SALESPILOT_ROUTE_INTELLIGENCE_ESTIMATED_COST_USD??(Number(input.routeExpansionPass??0)===0?"0.55":"0.30"))});
   let response:Response;
@@ -65,6 +65,7 @@ export async function researchRouteIntelligence(input:{organisationId:string;cam
       "Treat the supplied Company Discovery evidence, company version and Business DNA as established context. Build an organisation map only as far as necessary to understand ownership, buying centres and access paths. Do not repeat generic company-fit research.",
       "On the FIRST pass be extensive, but establish reachability first: explicitly search for supported direct emails, departmental inboxes, general monitored inboxes, switchboard routes and exact LinkedIn profiles before completing the organisation map. Then map relevant departments/business units, infer supported buying centres and likely hierarchy, generate several independent buying paths, and connect the strongest people/channels to those paths. A single contact is not a route strategy.",
       "The input may contain priorRouteMemory from earlier SalesPilot research for the same organisation and company domain. Treat it as a lead, not fresh proof: re-check the cited public source where possible, preserve a previously supported route when it remains valid, and explicitly report when it can no longer be verified. Never silently forget a known route.",
+      "On expansion passes, prioritise genuinely new independent access paths and official source URLs not already represented in Company Discovery evidence or priorRouteMemory. Do not treat rereading the same URL as expansion progress. Re-check an existing source only when necessary to validate a known route, and never invent novelty where no independent source exists.",
       "Research only real, currently supportable decision-makers, influencers, introducers and monitored company routes at the supplied approved company.",
       "Use official company pages, official LinkedIn company or individual profile pages, official press releases, public regulatory filings, or official published staff directories.",
       "Never use people-search databases, scraped personal databases, data brokers, random directories, or unverifiable snippets.",
