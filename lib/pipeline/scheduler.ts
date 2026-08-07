@@ -8,10 +8,7 @@ import type { OpportunityScoringSummary, OpportunitySyncSummary } from "@/lib/op
 import { scoreOpportunityIntelligence } from "@/lib/opportunities/scoring";
 import { buildEngagements } from "@/lib/engagement/builder";
 import type { EngagementBuilderResult } from "@/lib/engagement/types";
-import { runNextCommercialReasoning, type CommercialReasoningWorkerResult } from "@/lib/engagement/commercial-reasoning";
-import { runNextOutreachGeneration, type OutreachGenerationWorkerResult } from "@/lib/engagement/outreach-generation";
-import { runNextEngagementSelfReview, type EngagementSelfReviewWorkerResult } from "@/lib/engagement/self-review";
-import { buildEngagementSendQueue, type EngagementQueueBuilderResult } from "@/lib/engagement/queue-builder";
+import { runNextG5CommercialReasoning, type G5CommercialReasoningWorkerResult } from "@/lib/engagement/g5-commercial-reasoning";
 import { buildEngagementLearning } from "@/lib/learning/service";
 import { syncEngagementStrategies, syncEngagementLearningGuidance, reconcileEngagementFailures, type EngagementStrategySyncResult, type EngagementLearningGuidanceResult } from "@/lib/engagement/strategy";
 import type { EngagementLearningBuilderResult } from "@/lib/learning/types";
@@ -59,10 +56,10 @@ export type PipelineSchedulerResult = {
   engagement: EngagementBuilderResult | null;
   engagementStrategy: EngagementStrategySyncResult | null;
   engagementLearningGuidance: EngagementLearningGuidanceResult | null;
-  commercialReasoning: CommercialReasoningWorkerResult | null;
-  outreachGeneration: OutreachGenerationWorkerResult | null;
-  engagementSelfReview: EngagementSelfReviewWorkerResult | null;
-  engagementQueue: EngagementQueueBuilderResult | null;
+  commercialReasoning: G5CommercialReasoningWorkerResult | null;
+  outreachGeneration: null;
+  engagementSelfReview: null;
+  engagementQueue: null;
   engagementLearning: EngagementLearningBuilderResult | null;
 };
 
@@ -154,16 +151,16 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       : null;
     if (engagement && hasSchedulerBudget(schedulerStartedAt, 8_000)) await reconcileEngagementFailures(runId);
 
+    // G5 owns engagement intelligence from the approved Opportunity boundary onward.
+    // Do not run the legacy G4 commercial-reasoning/drafting/review/queue chain in
+    // parallel: R2 intentionally stops at STRATEGY_READY. Later G5 releases will
+    // reintroduce those capabilities against the canonical engagement strategy.
     const commercialReasoning = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
-      ? await runNextCommercialReasoning(runId)
+      ? await runNextG5CommercialReasoning(runId)
       : null;
-    const outreachGeneration = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
-      ? await runNextOutreachGeneration(runId)
-      : null;
-    const engagementSelfReview = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
-      ? await runNextEngagementSelfReview(runId)
-      : null;
-    const engagementQueue = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await buildEngagementSendQueue(runId) : null;
+    const outreachGeneration = null;
+    const engagementSelfReview = null;
+    const engagementQueue = null;
     const engagementLearning = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await buildEngagementLearning(runId) : null;
 
     await recordPipelineSchedulerOutcome(runId, company, contact, {
