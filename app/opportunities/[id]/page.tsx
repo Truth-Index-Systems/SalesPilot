@@ -9,6 +9,8 @@ import { listCampaigns } from "@/lib/campaigns/repository";
 import { Building2, CheckCircle2, ContactRound, ExternalLink, Mail, ShieldCheck, Target } from "@/components/icons";
 import { buildAccessRoute, routeConfidenceClass } from "@/lib/opportunities/route-view";
 import { formatDateTime } from "@/lib/date-time";
+import { getG5ApprovalStrategyForOpportunity, getG5StrategyStatusForOpportunity } from "@/lib/engagement/g5-assisted-approval";
+import { G5AssistedApprovalActions } from "@/components/g5-assisted-approval-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +25,7 @@ function componentLabel(key: string) {
 export default async function OpportunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePageUser(`/opportunities/${id}`);
-  const [opportunity, all, campaigns] = await Promise.all([getOpportunity(id), listOpportunities(), listCampaigns()]);
+  const [opportunity, all, campaigns, engagementStrategy, engagementStatus] = await Promise.all([getOpportunity(id), listOpportunities(), listCampaigns(), getG5ApprovalStrategyForOpportunity(id), getG5StrategyStatusForOpportunity(id)]);
   if (!opportunity) notFound();
   const score = opportunity.opportunity_score ?? 0;
   const explanation = opportunity.score_explanation_json;
@@ -36,6 +38,15 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
   const organisationMap = opportunity.organisation_map && typeof opportunity.organisation_map === "object" ? opportunity.organisation_map as any : {};
   const buyingPaths = Array.isArray(opportunity.buying_paths) ? opportunity.buying_paths : [];
   const history = Array.isArray(opportunity.history) ? opportunity.history : [];
+  const engagementReasoning = engagementStrategy?.commercial_reasoning_json;
+  const channelStrategy = engagementStrategy?.channel_strategy_json;
+  const outreach = engagementStrategy?.outreach_generation_json;
+  const engagementQuality = engagementStrategy?.engagement_quality_json;
+  const outreachBody = outreach?.channel === "EMAIL" ? outreach.content.emailBody
+    : outreach?.channel === "LINKEDIN" ? (outreach.content.linkedinMessage || outreach.content.linkedinConnectionNote)
+    : outreach?.channel === "SWITCHBOARD" ? outreach.content.switchboardOpening
+    : outreach?.channel === "REFERRAL" ? outreach.content.referralRequest : null;
+  const selectedCommercialRoute = channelStrategy?.primary?.routeId ? commercialRoutes.find((item: any) => item.id === channelStrategy.primary.routeId) : null;
 
   return <AppShell title={opportunity.company_name} user={user} workspaceStats={{ campaigns: campaigns.length, companies: new Set(all.map(row => row.company_id)).size, replies: 0, opportunities: all.length }}>
     <PageHeader eyebrow={`Opportunity #${opportunity.rank} · ${opportunity.campaign_name}`} title={opportunity.company_name} subtitle="One commercial recommendation combining the business match, the best access route, reachability and transparent evidence." action={<span className="badge green"><ShieldCheck size={14}/> {statusLabel(opportunity.status)}</span>} />
@@ -80,6 +91,29 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
         {commercialRoutes.length ? <div className="review-history section">{commercialRoutes.slice(0,6).map((item:any)=><div className="review-history-item" key={item.id}><div><strong>{item.label || item.targetRole}</strong><span>{item.entryRole} → {item.targetRole} · {String(item.channelType || "UNKNOWN").replaceAll("_"," ").toLowerCase()}</span><small>{item.rationale}</small></div><span className="badge">{Number(item.routeQuality || 0)}/100</span></div>)}</div> : <div className="verified-empty section"><span>Alternative route research is still in progress.</span></div>}
       </Card>
     </div>}
+
+    {!engagementStrategy && engagementStatus && opportunity.status === "APPROVED" && <Card className="section g5-engagement-progress"><div className="section-head"><div><span className="eyebrow">G5 engagement intelligence</span><div className="card-title">Engagement strategy in progress</div><div className="card-subtitle">SalesPilot is preparing or rechecking the approved opportunity without changing G4 intelligence.</div></div><span className="badge">{engagementStatus.state.replaceAll("_", " ").toLowerCase()}</span></div><p>{engagementStatus.human_review_action === "EDIT" ? "Your edits are being sent back through mandatory self-review and Engagement Quality." : engagementStatus.human_review_action === "TRY_SECONDARY_ROUTE" ? "SalesPilot is regenerating engagement from the already-discovered secondary G4 route." : engagementStatus.state === "FAILED_TERMINAL" ? "This engagement has been stopped and will not progress automatically." : "The engagement pipeline is continuing from the immutable approved Opportunity."}</p></Card>}
+
+    {engagementStrategy && engagementReasoning && channelStrategy && outreach && engagementQuality && outreachBody && <Card className="section g5-engagement-workspace">
+      <div className="section-head"><div><span className="eyebrow">G5 engagement intelligence</span><div className="card-title">Recommended first engagement</div><div className="card-subtitle">The commercial argument, chosen G4 route and independently reviewed first-touch message in one approval surface.</div></div><span className={`badge ${engagementStrategy.state === "APPROVED" ? "green" : ""}`}>{engagementStrategy.state === "APPROVED" ? "Approved" : "Ready for approval"}</span></div>
+      <div className="g5-approval-summary section">
+        <div className="g5-confidence-panel"><strong>{engagementStrategy.engagement_confidence}</strong><span>Engagement confidence</span><small>Separate from Opportunity Score</small></div>
+        <div className="g5-first-move"><span>Recommended first move</span><strong>{channelStrategy.primary.executionChannel}</strong><small>{selectedCommercialRoute?.label || selectedCommercialRoute?.targetRole || channelStrategy.primary.selectionReason}</small></div>
+        <div className="g5-first-move"><span>Why this route</span><strong>{channelStrategy.primary.selectionReason}</strong><small>{channelStrategy.primaryWhyNow}</small></div>
+      </div>
+      <div className="grid cols-2 section g5-commercial-argument">
+        <div><h3>Commercial argument</h3><div className="g5-briefing-list"><div><span>Why this company</span><strong>{engagementReasoning.whyThisCompany}</strong></div><div><span>Problem</span><strong>{engagementReasoning.primaryProblem}</strong></div><div><span>Commercial consequence</span><strong>{engagementReasoning.commercialConsequence}</strong></div><div><span>Credible outcome</span><strong>{engagementReasoning.credibleOutcome}</strong></div><div><span>Smallest next commitment</span><strong>{engagementReasoning.smallestReasonableCommitment}</strong></div></div></div>
+        <div><h3>Evidence & quality</h3><div className="g5-briefing-list"><div><span>Verified evidence used</span><strong>{outreach.evidenceUsed.length} source{outreach.evidenceUsed.length === 1 ? "" : "s"}</strong></div><div><span>Self-review</span><strong>PASS</strong></div><div><span>Route confidence</span><strong>{channelStrategy.channelConfidence}/100</strong></div><div><span>Rewrites completed</span><strong>{engagementStrategy.rewrite_count}</strong></div></div><div className="g5-quality-signals">{engagementQuality.explainability.slice(0,6).map(item => <span className={item.passed ? "badge green" : "badge"} key={item.code}>{item.passed ? "✓ " : "• "}{item.label}</span>)}</div></div>
+      </div>
+      <div className="g5-message-preview section">
+        <div className="section-head"><div><h3>Outreach</h3><p>{outreach.channel === "EMAIL" ? "Email" : outreach.channel === "LINKEDIN" ? "LinkedIn" : outreach.channel === "SWITCHBOARD" ? "Switchboard script" : "Referral request"} · {outreach.tone.toLowerCase()} tone</p></div><span className="badge green">AI reviewed</span></div>
+        {outreach.channel === "EMAIL" && outreach.content.subject && <div className="g5-message-subject"><span>Subject</span><strong>{outreach.content.subject}</strong></div>}
+        <div className="g5-message-body">{outreachBody}</div>
+        <div className="g5-message-cta"><span>Call to action</span><strong>{outreach.callToAction}</strong></div>
+      </div>
+      <div className="g5-evidence-used section"><h3>Evidence used in this engagement</h3>{outreach.evidenceUsed.length ? outreach.evidenceUsed.map(item => <div className="review-history-item" key={`${item.sourceId}-${item.supportedClaim}`}><div><strong>{item.supportedClaim}</strong><span>Source: {item.sourceId}</span></div><span className="badge green">Verified</span></div>) : <div className="verified-empty"><span>No direct evidence reference was required in the final message.</span></div>}</div>
+      <G5AssistedApprovalActions strategyId={engagementStrategy.id} channel={outreach.channel} state={engagementStrategy.state} hasSecondary={Boolean(channelStrategy.secondary)} subject={outreach.content.subject} body={outreachBody} callToAction={outreach.callToAction}/>
+    </Card>}
 
     <div className="grid cols-2 section">
       <Card>
