@@ -15,6 +15,7 @@ import { runNextG5PersonalisationSafety, type G5PersonalisationSafetyWorkerResul
 import { runNextG5SelfReview, type G5SelfReviewWorkerResult } from "@/lib/engagement/g5-self-review";
 import { runNextG5EngagementQuality, type G5EngagementQualityWorkerResult } from "@/lib/engagement/g5-engagement-quality";
 import { runG5ExecutionCycle, type G5ExecutionResult } from "@/lib/engagement/g5-execution";
+import { runG5AutopilotApproval, type G5AutopilotApprovalResult } from "@/lib/engagement/g5-autopilot";
 import { buildEngagementLearning } from "@/lib/learning/service";
 import { syncEngagementStrategies, syncEngagementLearningGuidance, reconcileEngagementFailures, type EngagementStrategySyncResult, type EngagementLearningGuidanceResult } from "@/lib/engagement/strategy";
 import type { EngagementLearningBuilderResult } from "@/lib/learning/types";
@@ -68,6 +69,7 @@ export type PipelineSchedulerResult = {
   outreachGeneration: G5OutreachGenerationWorkerResult | null;
   engagementSelfReview: G5SelfReviewWorkerResult | null;
   engagementQuality: G5EngagementQualityWorkerResult | null;
+  autopilotApproval: G5AutopilotApprovalResult | null;
   engagementQueue: G5ExecutionResult | null;
   engagementLearning: EngagementLearningBuilderResult | null;
 };
@@ -93,7 +95,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner, 300);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, personalisationSafety: null, outreachGeneration: null, engagementSelfReview: null, engagementQuality: null, engagementQueue: null, engagementLearning: null };
+    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, personalisationSafety: null, outreachGeneration: null, engagementSelfReview: null, engagementQuality: null, autopilotApproval: null, engagementQueue: null, engagementLearning: null };
   }
 
   const runId = lease.run_id;
@@ -200,6 +202,12 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     const engagementQuality: G5EngagementQualityWorkerResult | null = hasSchedulerBudget(schedulerStartedAt, 8_000)
       ? await runNextG5EngagementQuality(runId)
       : null;
+    // R12 deterministic Autopilot approval. It never calls AI and only acts on
+    // campaigns explicitly configured as AUTOPILOT after R6 PASS + R7 quality.
+    // Assisted/Approval campaigns remain READY_FOR_APPROVAL for a human.
+    const autopilotApproval: G5AutopilotApprovalResult | null = hasSchedulerBudget(schedulerStartedAt, 8_000)
+      ? await runG5AutopilotApproval(runId)
+      : null;
     // R9 deterministic execution: approval is converted to a durable queue item,
     // then a due email may execute only inside the recipient-local 08:00-18:00 window.
     // Transport failure never regenerates reviewed content.
@@ -221,6 +229,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       outreachGeneration,
       engagementSelfReview,
       engagementQuality,
+      autopilotApproval,
       engagementQueue,
       engagementLearning,
     });
@@ -243,6 +252,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       outreachGeneration,
       engagementSelfReview,
       engagementQuality,
+      autopilotApproval,
       engagementQueue,
       engagementLearning,
     };

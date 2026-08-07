@@ -79,6 +79,7 @@ function describeEvent(row: EventRow): G5TimelineEntry | null {
   if (row.event_type === "HUMAN_EDITED") return { ...base, title: "Outreach edited", description: "Your edit has been saved and returned to mandatory self-review and quality scoring." };
   if (row.event_type === "HUMAN_ROUTE_CHANGED") return { ...base, title: "Alternative route selected", description: "The secondary G4 route was selected without rerunning discovery or changing G4 truth." };
   if (row.event_type === "HUMAN_APPROVED") return { ...base, title: "Outreach approved", description: "The reviewed first-touch engagement has been approved for execution." };
+  if (row.event_type === "AUTO_APPROVED") return { ...base, title: "Outreach approved automatically", description: "Autopilot approved the engagement after independent review, quality and route-safety gates passed." };
   if (row.event_type === "HUMAN_REJECTED") return { ...base, status: "blocked", title: "Engagement rejected", description: "The engagement was stopped by a workspace user." };
   if (row.event_type === "TRANSITIONED" && row.previous_state === "APPROVED" && next === "QUEUED") return { ...base, title: "Queued for recipient's working day", description: "Execution has been scheduled under the approved route and recipient-local sending policy." };
   if (row.event_type === "TRANSITIONED" && row.previous_state === "QUEUED" && next === "SENT") return { ...base, title: "Outreach sent", description: "The approved first-touch message was accepted by the configured transport." };
