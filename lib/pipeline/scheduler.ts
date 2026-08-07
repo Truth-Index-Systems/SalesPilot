@@ -9,6 +9,7 @@ import { scoreOpportunityIntelligence } from "@/lib/opportunities/scoring";
 import { buildEngagements } from "@/lib/engagement/builder";
 import type { EngagementBuilderResult } from "@/lib/engagement/types";
 import { runNextG5CommercialReasoning, type G5CommercialReasoningWorkerResult } from "@/lib/engagement/g5-commercial-reasoning";
+import { runNextG5ChannelStrategy, type G5ChannelStrategyWorkerResult } from "@/lib/engagement/g5-channel-strategy";
 import { buildEngagementLearning } from "@/lib/learning/service";
 import { syncEngagementStrategies, syncEngagementLearningGuidance, reconcileEngagementFailures, type EngagementStrategySyncResult, type EngagementLearningGuidanceResult } from "@/lib/engagement/strategy";
 import type { EngagementLearningBuilderResult } from "@/lib/learning/types";
@@ -57,6 +58,7 @@ export type PipelineSchedulerResult = {
   engagementStrategy: EngagementStrategySyncResult | null;
   engagementLearningGuidance: EngagementLearningGuidanceResult | null;
   commercialReasoning: G5CommercialReasoningWorkerResult | null;
+  channelStrategy: G5ChannelStrategyWorkerResult | null;
   outreachGeneration: null;
   engagementSelfReview: null;
   engagementQueue: null;
@@ -84,7 +86,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner, 300);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, outreachGeneration: null, engagementSelfReview: null, engagementQueue: null, engagementLearning: null };
+    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, outreachGeneration: null, engagementSelfReview: null, engagementQueue: null, engagementLearning: null };
   }
 
   const runId = lease.run_id;
@@ -152,12 +154,19 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     if (engagement && hasSchedulerBudget(schedulerStartedAt, 8_000)) await reconcileEngagementFailures(runId);
 
     // G5 owns engagement intelligence from the approved Opportunity boundary onward.
-    // Do not run the legacy G4 commercial-reasoning/drafting/review/queue chain in
-    // parallel: R2 intentionally stops at STRATEGY_READY. Later G5 releases will
-    // reintroduce those capabilities against the canonical engagement strategy.
+    // Run at most ONE G5 AI worker per scheduler cycle. R2 gets first refusal for
+    // WAITING opportunities; when there is no reasoning job, R3 may enrich an
+    // existing STRATEGY_READY record with its fenced channel decision. This avoids
+    // chaining two 120-second AI envelopes inside one serverless invocation.
     const commercialReasoning = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
       ? await runNextG5CommercialReasoning(runId)
       : null;
+    const channelStrategy = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
+      && (!commercialReasoning || !commercialReasoning.processed)
+      ? await runNextG5ChannelStrategy(runId)
+      : null;
+    // R3 intentionally stops at STRATEGY_READY with channel_strategy_json persisted.
+    // Release 4 will claim STRATEGY_READY -> GENERATING only after this decision exists.
     const outreachGeneration = null;
     const engagementSelfReview = null;
     const engagementQueue = null;
@@ -171,6 +180,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       engagementStrategy,
       engagementLearningGuidance,
       commercialReasoning,
+      channelStrategy,
       outreachGeneration,
       engagementSelfReview,
       engagementQueue,
@@ -190,6 +200,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       engagementStrategy,
       engagementLearningGuidance,
       commercialReasoning,
+      channelStrategy,
       outreachGeneration,
       engagementSelfReview,
       engagementQueue,
