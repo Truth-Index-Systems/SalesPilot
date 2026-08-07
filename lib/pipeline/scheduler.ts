@@ -64,7 +64,7 @@ export type PipelineSchedulerResult = {
   channelStrategy: G5ChannelStrategyWorkerResult | null;
   personalisationSafety: G5PersonalisationSafetyWorkerResult | null;
   outreachGeneration: G5OutreachGenerationWorkerResult | null;
-  engagementSelfReview: null;
+  engagementSelfReview: G5SelfReviewWorkerResult | null;
   engagementQueue: null;
   engagementLearning: EngagementLearningBuilderResult | null;
 };
