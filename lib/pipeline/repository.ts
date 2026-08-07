@@ -16,7 +16,7 @@ export type SchedulerPreparation = {
   expiredContactLeasesRecovered: number;
 };
 
-export async function acquirePipelineSchedulerLease(owner: string, leaseSeconds = 290): Promise<SchedulerLease> {
+export async function acquirePipelineSchedulerLease(owner: string, leaseSeconds = 300): Promise<SchedulerLease> {
   const rows = await databaseRequest<SchedulerLease[]>("rpc/acquire_pipeline_scheduler_lease", {
     method: "POST",
     body: JSON.stringify({ p_owner: owner, p_lease_seconds: leaseSeconds }),
@@ -94,7 +94,7 @@ export type ContactDispatchPlan = {
 
 export async function planContactDiscoveryDispatch(runId: string): Promise<ContactDispatchPlan> {
   const estimatedCostUsd = Number(process.env.SALESPILOT_CONTACT_DISCOVERY_ESTIMATED_COST_USD ?? "0.35");
-  const rows = await databaseRequest<ContactDispatchPlan[]>("rpc/plan_contact_discovery_dispatch", {
+  const rows = await databaseRequest<ContactDispatchPlan[]>("rpc/plan_contact_discovery_dispatch_owned", {
     method: "POST",
     body: JSON.stringify({ p_scheduler_run_id: runId, p_estimated_cost_usd: estimatedCostUsd }),
   });
@@ -102,7 +102,7 @@ export async function planContactDiscoveryDispatch(runId: string): Promise<Conta
 }
 
 export async function recordPipelineSchedulerOutcome(runId: string, company: unknown, contact: unknown, opportunity: unknown = null): Promise<void> {
-  await databaseRequest("rpc/record_pipeline_scheduler_outcome", {
+  await databaseRequest("rpc/record_pipeline_scheduler_outcome_owned", {
     method: "POST",
     body: JSON.stringify({ p_run_id: runId, p_company_result: company, p_contact_result: contact, p_opportunity_result: opportunity }),
   });

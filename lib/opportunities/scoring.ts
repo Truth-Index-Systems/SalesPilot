@@ -27,6 +27,12 @@ export async function scoreOpportunityIntelligence(
   await databaseRequest<number>("rpc/apply_route_intelligence_opportunity_scoring", {
     method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }),
   });
+  // Final compatibility fence: the historical v2 scorer can calculate fit
+  // components, but it cannot unlock review or expose legacy route scores while
+  // G4.7 Route Intelligence is still BUILDING/EXPANDING/EXHAUSTED.
+  await databaseRequest<number>("rpc/enforce_opportunity_route_readiness", {
+    method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }),
+  });
   if (Array.isArray(result)) return result[0] ?? EMPTY;
   return result ?? EMPTY;
 }

@@ -85,7 +85,7 @@ async function settle(work: () => Promise<WorkerExecutionResult>): Promise<Settl
 export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const schedulerStartedAt = Date.now();
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
-  const lease = await acquirePipelineSchedulerLease(owner, 290);
+  const lease = await acquirePipelineSchedulerLease(owner, 300);
   if (!lease.acquired || !lease.run_id) {
     return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, outreachGeneration: null, engagementSelfReview: null, engagementQueue: null, engagementLearning: null };
   }
@@ -110,6 +110,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     let company: SettledWorker | null = null;
     let contact: SettledWorker | SettledWorker[] | null = null;
 
+    // one deep route investigation per scheduler cycle; never parallelise the heavyweight first pass.
     if (canStartRouteIntelligence) {
       console.info("Pipeline scheduler prioritising Route Intelligence over company replenishment", {
         runId,

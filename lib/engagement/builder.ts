@@ -28,7 +28,7 @@ export async function buildEngagements(
   if (!schedulerRunId) throw new Error("ENGAGEMENT_BUILDER_REQUIRES_SCHEDULER_RUN");
 
   const result = await databaseRequest<EngagementBuilderResult | EngagementBuilderResult[]>(
-    "rpc/run_engagement_builder",
+    "rpc/run_engagement_builder_owned",
     {
       method: "POST",
       body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }),

@@ -8,7 +8,7 @@ const checks=[
  [service.includes('failurePhase = "PLANNING"'),"planning phase tracked"],
  [service.includes('failurePhase = "SEARCHING"'),"searching phase tracked"],
  [service.includes('failurePhase = "VERIFYING"'),"verifying phase tracked"],
- [service.includes('record_company_discovery_failure_v2'),"v2 failure RPC used"],
+ [service.includes('record_company_discovery_failure_owned'),"v2 failure RPC used"],
  [migration.includes("stage='TECHNICAL_RETRY'"),"technical retry stage persisted"],
  [migration.includes("stage='EXPANDING'"),"business expansion stage persisted"],
  [migration.includes("stage='READY'"),"ready stage persisted"],

@@ -7,14 +7,15 @@ import type { WorkerExecutionContext, WorkerExecutionResult } from "@/lib/pipeli
 import { classifyPipelineError } from "@/lib/pipeline/errors";
 import { createResultSummary } from "@/lib/pipeline/result-summary";
 import { safePipelineFailureReason } from "@/lib/pipeline/safe-error";
+import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
 
 function safeWorkerError(error: unknown): string {
   return safePipelineFailureReason(error, "Company Discovery encountered a technical interruption and will retry safely.");
 }
 
-async function activity(sessionId:string,type:string,title:string,description?:string,metadata:Record<string,unknown>={}) {
+async function activity(sessionId:string,schedulerRunId:string,type:string,title:string,description?:string,metadata:Record<string,unknown>={}) {
   try {
-    await databaseRequest("rpc/record_discovery_activity", {method:"POST",body:JSON.stringify({p_session_id:sessionId,p_activity_type:type,p_title:title,p_description:description??null,p_metadata:metadata})});
+    await databaseRequest("rpc/record_discovery_activity_owned", {method:"POST",body:JSON.stringify({p_session_id:sessionId,p_scheduler_run_id:schedulerRunId,p_activity_type:type,p_title:title,p_description:description??null,p_metadata:metadata})});
   } catch (error) {
     // Observability is best-effort. A timeline/ticker write must never fail the
     // deterministic planning phase or discard otherwise valid discovery work.
@@ -24,7 +25,7 @@ async function activity(sessionId:string,type:string,title:string,description?:s
 
 export async function runNextCompanyDiscovery(context: WorkerExecutionContext): Promise<WorkerExecutionResult> {
   const startedAt = Date.now();
-  const claimed = await databaseRequest<Array<{ session_id: string; organisation_id: string; campaign_id: string }>>("rpc/claim_company_discovery",{ method: "POST", body: JSON.stringify({ p_scheduler_run_id: context.schedulerRunId }) });
+  const claimed = await databaseRequest<Array<{ session_id: string; organisation_id: string; campaign_id: string }>>("rpc/claim_company_discovery_owned",{ method: "POST", body: JSON.stringify({ p_scheduler_run_id: context.schedulerRunId }) });
   const job = claimed[0];
   if (!job) return { worker: "COMPANY_DISCOVERY", processed: false, outcome: "NO_JOB" };
   let failurePhase = "PREPARING";
@@ -47,6 +48,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     const searchStrategy = searchStrategies[Math.min(expansionPassCount, searchStrategies.length - 1)];
     await activity(
       job.session_id,
+      context.schedulerRunId,
       searchPass > 1 ? "DISCOVERY_EXPANSION_STARTED" : "DISCOVERY_STARTED",
       searchPass > 1 ? `Expanding company search · pass ${searchPass}` : "Company discovery started",
       searchPass > 1
@@ -63,10 +65,10 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     const profiles = await databaseRequest<any[]>(`business_profile_versions?business_profile_id=eq.${profileId}&organisation_id=eq.${job.organisation_id}&order=version_number.desc&limit=1&select=payload_json`);
     const business = profiles[0]?.payload_json ?? { name: campaign.business_name, summary: campaign.business_summary, website: campaign.website_url };
 
-    await activity(job.session_id,"SEARCH_PREPARED","Approved strategy verified","The audience, buyer roles and commercial angle are ready for company research.");
+    await activity(job.session_id,context.schedulerRunId,"SEARCH_PREPARED","Approved strategy verified","The audience, buyer roles and commercial angle are ready for company research.");
     failurePhase = "PLANNING";
-    await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"PLANNING",p_progress:28})});
-    await activity(job.session_id,"SEARCH_PLAN_STARTED","Building the market search plan","SalesPilot is deterministically translating the approved campaign into operational conditions, company archetypes and high-value evidence sources before any external research begins.",{searchPass,searchStrategy});
+    await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"PLANNING",p_progress:28})});
+    await activity(job.session_id,context.schedulerRunId,"SEARCH_PLAN_STARTED","Building the market search plan","SalesPilot is deterministically translating the approved campaign into operational conditions, company archetypes and high-value evidence sources before any external research begins.",{searchPass,searchStrategy});
     const searchPlan = await buildCompanySearchPlan({
       organisationId: job.organisation_id,
       campaignId: job.campaign_id,
@@ -78,15 +80,15 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       searchPass,
       searchStrategy,
     });
-    await activity(job.session_id,"SEARCH_PLAN_READY","Market search plan ready",`${searchPlan.companyArchetypes.length} company archetypes will be researched before the evidence gate is applied.`,{
+    await activity(job.session_id,context.schedulerRunId,"SEARCH_PLAN_READY","Market search plan ready",`${searchPlan.companyArchetypes.length} company archetypes will be researched before the evidence gate is applied.`,{
       commercialProblem:searchPlan.commercialProblem,
       operationalConditions:searchPlan.operationalConditions,
       archetypes:searchPlan.companyArchetypes.map(item=>item.name),
       sourcePriority:searchPlan.sourcePriority,
     });
     failurePhase = "SEARCHING";
-    await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"SEARCHING",p_progress:40})});
-    await activity(job.session_id,"RESEARCHING","Searching across the planned market space","SalesPilot is researching diverse company archetypes before independently verifying commercial fit and official evidence.");
+    await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"SEARCHING",p_progress:40})});
+    await activity(job.session_id,context.schedulerRunId,"RESEARCHING","Searching across the planned market space","SalesPilot is researching diverse company archetypes before independently verifying commercial fit and official evidence.");
 
     const existingCompanies = await databaseRequest<Array<{ company_name: string; canonical_domain: string }>>(
       `companies?organisation_id=eq.${job.organisation_id}&campaign_id=eq.${job.campaign_id}&select=company_name,canonical_domain&limit=1000`
@@ -106,9 +108,10 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     });
 
     failurePhase = "VERIFYING";
-    await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"VERIFYING",p_progress:72,p_candidates:result.companies.length})});
+    await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"VERIFYING",p_progress:72,p_candidates:result.companies.length})});
     await activity(
       job.session_id,
+      context.schedulerRunId,
       "CANDIDATES_FOUND",
       result.companies.length > 0 ? `${result.companies.length} potential matches found` : "Search pass completed",
       result.companies.length > 0
@@ -131,23 +134,23 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     for (let index=0; index<result.companies.length; index++) {
       const candidate=result.companies[index];
       const validationProgress=73+Math.round(((index+1)/result.companies.length)*12);
-      await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"VERIFYING",p_progress:Math.min(85,validationProgress),p_candidates:result.companies.length})});
+      await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"VERIFYING",p_progress:Math.min(85,validationProgress),p_candidates:result.companies.length})});
       const verification=await verifyDiscoveredCompanyDetailed(candidate);
       reachableOfficialEvidence += verification.diagnostics.officialEvidenceReachable;
       excerptMatches += verification.diagnostics.excerptMatches;
       if (!verification.accepted) {
         heldReasons[verification.reason] += 1;
-        await activity(job.session_id,"CANDIDATE_HELD",`${candidate.name} held back`,"The available official-site evidence was not strong enough to recommend this company.",{companyName:candidate.name,reason:verification.reason,diagnostics:verification.diagnostics});
+        await activity(job.session_id,context.schedulerRunId,"CANDIDATE_HELD",`${candidate.name} held back`,"The available official-site evidence was not strong enough to recommend this company.",{companyName:candidate.name,reason:verification.reason,diagnostics:verification.diagnostics});
         continue;
       }
       const company=verification.company;
       verified+=1;
       const saveProgress=86+Math.round((verified/result.companies.length)*9);
-      await databaseRequest("rpc/update_company_discovery_progress",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_stage:"SAVING",p_progress:Math.min(95,saveProgress),p_candidates:result.companies.length})});
-      const count=await databaseRequest<number>("rpc/save_company_discovery_batch",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_companies:[company]})});
+      await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"SAVING",p_progress:Math.min(95,saveProgress),p_candidates:result.companies.length})});
+      const count=await databaseRequest<number>("rpc/save_company_discovery_batch_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_companies:[company]})});
       saved+=Number(count);
       // COMPANY_VERIFIED quality gate completed before the persisted COMPANY_SAVED activity.
-      await activity(job.session_id,"COMPANY_SAVED",`${company.name} verified and added`,`${company.matchLabel} · ${company.confidence}/100 confidence · ${company.evidenceQuality}/100 evidence quality`,{companyName:company.name,confidence:company.confidence,evidenceQuality:company.evidenceQuality,savedCount:saved});
+      await activity(job.session_id,context.schedulerRunId,"COMPANY_SAVED",`${company.name} verified and added`,`${company.matchLabel} · ${company.confidence}/100 confidence · ${company.evidenceQuality}/100 evidence quality`,{companyName:company.name,confidence:company.confidence,evidenceQuality:company.evidenceQuality,savedCount:saved});
     }
     const retainedAfterPass = existingCompanies.length + Number(saved);
     const discoverySummary = {
@@ -170,7 +173,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       minimumSupportedCompanies,
       maxExpansionPasses,
     };
-    const finalSaved=await databaseRequest<number>("rpc/finalize_company_discovery",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_result_summary:discoverySummary})});
+    const finalSaved=await databaseRequest<number>("rpc/finalize_company_discovery_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_result_summary:discoverySummary})});
     const finalSessionRows = await databaseRequest<Array<{ status: string; job_state?: string | null; result_summary_json?: Record<string, unknown> | null }>>(
       `discovery_sessions?id=eq.${job.session_id}&organisation_id=eq.${job.organisation_id}&select=status,job_state,result_summary_json&limit=1`
     );
@@ -179,6 +182,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     if (!expansionPending) {
       await activity(
         job.session_id,
+        context.schedulerRunId,
         "DISCOVERY_SUMMARY",
         Number(finalSaved) > 0 ? `${Number(finalSaved)} companies ready for review` : "Extended search completed without enough supported matches",
         Number(finalSaved) > 0
@@ -195,11 +199,16 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       saved: Number(finalSaved),
     };
   } catch (error) {
+    if (isPipelineOwnershipLost(error)) {
+      console.info("Company Discovery worker superseded; stale worker result discarded", { sessionId: job.session_id, schedulerRunId: context.schedulerRunId });
+      return { worker: "COMPANY_DISCOVERY", processed: false, outcome: "SUPERSEDED", sessionId: job.session_id };
+    }
     const safeMessage=safeWorkerError(error);
     const classified=classifyPipelineError(error);
     const preparationFailure = failurePhase === "PREPARING" || failurePhase === "PLANNING";
     await activity(
       job.session_id,
+      context.schedulerRunId,
       "DISCOVERY_TECHNICAL_RETRY",
       preparationFailure ? "Company research preparation will retry" : "Company research will retry",
       preparationFailure
@@ -209,7 +218,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
           : "SalesPilot encountered a technical issue during company research. No unverified recommendations were marked ready.",
       { errorCode: classified.code, failurePhase },
     ).catch(()=>undefined);
-    await databaseRequest("rpc/record_company_discovery_failure_v2",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_error_code:classified.code,p_error_message:safeMessage,p_retryable:classified.retryable,p_failure_phase:failurePhase})}).catch(()=>undefined);
+    await databaseRequest("rpc/record_company_discovery_failure_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_error_code:classified.code,p_error_message:safeMessage,p_retryable:classified.retryable,p_failure_phase:failurePhase})}).catch(()=>undefined);
     throw error;
   }
 }

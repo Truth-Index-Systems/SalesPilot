@@ -3,6 +3,7 @@ import { analyseBusiness } from "@/lib/intelligence/openai";
 import { readWebsite, WebsiteReadError } from "@/lib/intelligence/website-reader";
 import { claimBusinessAnalysisJob, completeBusinessAnalysisJob, failBusinessAnalysisJob, updateBusinessAnalysisProgress } from "@/lib/intelligence/business-analysis-jobs";
 import { StructuredAiOutputError } from "@/lib/ai/structured-response-gateway";
+import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
 
 function classify(error:unknown){
   if(error instanceof WebsiteReadError){
@@ -27,19 +28,24 @@ function classify(error:unknown){
 export async function runBusinessAnalysisJob(id:string,token:string){
   const job=await claimBusinessAnalysisJob(id,token);
   if(!job)return {claimed:false as const};
-  if(typeof job.website_input!=="string"||!job.website_input.trim())return {claimed:false as const};
+  if(typeof job.website_input!=="string"||!job.website_input.trim()||!job.worker_token)return {claimed:false as const};
+  const workerToken=job.worker_token;
   const started=Date.now();
   try{
     const website=await readWebsite(job.website_input);
-    await updateBusinessAnalysisProgress(id,token,"ANALYSING_BUSINESS",52,website.canonicalUrl,website.sources.length);
+    await updateBusinessAnalysisProgress(id,token,workerToken,"ANALYSING_BUSINESS",52,website.canonicalUrl,website.sources.length);
     const analysis=await analyseBusiness({organisationId:job.organisation_id,jobId:job.id,website:website.canonicalUrl,sources:website.sources});
-    await updateBusinessAnalysisProgress(id,token,"PREPARING_RECOMMENDATIONS",88,website.canonicalUrl,website.sources.length);
-    await completeBusinessAnalysisJob(id,token,website.canonicalUrl,website.sources.length,analysis,Date.now()-started);
+    await updateBusinessAnalysisProgress(id,token,workerToken,"PREPARING_RECOMMENDATIONS",88,website.canonicalUrl,website.sources.length);
+    await completeBusinessAnalysisJob(id,token,workerToken,website.canonicalUrl,website.sources.length,analysis,Date.now()-started);
     return {claimed:true as const,completed:true as const};
   }catch(error){
+    if(isPipelineOwnershipLost(error)){
+      console.info("Business analysis worker superseded; stale result discarded",{jobId:id});
+      return {claimed:false as const,superseded:true as const};
+    }
     const failure=classify(error);
     console.warn("Business analysis job interrupted", { jobId:id, code:failure.code, retryable:failure.retryable, errorName:error instanceof Error ? error.name : typeof error, errorMessage:error instanceof Error ? error.message.slice(0,500) : "unknown" });
-    await failBusinessAnalysisJob(id,token,failure.code,failure.message,failure.retryable);
+    await failBusinessAnalysisJob(id,token,workerToken,failure.code,failure.message,failure.retryable);
     return {claimed:true as const,completed:false as const,failure};
   }
 }

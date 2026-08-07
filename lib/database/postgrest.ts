@@ -1,5 +1,6 @@
 import "server-only";
 import { getDatabaseConfig } from "./config";
+import { sanitisePostgresJson } from "./postgres-json";
 
 export class DatabaseRequestError extends Error {
   constructor(
@@ -24,14 +25,26 @@ function parseDatabaseBody(raw: string): unknown {
 export async function databaseRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const config = getDatabaseConfig();
   const method = init.method ?? "GET";
+  // Every PostgREST write is JSON in SalesPilot. Sanitise the parsed payload at
+  // the single database boundary so AI/web control characters such as U+0000
+  // cannot break one stage while a different stage remains protected.
+  let safeInit = init;
+  if (typeof init.body === "string") {
+    try {
+      safeInit = { ...init, body: JSON.stringify(sanitisePostgresJson(JSON.parse(init.body))) };
+    } catch {
+      // Keep non-JSON/string bodies unchanged; PostgREST will surface malformed
+      // request bodies normally rather than this helper hiding the error.
+    }
+  }
   const response = await fetch(`${config.url}/rest/v1/${path}`, {
-    ...init,
+    ...safeInit,
     cache: "no-store",
     headers: {
       apikey: config.serviceRoleKey,
       Authorization: `Bearer ${config.serviceRoleKey}`,
       "Content-Type": "application/json",
-      ...(init.headers ?? {}),
+      ...(safeInit.headers ?? {}),
     },
   });
 

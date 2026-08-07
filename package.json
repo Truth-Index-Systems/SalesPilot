@@ -97,7 +97,8 @@
     "genesis:g47-check": "node scripts/validate-genesis-g47-route-intelligence.mjs",
     "genesis:g473-business-boundary-check": "node scripts/validate-genesis-g473-business-discovery-boundary.mjs",
     "genesis:g474-scheduler-budget-check": "node scripts/validate-genesis-g474-scheduler-budget.mjs",
-    "genesis:g477-postgres-json-check": "node scripts/validate-genesis-g477-postgres-json-boundary.mjs"
+    "genesis:g477-postgres-json-check": "node scripts/validate-genesis-g477-postgres-json-boundary.mjs",
+    "genesis:g4710-full-audit-check": "node scripts/validate-genesis-g4710-full-pipeline-audit.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

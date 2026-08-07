@@ -8,7 +8,7 @@ type JobStatus = "QUEUED"|"RUNNING"|"COMPLETED"|"FAILED_RETRYABLE"|"FAILED_TERMI
 export type BusinessAnalysisJob = {
   id:string; organisation_id:string|null; website_input:string; canonical_url:string|null; status:JobStatus; stage:string; progress:number;
   attempt_count:number; next_retry_at:string|null; last_error_code:string|null; last_error_message:string|null;
-  pages_read:number; analysis_json:unknown|null; created_at:string; updated_at:string;
+  pages_read:number; analysis_json:unknown|null; worker_token?:string|null; created_at:string; updated_at:string;
 };
 
 export function hashAnalysisToken(token:string){return createHash("sha256").update(token).digest("hex");}
@@ -36,7 +36,7 @@ export async function getBusinessAnalysisJob(id:string,token:string){
 }
 
 export async function claimBusinessAnalysisJob(id:string,token:string){
-  const rows=await databaseRequest<BusinessAnalysisJob[]|BusinessAnalysisJob|null>("rpc/claim_business_analysis_job",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_lease_seconds:240})});
+  const rows=await databaseRequest<BusinessAnalysisJob[]|BusinessAnalysisJob|null>("rpc/claim_business_analysis_job",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_lease_seconds:290})});
   const claimed=Array.isArray(rows)?rows[0]??null:rows;
   // PostgreSQL composite-returning functions can serialise an unmatched row as
   // an object whose fields are all null. Treat that as "not claimed".
@@ -44,13 +44,13 @@ export async function claimBusinessAnalysisJob(id:string,token:string){
   if(typeof claimed.website_input!=="string"||!claimed.website_input.trim())return null;
   return claimed;
 }
-export async function updateBusinessAnalysisProgress(id:string,token:string,stage:string,progress:number,canonicalUrl?:string,pagesRead?:number){
-  await databaseRequest("rpc/update_business_analysis_progress",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_stage:stage,p_progress:progress,p_canonical_url:canonicalUrl??null,p_pages_read:pagesRead??null})});
+export async function updateBusinessAnalysisProgress(id:string,token:string,workerToken:string,stage:string,progress:number,canonicalUrl?:string,pagesRead?:number){
+  await databaseRequest("rpc/update_business_analysis_progress_owned",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_worker_token:workerToken,p_stage:stage,p_progress:progress,p_canonical_url:canonicalUrl??null,p_pages_read:pagesRead??null})});
 }
-export async function completeBusinessAnalysisJob(id:string,token:string,canonicalUrl:string,pagesRead:number,analysis:unknown,durationMs:number){
+export async function completeBusinessAnalysisJob(id:string,token:string,workerToken:string,canonicalUrl:string,pagesRead:number,analysis:unknown,durationMs:number){
   const safeAnalysis=sanitisePostgresJson(analysis);
-  await databaseRequest("rpc/complete_business_analysis_job",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_canonical_url:stripPostgresNul(canonicalUrl),p_pages_read:pagesRead,p_analysis:safeAnalysis,p_result_summary:sanitisePostgresJson({durationMs,pagesRead,completedAt:new Date().toISOString()})})});
+  await databaseRequest("rpc/complete_business_analysis_job_owned",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_worker_token:workerToken,p_canonical_url:stripPostgresNul(canonicalUrl),p_pages_read:pagesRead,p_analysis:safeAnalysis,p_result_summary:sanitisePostgresJson({durationMs,pagesRead,completedAt:new Date().toISOString()})})});
 }
-export async function failBusinessAnalysisJob(id:string,token:string,code:string,message:string,retryable:boolean){
-  await databaseRequest("rpc/fail_business_analysis_job",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_error_code:code,p_error_message:message,p_retryable:retryable})});
+export async function failBusinessAnalysisJob(id:string,token:string,workerToken:string,code:string,message:string,retryable:boolean){
+  await databaseRequest("rpc/fail_business_analysis_job_owned",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_worker_token:workerToken,p_error_code:code,p_error_message:message,p_retryable:retryable})});
 }

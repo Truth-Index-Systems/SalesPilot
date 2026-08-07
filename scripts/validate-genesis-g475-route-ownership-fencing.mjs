@@ -13,6 +13,6 @@ must("features/contacts/contact-discovery.service.ts",[
   "record_contact_discovery_failure_owned",
   'outcome:"SUPERSEDED"'
 ]);
-must("lib/pipeline/scheduler.ts",["acquirePipelineSchedulerLease(owner, 290)"]);
-must("lib/pipeline/repository.ts",["leaseSeconds = 290"]);
+must("lib/pipeline/scheduler.ts",["acquirePipelineSchedulerLease(owner, 300)"]);
+must("lib/pipeline/repository.ts",["leaseSeconds = 300"]);
 console.log("Genesis G4.7.5 Route Intelligence ownership fencing validation passed");

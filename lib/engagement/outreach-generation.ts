@@ -1,12 +1,13 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
+import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
 import { generateOutreach } from "./outreach-generation-openai";
 import { recordEngagementStage } from "./strategy";
 import { safePipelineFailureReason } from "@/lib/pipeline/safe-error";
 
 export type OutreachGenerationWorkerResult = {
   processed: boolean;
-  outcome: "NO_JOB" | "COMPLETED" | "FAILED_RETRYABLE";
+  outcome: "NO_JOB" | "COMPLETED" | "FAILED_RETRYABLE" | "SUPERSEDED";
   draftId?: string;
   engagementId?: string;
 };
@@ -20,7 +21,7 @@ type Claim = {
 };
 
 export async function runNextOutreachGeneration(schedulerRunId: string): Promise<OutreachGenerationWorkerResult> {
-  const claimed = await databaseRequest<Claim[]>("rpc/claim_engagement_outreach_generation", {
+  const claimed = await databaseRequest<Claim[]>("rpc/claim_engagement_outreach_generation_owned", {
     method: "POST",
     body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }),
   });
@@ -36,10 +37,11 @@ export async function runNextOutreachGeneration(schedulerRunId: string): Promise
       draftId: job.draft_id,
       context: job.context_json,
     });
-    await databaseRequest("rpc/complete_engagement_outreach_generation", {
+    await databaseRequest("rpc/complete_engagement_outreach_generation_owned", {
       method: "POST",
       body: JSON.stringify({
         p_draft_id: job.draft_id,
+        p_scheduler_run_id: schedulerRunId,
         p_output_json: generated.result,
         p_prompt_version: generated.result.promptVersion,
         p_schema_version: generated.result.schemaVersion,
@@ -54,11 +56,13 @@ export async function runNextOutreachGeneration(schedulerRunId: string): Promise
     await recordEngagementStage({ engagementId: job.engagement_id, schedulerRunId, stage: "AI_QUALITY_REVIEW", state: "READY", reason: "Channel content generated and ready for independent review.", worker: "channel-content-generation" });
     return { processed: true, outcome: "COMPLETED", draftId: job.draft_id, engagementId: job.engagement_id };
   } catch (error) {
+    if (isPipelineOwnershipLost(error)) return { processed: false, outcome: "SUPERSEDED", draftId: job.draft_id, engagementId: job.engagement_id };
     const safeReason = safePipelineFailureReason(error, "Channel content generation encountered a technical interruption and will retry safely.");
     await recordEngagementStage({ engagementId: job.engagement_id, schedulerRunId, stage: "CHANNEL_CONTENT_GENERATION", state: "RETRYING", reason: safeReason, worker: "channel-content-generation" }).catch(() => undefined);
-    await databaseRequest("rpc/fail_engagement_outreach_generation", {
+    await databaseRequest("rpc/fail_engagement_outreach_generation_owned", {
       method: "POST",
-      body: JSON.stringify({ p_draft_id: job.draft_id, p_error: safeReason }),
+      body: JSON.stringify({ p_draft_id: job.draft_id,
+        p_scheduler_run_id: schedulerRunId, p_error: safeReason }),
     }).catch(() => undefined);
     return { processed: true, outcome: "FAILED_RETRYABLE", draftId: job.draft_id, engagementId: job.engagement_id };
   }

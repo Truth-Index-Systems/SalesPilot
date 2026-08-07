@@ -7,7 +7,7 @@ const EMPTY: EngagementLearningBuilderResult = { inspected: 0, created: 0, exist
 
 export async function runEngagementLearningBuilder(schedulerRunId: string): Promise<EngagementLearningBuilderResult> {
   const result = await databaseRequest<EngagementLearningBuilderResult | EngagementLearningBuilderResult[]>(
-    "rpc/run_engagement_learning_builder",
+    "rpc/run_engagement_learning_builder_owned",
     { method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }) },
   );
   return (Array.isArray(result) ? result[0] : result) ?? EMPTY;
