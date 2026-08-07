@@ -5,8 +5,8 @@ const checks = [
   ['safety reserve', 'SCHEDULER_SAFETY_RESERVE_MS = 25_000'],
   ['route budget', 'ROUTE_INTELLIGENCE_START_BUDGET_MS = 245_000'],
   ['budget helper', 'remainingSchedulerBudgetMs'],
-  ['post-company clean exit', 'ended cleanly after Company Discovery due to execution budget'],
-  ['route deferral', 'deferred Route Intelligence to the next cron cycle'],
+  ['heavy-stage separation', 'Never chain a second heavyweight worker in the same invocation'],
+  ['route deferral', 'deferred Route Intelligence due to execution budget'],
   ['route claim guarded', 'canStartRouteIntelligence'],
   ['engagement guard', 'ENGAGEMENT_AI_START_BUDGET_MS = 130_000'],
 ];

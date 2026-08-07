@@ -95,63 +95,51 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     await recoverPipelineJobs(runId);
     const preparation = await preparePipelineWork(runId);
     const context = { schedulerRunId: runId };
-    const company = await settle(() => runNextCompanyDiscovery(context));
 
-    // A long Company Discovery pass may legitimately consume most of the cron
-    // invocation while verifying many official sites. Never begin another stage
-    // once we have entered the safety reserve: persist the scheduler outcome and
-    // release the lease so the next minute can resume from durable state.
-    if (!hasSchedulerBudget(schedulerStartedAt, 8_000)) {
-      console.info("Pipeline scheduler ended cleanly after Company Discovery due to execution budget", {
-        runId,
-        remainingBudgetMs: remainingSchedulerBudgetMs(schedulerStartedAt),
-      });
-      await recordPipelineSchedulerOutcome(runId, company, null, {
-        contactFoundation: null,
-        foundation: null,
-        scoring: null,
-        engagement: null,
-        engagementStrategy: null,
-        engagementLearningGuidance: null,
-        commercialReasoning: null,
-        outreachGeneration: null,
-        engagementSelfReview: null,
-        engagementQueue: null,
-        engagementLearning: null,
-      });
-      return {
-        acquired: true, runId, preparation, company, contactFoundation: null, contact: null,
-        opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null,
-        engagementLearningGuidance: null, commercialReasoning: null, outreachGeneration: null,
-        engagementSelfReview: null, engagementQueue: null, engagementLearning: null,
-      };
-    }
-
+    // G4.7.8 fairness rule: approved companies awaiting Route Intelligence are
+    // customer-committed work and take priority over speculative company
+    // replenishment. Sync the route foundations before choosing the heavyweight
+    // worker for this cron cycle. This prevents Company Discovery from consuming
+    // every fresh execution window and silently starving Route Intelligence.
     const contactFoundation = await syncContactDiscoveryFoundations(runId);
     const contactPlan = await planContactDiscoveryDispatch(runId);
-    const burstCampaignId = contactPlan.campaign_id;
-    // G4.7 first-pass Route Intelligence is intentionally deep. Running several
-    // web-research jobs in parallel causes correlated OpenAI/Vercel timeouts and
-    // lowers route quality. Execute one deep route investigation per scheduler
-    // cycle; subsequent cron cycles pick up the remaining companies immediately.
-    const canStartRouteIntelligence = contactPlan.dispatch_count > 0
+    const routeDue = contactPlan.dispatch_count > 0 && contactPlan.mode !== "BUDGET_BLOCKED";
+    const canStartRouteIntelligence = routeDue
       && hasSchedulerBudget(schedulerStartedAt, ROUTE_INTELLIGENCE_START_BUDGET_MS);
-    if (contactPlan.dispatch_count > 0 && !canStartRouteIntelligence) {
-      console.info("Pipeline scheduler deferred Route Intelligence to the next cron cycle", {
-        runId,
-        remainingBudgetMs: remainingSchedulerBudgetMs(schedulerStartedAt),
-        requiredBudgetMs: ROUTE_INTELLIGENCE_START_BUDGET_MS,
-      });
-    }
-    const contact = !canStartRouteIntelligence
-      ? null
-      : await settle(() => runNextRouteIntelligence(
-          context,
-          burstCampaignId ? { campaignId: burstCampaignId, freshOnly: true } : {},
-        ));
 
-    // These deterministic/database-only stages are cheap and safe to run after a
-    // completed heavy worker provided the scheduler still has its safety reserve.
+    let company: SettledWorker | null = null;
+    let contact: SettledWorker | SettledWorker[] | null = null;
+
+    if (canStartRouteIntelligence) {
+      console.info("Pipeline scheduler prioritising Route Intelligence over company replenishment", {
+        runId,
+        campaignId: contactPlan.campaign_id,
+        remainingBudgetMs: remainingSchedulerBudgetMs(schedulerStartedAt),
+      });
+      contact = await settle(() => runNextRouteIntelligence(
+        context,
+        contactPlan.campaign_id ? { campaignId: contactPlan.campaign_id } : {},
+      ));
+    } else {
+      if (routeDue) {
+        console.info("Pipeline scheduler deferred Route Intelligence due to execution budget", {
+          runId,
+          remainingBudgetMs: remainingSchedulerBudgetMs(schedulerStartedAt),
+          requiredBudgetMs: ROUTE_INTELLIGENCE_START_BUDGET_MS,
+        });
+      }
+
+      // Only spend the heavyweight slot on Company Discovery when no runnable
+      // Route Intelligence work is waiting. This keeps discovery autonomous while
+      // ensuring approved companies can never be starved by replenishment.
+      if (!routeDue) {
+        company = await settle(() => runNextCompanyDiscovery(context));
+      }
+    }
+
+    // Never chain a second heavyweight worker in the same invocation. A route
+    // cycle and a company-discovery cycle each get a fresh serverless budget.
+    // Cheap deterministic assembly may continue when the safety reserve permits.
     const opportunity = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await syncOpportunityFoundations(runId) : null;
     const opportunityScoring = opportunity && hasSchedulerBudget(schedulerStartedAt, 8_000)
       ? await scoreOpportunityIntelligence(runId)
@@ -176,8 +164,39 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       : null;
     const engagementQueue = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await buildEngagementSendQueue(runId) : null;
     const engagementLearning = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await buildEngagementLearning(runId) : null;
-    await recordPipelineSchedulerOutcome(runId, company, contact, { contactFoundation, foundation: opportunity, scoring: opportunityScoring, engagement, engagementStrategy, engagementLearningGuidance, commercialReasoning, outreachGeneration, engagementSelfReview, engagementQueue, engagementLearning });
-    return { acquired: true, runId, preparation, company, contactFoundation, contact, opportunity, opportunityScoring, engagement, engagementStrategy, engagementLearningGuidance, commercialReasoning, outreachGeneration, engagementSelfReview, engagementQueue, engagementLearning };
+
+    await recordPipelineSchedulerOutcome(runId, company, contact, {
+      contactFoundation,
+      foundation: opportunity,
+      scoring: opportunityScoring,
+      engagement,
+      engagementStrategy,
+      engagementLearningGuidance,
+      commercialReasoning,
+      outreachGeneration,
+      engagementSelfReview,
+      engagementQueue,
+      engagementLearning,
+    });
+
+    return {
+      acquired: true,
+      runId,
+      preparation,
+      company,
+      contactFoundation,
+      contact,
+      opportunity,
+      opportunityScoring,
+      engagement,
+      engagementStrategy,
+      engagementLearningGuidance,
+      commercialReasoning,
+      outreachGeneration,
+      engagementSelfReview,
+      engagementQueue,
+      engagementLearning,
+    };
   } finally {
     await releasePipelineSchedulerLease(runId).catch((error) => {
       console.error("Failed to release pipeline scheduler lease", error);

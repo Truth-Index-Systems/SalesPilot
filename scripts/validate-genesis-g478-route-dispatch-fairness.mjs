@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const scheduler=fs.readFileSync('lib/pipeline/scheduler.ts','utf8');
+const migration=fs.readFileSync('supabase/migrations/0070_genesis_g478_route_dispatch_fairness.sql','utf8');
+const must=(ok,msg)=>{if(!ok)throw new Error(msg)};
+must(scheduler.indexOf('syncContactDiscoveryFoundations(runId)') < scheduler.indexOf('runNextCompanyDiscovery(context)'), 'Route foundations must be synced before Company Discovery');
+must(scheduler.includes('prioritising Route Intelligence over company replenishment'), 'Missing Route Intelligence priority branch');
+must(scheduler.includes('if (!routeDue)'), 'Company Discovery must only run when no route is due');
+must(!migration.includes('initial_contact_burst_completed_at=now()'), 'Dispatch planning must be read-only');
+must(migration.includes("return query select 0,null::uuid,'NORMAL'::text"), 'No-work plan must return dispatch_count=0');
+must(migration.includes("return query select 1,v_campaign_id,'NORMAL'::text"), 'Due route plan must return one route');
+console.log('G4.7.8 route dispatch fairness validation passed');
