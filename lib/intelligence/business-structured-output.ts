@@ -12,7 +12,7 @@ function record(value: unknown): JsonRecord | null {
 }
 
 function text(value: unknown, max: number, fallback = ""): string {
-  const cleaned = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  const cleaned = typeof value === "string" ? value.replace(/\u0000/g, "").replace(/\s+/g, " ").trim() : "";
   return (cleaned || fallback).slice(0, max);
 }
 
@@ -39,7 +39,7 @@ function score(value: unknown): number {
 function httpUrl(value: unknown): string | null {
   if (typeof value !== "string" || !value.trim()) return null;
   try {
-    const url = new URL(value.trim());
+    const url = new URL(value.replace(/\u0000/g, "").trim());
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
     return url.toString();
   } catch {

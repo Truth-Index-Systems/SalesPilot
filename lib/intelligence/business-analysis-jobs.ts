@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { sanitisePostgresJson, stripPostgresNul } from "@/lib/database/postgres-json";
 
 type JobStatus = "QUEUED"|"RUNNING"|"COMPLETED"|"FAILED_RETRYABLE"|"FAILED_TERMINAL"|"CANCELLED";
 export type BusinessAnalysisJob = {
@@ -47,7 +48,8 @@ export async function updateBusinessAnalysisProgress(id:string,token:string,stag
   await databaseRequest("rpc/update_business_analysis_progress",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_stage:stage,p_progress:progress,p_canonical_url:canonicalUrl??null,p_pages_read:pagesRead??null})});
 }
 export async function completeBusinessAnalysisJob(id:string,token:string,canonicalUrl:string,pagesRead:number,analysis:unknown,durationMs:number){
-  await databaseRequest("rpc/complete_business_analysis_job",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_canonical_url:canonicalUrl,p_pages_read:pagesRead,p_analysis:analysis,p_result_summary:{durationMs,pagesRead,completedAt:new Date().toISOString()}})});
+  const safeAnalysis=sanitisePostgresJson(analysis);
+  await databaseRequest("rpc/complete_business_analysis_job",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_canonical_url:stripPostgresNul(canonicalUrl),p_pages_read:pagesRead,p_analysis:safeAnalysis,p_result_summary:sanitisePostgresJson({durationMs,pagesRead,completedAt:new Date().toISOString()})})});
 }
 export async function failBusinessAnalysisJob(id:string,token:string,code:string,message:string,retryable:boolean){
   await databaseRequest("rpc/fail_business_analysis_job",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_error_code:code,p_error_message:message,p_retryable:retryable})});
