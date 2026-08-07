@@ -31,7 +31,7 @@ export async function generateG5CommercialReasoning(input: {
     organisationId: input.organisationId,
     campaignId: input.campaignId,
     schedulerRunId: input.schedulerRunId,
-    jobType: "G5_COMMERCIAL_REASONING",
+    jobType: "COMMERCIAL_REASONING",
     jobId: input.strategyId,
     requestScope: `g5-commercial-reasoning:${requestFingerprint}`,
     model,
