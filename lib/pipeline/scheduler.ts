@@ -11,6 +11,7 @@ import type { EngagementBuilderResult } from "@/lib/engagement/types";
 import { runNextG5CommercialReasoning, type G5CommercialReasoningWorkerResult } from "@/lib/engagement/g5-commercial-reasoning";
 import { runNextG5ChannelStrategy, type G5ChannelStrategyWorkerResult } from "@/lib/engagement/g5-channel-strategy";
 import { runNextG5OutreachGeneration, type G5OutreachGenerationWorkerResult } from "@/lib/engagement/g5-outreach-generation";
+import { runNextG5PersonalisationSafety, type G5PersonalisationSafetyWorkerResult } from "@/lib/engagement/g5-personalisation-safety";
 import { buildEngagementLearning } from "@/lib/learning/service";
 import { syncEngagementStrategies, syncEngagementLearningGuidance, reconcileEngagementFailures, type EngagementStrategySyncResult, type EngagementLearningGuidanceResult } from "@/lib/engagement/strategy";
 import type { EngagementLearningBuilderResult } from "@/lib/learning/types";
@@ -60,6 +61,7 @@ export type PipelineSchedulerResult = {
   engagementLearningGuidance: EngagementLearningGuidanceResult | null;
   commercialReasoning: G5CommercialReasoningWorkerResult | null;
   channelStrategy: G5ChannelStrategyWorkerResult | null;
+  personalisationSafety: G5PersonalisationSafetyWorkerResult | null;
   outreachGeneration: G5OutreachGenerationWorkerResult | null;
   engagementSelfReview: null;
   engagementQueue: null;
@@ -87,7 +89,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner, 300);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, outreachGeneration: null, engagementSelfReview: null, engagementQueue: null, engagementLearning: null };
+    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, personalisationSafety: null, outreachGeneration: null, engagementSelfReview: null, engagementQueue: null, engagementLearning: null };
   }
 
   const runId = lease.run_id;
@@ -166,9 +168,15 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       && (!commercialReasoning || !commercialReasoning.processed)
       ? await runNextG5ChannelStrategy(runId)
       : null;
-    // G5 R4 may run only when neither earlier G5 AI worker consumed this scheduler cycle.
-    // It claims STRATEGY_READY -> GENERATING only when R2 reasoning and R3 channel strategy are persisted,
-    // generates native content for the selected primary route, then commits GENERATING -> SELF_REVIEW.
+    // G5 R5 is deterministic and state-preserving. It converts R2 safe evidence,
+    // commercial inferences and prohibited claims into the canonical personalisation
+    // safety manifest before any R4 generation can be claimed. It may run in the same
+    // cycle as R3 because it consumes no external AI budget.
+    const personalisationSafety = hasSchedulerBudget(schedulerStartedAt, 8_000)
+      ? await runNextG5PersonalisationSafety(runId)
+      : null;
+    // R4 may run only when neither earlier G5 AI worker consumed this scheduler cycle.
+    // Its SQL claim now additionally requires the persisted R5 safety manifest.
     const outreachGeneration = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
       && (!commercialReasoning || !commercialReasoning.processed)
       && (!channelStrategy || !channelStrategy.processed)
@@ -187,6 +195,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       engagementLearningGuidance,
       commercialReasoning,
       channelStrategy,
+      personalisationSafety,
       outreachGeneration,
       engagementSelfReview,
       engagementQueue,
@@ -207,6 +216,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       engagementLearningGuidance,
       commercialReasoning,
       channelStrategy,
+      personalisationSafety,
       outreachGeneration,
       engagementSelfReview,
       engagementQueue,

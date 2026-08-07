@@ -58,6 +58,7 @@ function validateAgainstImmutableDecision(input: {
   result: G5OutreachGeneration;
   channelStrategy: Record<string, unknown>;
   sourceSnapshot: Record<string, unknown>;
+  personalisationSafety: Record<string, unknown>;
 }): void {
   const primary = primaryDecision(input.channelStrategy);
   if (input.result.routeId !== primary.routeId) throw new Error("G5_OUTREACH_ROUTE_MISMATCH");
@@ -72,6 +73,24 @@ function validateAgainstImmutableDecision(input: {
   for (const evidence of input.result.evidenceUsed) {
     if (!immutableSourceText.includes(evidence.sourceId)) throw new Error("G5_OUTREACH_UNKNOWN_EVIDENCE_SOURCE");
   }
+  const safetyItems = Array.isArray(input.personalisationSafety.items)
+    ? input.personalisationSafety.items
+    : [];
+  const allowedIds = new Set<string>();
+  const verifiedSourceIds = new Set<string>();
+  for (const raw of safetyItems) {
+    if (!raw || typeof raw !== "object") continue;
+    const item = raw as { itemId?: unknown; classification?: unknown; sourceId?: unknown };
+    if (typeof item.itemId !== "string") continue;
+    if (item.classification === "VERIFIED_FACT" || item.classification === "COMMERCIAL_INFERENCE") allowedIds.add(item.itemId);
+    if (item.classification === "VERIFIED_FACT" && typeof item.sourceId === "string") verifiedSourceIds.add(item.sourceId);
+  }
+  for (const basisId of input.result.personalisationBasis) {
+    if (!allowedIds.has(basisId)) throw new Error("G5_OUTREACH_PERSONALISATION_BASIS_NOT_ALLOWED");
+  }
+  for (const evidence of input.result.evidenceUsed) {
+    if (!verifiedSourceIds.has(evidence.sourceId)) throw new Error("G5_OUTREACH_EVIDENCE_NOT_VERIFIED_FACT");
+  }
   validateNativeContent(input.result);
 }
 
@@ -83,6 +102,7 @@ export async function generateG5Outreach(input: {
   commercialReasoning: Record<string, unknown>;
   channelStrategy: Record<string, unknown>;
   sourceSnapshot: Record<string, unknown>;
+  personalisationSafety: Record<string, unknown>;
 }): Promise<{ result: G5OutreachGeneration; model: string; sourceFingerprint: string }> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
@@ -92,9 +112,10 @@ export async function generateG5Outreach(input: {
     commercialReasoning: input.commercialReasoning,
     channelStrategy: input.channelStrategy,
     immutableG4: input.sourceSnapshot,
+    personalisationSafety: input.personalisationSafety,
   }, { evidenceLimit: 8, depth: 8 }) as Record<string, unknown>;
   const sourceFingerprint = stableFingerprint(compactInput);
-  const requestFingerprint = stableFingerprint({ prompt: "g5-outreach-generation/v1", model, sourceFingerprint });
+  const requestFingerprint = stableFingerprint({ prompt: "g5-outreach-generation/v2", model, sourceFingerprint });
   const startedAt = Date.now();
   const reservation = await reserveAiRequest({
     organisationId: input.organisationId,
@@ -121,7 +142,8 @@ export async function generateG5Outreach(input: {
           "G4 commercial truth is immutable. Never research, rediscover, alter or invent a route, contact, fact, pain, result, budget, relationship or timing claim.",
           "The channelStrategy.primary routeId and executionChannel are authoritative. Generate only for that primary route and channel.",
           "Commercial reasoning is the factual spine. Respect every prohibited claim and limitation it contains.",
-          "Use only supplied verified facts and safe commercial inferences. Do not turn an inference into a factual statement.",
+          "Use only items allowed by personalisationSafety. VERIFIED_FACT may be directly referenced. COMMERCIAL_INFERENCE may only be used as clearly framed inference. DO_NOT_USE must never appear or be implied.",
+          "personalisationBasis must contain only personalisationSafety itemId values actually used in the message. Never return free-text descriptions in personalisationBasis.",
           "EMAIL: concise subject and complete emailBody. No 'I hope this email finds you well', fake familiarity or bloated pitch. Use a low-friction CTA.",
           "LINKEDIN: native conversational message, materially shorter than email. A connection note is optional. No subject line or email formatting.",
           "SWITCHBOARD: produce a practical spoken opening and routing request whose purpose is to reach the correct operational/commercial owner. Do not pitch the receptionist as the buyer.",
@@ -152,7 +174,7 @@ export async function generateG5Outreach(input: {
   let parsed: G5OutreachGeneration;
   try {
     parsed = (await parseStructuredAiResponse({ response: json, schema: G5OutreachGenerationSchema, jsonSchema: g5OutreachGenerationJsonSchema, schemaName: "salespilot_g5_outreach_generation_v1", apiKey, model })).value;
-    validateAgainstImmutableDecision({ result: parsed, channelStrategy: input.channelStrategy, sourceSnapshot: input.sourceSnapshot });
+    validateAgainstImmutableDecision({ result: parsed, channelStrategy: input.channelStrategy, sourceSnapshot: input.sourceSnapshot, personalisationSafety: input.personalisationSafety });
   } catch (error) {
     const safe = safeStructuredAiError(error);
     await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage, durationMs: Date.now() - startedAt, responseId, errorCode: safe.code, errorMessage: safe.message }).catch(() => undefined);
