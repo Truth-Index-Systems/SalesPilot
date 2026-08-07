@@ -13,6 +13,7 @@ import { runNextG5ChannelStrategy, type G5ChannelStrategyWorkerResult } from "@/
 import { runNextG5OutreachGeneration, type G5OutreachGenerationWorkerResult } from "@/lib/engagement/g5-outreach-generation";
 import { runNextG5PersonalisationSafety, type G5PersonalisationSafetyWorkerResult } from "@/lib/engagement/g5-personalisation-safety";
 import { runNextG5SelfReview, type G5SelfReviewWorkerResult } from "@/lib/engagement/g5-self-review";
+import { runNextG5EngagementQuality, type G5EngagementQualityWorkerResult } from "@/lib/engagement/g5-engagement-quality";
 import { buildEngagementLearning } from "@/lib/learning/service";
 import { syncEngagementStrategies, syncEngagementLearningGuidance, reconcileEngagementFailures, type EngagementStrategySyncResult, type EngagementLearningGuidanceResult } from "@/lib/engagement/strategy";
 import type { EngagementLearningBuilderResult } from "@/lib/learning/types";
@@ -65,6 +66,7 @@ export type PipelineSchedulerResult = {
   personalisationSafety: G5PersonalisationSafetyWorkerResult | null;
   outreachGeneration: G5OutreachGenerationWorkerResult | null;
   engagementSelfReview: G5SelfReviewWorkerResult | null;
+  engagementQuality: G5EngagementQualityWorkerResult | null;
   engagementQueue: null;
   engagementLearning: EngagementLearningBuilderResult | null;
 };
@@ -90,7 +92,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner, 300);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, personalisationSafety: null, outreachGeneration: null, engagementSelfReview: null, engagementQueue: null, engagementLearning: null };
+    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, personalisationSafety: null, outreachGeneration: null, engagementSelfReview: null, engagementQuality: null, engagementQueue: null, engagementLearning: null };
   }
 
   const runId = lease.run_id;
@@ -192,6 +194,11 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       && (!outreachGeneration || !outreachGeneration.processed)
       ? await runNextG5SelfReview(runId)
       : null;
+    // R7 is deterministic and runs only after R6 has produced READY_FOR_APPROVAL.
+    // It never reuses Opportunity Score and never changes the R6 PASS decision.
+    const engagementQuality: G5EngagementQualityWorkerResult | null = hasSchedulerBudget(schedulerStartedAt, 8_000)
+      ? await runNextG5EngagementQuality(runId)
+      : null;
     const engagementQueue = null;
     const engagementLearning = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await buildEngagementLearning(runId) : null;
 
@@ -207,6 +214,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       personalisationSafety,
       outreachGeneration,
       engagementSelfReview,
+      engagementQuality,
       engagementQueue,
       engagementLearning,
     });
@@ -228,6 +236,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       personalisationSafety,
       outreachGeneration,
       engagementSelfReview,
+      engagementQuality,
       engagementQueue,
       engagementLearning,
     };
