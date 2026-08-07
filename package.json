@@ -101,7 +101,8 @@
     "genesis:g4710-full-audit-check": "node scripts/validate-genesis-g4710-full-pipeline-audit.mjs",
     "genesis:g5-release1-check": "node scripts/validate-genesis-g5-release1.mjs",
     "genesis:g5-release2-check": "node scripts/validate-genesis-g5-release2.mjs",
-    "genesis:g5-release3-check": "node scripts/validate-genesis-g5-release3.mjs"
+    "genesis:g5-release3-check": "node scripts/validate-genesis-g5-release3.mjs",
+    "genesis:g5-release4-check": "node scripts/validate-genesis-g5-release4.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

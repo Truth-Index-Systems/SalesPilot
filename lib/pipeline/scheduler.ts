@@ -10,6 +10,7 @@ import { buildEngagements } from "@/lib/engagement/builder";
 import type { EngagementBuilderResult } from "@/lib/engagement/types";
 import { runNextG5CommercialReasoning, type G5CommercialReasoningWorkerResult } from "@/lib/engagement/g5-commercial-reasoning";
 import { runNextG5ChannelStrategy, type G5ChannelStrategyWorkerResult } from "@/lib/engagement/g5-channel-strategy";
+import { runNextG5OutreachGeneration, type G5OutreachGenerationWorkerResult } from "@/lib/engagement/g5-outreach-generation";
 import { buildEngagementLearning } from "@/lib/learning/service";
 import { syncEngagementStrategies, syncEngagementLearningGuidance, reconcileEngagementFailures, type EngagementStrategySyncResult, type EngagementLearningGuidanceResult } from "@/lib/engagement/strategy";
 import type { EngagementLearningBuilderResult } from "@/lib/learning/types";
@@ -59,7 +60,7 @@ export type PipelineSchedulerResult = {
   engagementLearningGuidance: EngagementLearningGuidanceResult | null;
   commercialReasoning: G5CommercialReasoningWorkerResult | null;
   channelStrategy: G5ChannelStrategyWorkerResult | null;
-  outreachGeneration: null;
+  outreachGeneration: G5OutreachGenerationWorkerResult | null;
   engagementSelfReview: null;
   engagementQueue: null;
   engagementLearning: EngagementLearningBuilderResult | null;
@@ -165,9 +166,14 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       && (!commercialReasoning || !commercialReasoning.processed)
       ? await runNextG5ChannelStrategy(runId)
       : null;
-    // R3 intentionally stops at STRATEGY_READY with channel_strategy_json persisted.
-    // Release 4 will claim STRATEGY_READY -> GENERATING only after this decision exists.
-    const outreachGeneration = null;
+    // G5 R4 may run only when neither earlier G5 AI worker consumed this scheduler cycle.
+    // It claims STRATEGY_READY -> GENERATING only when R2 reasoning and R3 channel strategy are persisted,
+    // generates native content for the selected primary route, then commits GENERATING -> SELF_REVIEW.
+    const outreachGeneration = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
+      && (!commercialReasoning || !commercialReasoning.processed)
+      && (!channelStrategy || !channelStrategy.processed)
+      ? await runNextG5OutreachGeneration(runId)
+      : null;
     const engagementSelfReview = null;
     const engagementQueue = null;
     const engagementLearning = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await buildEngagementLearning(runId) : null;
