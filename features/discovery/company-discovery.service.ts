@@ -13,7 +13,13 @@ function safeWorkerError(error: unknown): string {
 }
 
 async function activity(sessionId:string,type:string,title:string,description?:string,metadata:Record<string,unknown>={}) {
-  await databaseRequest("rpc/record_discovery_activity", {method:"POST",body:JSON.stringify({p_session_id:sessionId,p_activity_type:type,p_title:title,p_description:description??null,p_metadata:metadata})});
+  try {
+    await databaseRequest("rpc/record_discovery_activity", {method:"POST",body:JSON.stringify({p_session_id:sessionId,p_activity_type:type,p_title:title,p_description:description??null,p_metadata:metadata})});
+  } catch (error) {
+    // Observability is best-effort. A timeline/ticker write must never fail the
+    // deterministic planning phase or discard otherwise valid discovery work.
+    console.error("Discovery activity write failed", { sessionId, type, error });
+  }
 }
 
 export async function runNextCompanyDiscovery(context: WorkerExecutionContext): Promise<WorkerExecutionResult> {
@@ -29,8 +35,15 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     const expansionPassCount = Number(sessionRows[0]?.expansion_pass_count ?? 0);
     const searchPass = expansionPassCount + 1;
     const minimumSupportedCompanies = Number(sessionRows[0]?.minimum_supported_companies ?? 3);
-    const maxExpansionPasses = Number(sessionRows[0]?.max_expansion_passes ?? 4);
-    const searchStrategies = ["PRIMARY", "ALTERNATIVE_BUYER_LANGUAGE", "ADJACENT_OPERATIONAL_SECTORS", "BROADER_GEOGRAPHY_AND_SIZE"] as const;
+    const maxExpansionPasses = Number(sessionRows[0]?.max_expansion_passes ?? 6);
+    const searchStrategies = [
+      "EXACT_INDUSTRY",
+      "ADJACENT_INDUSTRIES",
+      "OPERATIONAL_SIMILARITY",
+      "PROBLEM_SIMILARITY",
+      "BUYER_SIMILARITY",
+      "COMPANY_ECOSYSTEM",
+    ] as const;
     const searchStrategy = searchStrategies[Math.min(expansionPassCount, searchStrategies.length - 1)];
     await activity(
       job.session_id,

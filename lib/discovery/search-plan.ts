@@ -45,10 +45,17 @@ function text(value: unknown): string {
   return "";
 }
 
-function unique(values: string[], limit: number): string[] {
+function clip(value: string, max: number): string {
+  const compact = value.replace(/\s+/g, " ").trim();
+  if (compact.length <= max) return compact;
+  return compact.slice(0, Math.max(1, max - 1)).trimEnd() + "…";
+}
+
+function unique(values: string[], limit: number, maxLength = 10_000): string[] {
   const seen = new Set<string>();
   const output: string[] = [];
-  for (const value of values.map(item => item.trim()).filter(Boolean)) {
+  for (const raw of values.map(item => item.trim()).filter(Boolean)) {
+    const value = clip(raw, maxLength);
     const key = value.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -76,7 +83,7 @@ function roleSynonyms(source: string): string[] {
     "Continuous Improvement Manager",
     "Transformation Director",
     "Managing Director",
-  ], 16);
+  ], 16, 120);
 }
 
 function geographyVariants(source: string, pass: number, strategy: string): string[] {
@@ -86,7 +93,7 @@ function geographyVariants(source: string, pass: number, strategy: string): stri
   if (includesAny(lower, ["ireland", "irish"])) values.push("Ireland");
   if (includesAny(lower, ["united states", "usa", "north america"])) values.push("United States", "North America");
   if (pass > 1 || strategy === "BROADER_GEOGRAPHY_AND_SIZE") values.push("Europe", "English-speaking markets");
-  return unique(values, 12);
+  return unique(values, 12, 120);
 }
 
 function buildArchetypes(context: string, strategy: string): CompanySearchPlan["companyArchetypes"] {
@@ -105,7 +112,13 @@ function buildArchetypes(context: string, strategy: string): CompanySearchPlan["
 
   const archetypes: CompanySearchPlan["companyArchetypes"] = [];
   const add = (name: string, reality: string, sectors: string[], terms: string[]) => {
-    archetypes.push({ name, operatingReality: reality, sectors, searchTerms: unique(terms, 10), evidenceSignals: commonSignals });
+    archetypes.push({
+      name: clip(name, 120),
+      operatingReality: clip(reality, 420),
+      sectors: unique(sectors, 8, 120),
+      searchTerms: unique(terms, 10, 180),
+      evidenceSignals: unique(commonSignals, 10, 220),
+    });
   };
 
   if (operational) {
@@ -123,12 +136,24 @@ function buildArchetypes(context: string, strategy: string): CompanySearchPlan["
     add("Manual-to-digital transition opportunities", "Teams replacing spreadsheets, email, paper or fragmented processes with governed digital workflows.", ["Operational businesses", "Professional services", "Regulated services"], ["manual process digital transformation", "spreadsheet workflow operations", "process modernisation company", "workflow automation initiative"]);
   }
 
-  if (strategy === "ADJACENT_OPERATIONAL_SECTORS") {
-    add("Adjacent sectors with the same operating problem", "Companies outside the primary sector that share the same workflow, accountability or continuity problem.", ["Healthcare operations", "Hospitality groups", "Retail distribution", "Public infrastructure"], ["distributed operational teams", "shift handover operations", "multi-location service operations", "operational continuity"]);
+  if (strategy === "ADJACENT_INDUSTRIES") {
+    add("Adjacent industries", "Companies in neighbouring sectors that preserve the same operating conditions and commercial need as the approved audience.", ["Industrial services", "Infrastructure", "Healthcare operations", "Retail distribution"], ["adjacent sector operations", "multi-site operations careers", "regional operating locations", "operational transformation"]);
   }
 
-  if (strategy === "ALTERNATIVE_BUYER_LANGUAGE") {
-    add("Alternative buyer-language matches", "Companies describing the need through continuous improvement, operational excellence, transformation, governance or risk language.", ["Manufacturing", "Logistics", "Business services", "Infrastructure"], ["operational excellence careers", "continuous improvement operations", "business transformation sites", "operational governance"]);
+  if (strategy === "OPERATIONAL_SIMILARITY") {
+    add("Operational-similarity matches", "Companies whose day-to-day operating model mirrors the target workflow even when their formal industry label differs.", ["Distributed operations", "Field services", "Facilities", "Transport", "Production"], ["distributed operations sites", "shift based operations", "regional service operations", "operational continuity"]);
+  }
+
+  if (strategy === "PROBLEM_SIMILARITY") {
+    add("Problem-similarity matches", "Companies showing evidence of the same measurable workflow, continuity, risk, quality or coordination problem described by the campaign.", ["Operational businesses", "Regulated services", "Complex service organisations"], ["continuous improvement operations", "workflow risk operations", "quality improvement careers", "process reliability initiative"]);
+  }
+
+  if (strategy === "BUYER_SIMILARITY") {
+    add("Buyer-similarity matches", "Companies employing equivalent operational, transformation, continuous-improvement or site leadership roles that would own the approved problem.", ["Manufacturing", "Logistics", "Business services", "Infrastructure"], ["operations director careers", "continuous improvement manager", "transformation director operations", "site manager careers"]);
+  }
+
+  if (strategy === "COMPANY_ECOSYSTEM") {
+    add("Company-ecosystem matches", "Companies connected to the same supplier, partner, customer, facility or operating ecosystem as already-supported target organisations, while still requiring independent official evidence.", ["Supply chain", "Industrial ecosystems", "Partner networks", "Service networks"], ["supplier network operations", "strategic partners operations", "customer case study operations", "facility network company"]);
   }
 
   return archetypes.slice(0, 8);
@@ -145,8 +170,8 @@ export async function buildCompanySearchPlan(input: SearchPlanInput): Promise<Co
   const campaignText = text(input.campaign);
   const businessText = text(input.business);
   const context = `${campaignText} ${businessText}`.trim();
-  const objective = text(input.campaign.objective) || text(input.business.summary) || "Find organisations with a commercially evidenced need for the approved offer.";
-  const audience = text(input.campaign.audience);
+  const objective = clip(text(input.campaign.objective) || text(input.business.summary) || "Find organisations with a commercially evidenced need for the approved offer.", 500);
+  const audience = clip(text(input.campaign.audience), 180);
   const buyers = text(input.campaign.buyerRoles);
 
   const operationalConditions = unique([
@@ -155,32 +180,32 @@ export async function buildCompanySearchPlan(input: SearchPlanInput): Promise<Co
     "Shows sufficient organisational scale, complexity or repetition for the offer to create measurable value",
     "Has official evidence of relevant operations, locations, roles, initiatives, risks or workflows",
     input.searchPass > 1 ? `Has not been exhausted by earlier search pass ${input.searchPass - 1}` : "Can be verified independently before recommendation",
-  ], 12);
+  ], 12, 220);
 
   const plan = {
     schemaVersion: "company-search-plan/v1" as const,
-    commercialProblem: objective.slice(0, 500),
+    commercialProblem: clip(objective, 500),
     operationalConditions,
     companyArchetypes: buildArchetypes(context, input.searchStrategy),
     buyerRoleSynonyms: roleSynonyms(buyers),
     geographyVariants: geographyVariants(context, input.searchPass, input.searchStrategy),
-    sourcePriority: [
+    sourcePriority: unique([
       "Official operations, facilities and locations pages",
       "Official careers pages and job descriptions",
       "Official annual, sustainability, safety or regulatory reports",
       "Official procurement and supplier pages",
       "Official case studies, project pages and company news",
       "Corporate homepage only as supporting context",
-    ],
-    exclusionRules: [
+    ], 8, 160),
+    exclusionRules: unique([
       "Exclude the customer's own company, domains and related brands",
       "Exclude vendors that merely sell a similarly named product unless they independently match the approved buyer profile",
       "Exclude directories, listicles, social-only profiles and unsupported aggregators as primary evidence",
       "Do not retain companies whose official evidence cannot support the commercial fit",
-    ],
-    diversificationRule: input.searchPass > 1
+    ], 10, 220),
+    diversificationRule: clip( input.searchPass > 1
       ? `Expansion pass ${input.searchPass} (${input.searchStrategy}) must explore archetypes, terminology or geography not exhausted by earlier passes while preserving the evidence gate.`
-      : "Build a broad candidate pool across at least three distinct company archetypes before qualification; do not let one keyword family dominate the results.",
+      : "Build a broad candidate pool across at least three distinct company archetypes before qualification; do not let one keyword family dominate the results.", 420),
   };
 
   return CompanySearchPlanSchema.parse(plan);

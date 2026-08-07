@@ -1,0 +1,12 @@
+import fs from "node:fs";
+const service=fs.readFileSync("features/discovery/company-discovery.service.ts","utf8");
+const plan=fs.readFileSync("lib/discovery/search-plan.ts","utf8");
+const sql=fs.readFileSync("supabase/migrations/0062_genesis_g4_discovery_orchestration_root_cause_fix.sql","utf8");
+const requiredStrategies=["EXACT_INDUSTRY","ADJACENT_INDUSTRIES","OPERATIONAL_SIMILARITY","PROBLEM_SIMILARITY","BUYER_SIMILARITY","COMPANY_ECOSYSTEM"];
+for(const token of requiredStrategies) if(!service.includes(token)) throw new Error(`Missing search pass ${token}`);
+if(!sql.includes("'PLANNING','SEARCHING','VERIFYING'")) throw new Error("G4 progress RPC still does not accept planning/searching/verifying");
+if(!sql.includes("max_expansion_passes set default 6")||!sql.includes("max_expansion_passes=6")) throw new Error("Six-pass expansion not enforced");
+if(!plan.includes("function clip(")) throw new Error("Deterministic planner does not bound generated strings");
+if(plan.includes("api.openai.com")||plan.includes("fetch(")) throw new Error("Deterministic planner contains external work");
+if(!service.includes("Discovery activity write failed")) throw new Error("Telemetry remains able to fail discovery work");
+console.log("G4 orchestration root-cause validation passed");
