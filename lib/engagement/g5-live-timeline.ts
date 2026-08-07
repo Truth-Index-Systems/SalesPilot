@@ -50,7 +50,7 @@ type QueueRow = {
 type HoldRow = {
   reason_code: string;
   reason_message: string;
-  updated_at: string;
+  last_checked_at: string;
   resolved_at: string | null;
 };
 
@@ -121,7 +121,7 @@ export async function getG5LiveTimelineForOpportunity(opportunityId: string): Pr
   const [events, queues, holds] = await Promise.all([
     databaseRequest<EventRow[]>(`engagement_strategy_events?organisation_id=eq.${context.organisationId}&strategy_id=eq.${strategy.id}&select=id,event_type,previous_state,next_state,metadata_json,occurred_at&order=occurred_at.asc`),
     databaseRequest<QueueRow[]>(`g5_engagement_execution_queue?organisation_id=eq.${context.organisationId}&strategy_id=eq.${strategy.id}&select=status,channel_type,scheduled_for,recipient_timezone,sent_at,last_error,updated_at&limit=1`),
-    databaseRequest<HoldRow[]>(`g5_engagement_execution_holds?organisation_id=eq.${context.organisationId}&strategy_id=eq.${strategy.id}&resolved_at=is.null&select=reason_code,reason_message,updated_at,resolved_at&order=updated_at.desc&limit=1`),
+    databaseRequest<HoldRow[]>(`g5_engagement_execution_holds?organisation_id=eq.${context.organisationId}&strategy_id=eq.${strategy.id}&resolved_at=is.null&select=reason_code,reason_message,last_checked_at,resolved_at&order=last_checked_at.desc&limit=1`),
   ]);
 
   const entries = events.map(describeEvent).filter((entry): entry is G5TimelineEntry => Boolean(entry));
