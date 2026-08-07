@@ -12,6 +12,7 @@ import { runNextG5CommercialReasoning, type G5CommercialReasoningWorkerResult } 
 import { runNextG5ChannelStrategy, type G5ChannelStrategyWorkerResult } from "@/lib/engagement/g5-channel-strategy";
 import { runNextG5OutreachGeneration, type G5OutreachGenerationWorkerResult } from "@/lib/engagement/g5-outreach-generation";
 import { runNextG5PersonalisationSafety, type G5PersonalisationSafetyWorkerResult } from "@/lib/engagement/g5-personalisation-safety";
+import { runNextG5SelfReview, type G5SelfReviewWorkerResult } from "@/lib/engagement/g5-self-review";
 import { buildEngagementLearning } from "@/lib/learning/service";
 import { syncEngagementStrategies, syncEngagementLearningGuidance, reconcileEngagementFailures, type EngagementStrategySyncResult, type EngagementLearningGuidanceResult } from "@/lib/engagement/strategy";
 import type { EngagementLearningBuilderResult } from "@/lib/learning/types";
@@ -182,7 +183,15 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       && (!channelStrategy || !channelStrategy.processed)
       ? await runNextG5OutreachGeneration(runId)
       : null;
-    const engagementSelfReview = null;
+    // R6 is the final heavyweight G5 worker in this controlled release. It may only
+    // run when R2/R3/R4 did not consume the AI slot. PASS advances to approval;
+    // REWRITE returns only the draft to R4; BLOCK terminates the G5 strategy.
+    const engagementSelfReview: G5SelfReviewWorkerResult | null = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
+      && (!commercialReasoning || !commercialReasoning.processed)
+      && (!channelStrategy || !channelStrategy.processed)
+      && (!outreachGeneration || !outreachGeneration.processed)
+      ? await runNextG5SelfReview(runId)
+      : null;
     const engagementQueue = null;
     const engagementLearning = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await buildEngagementLearning(runId) : null;
 

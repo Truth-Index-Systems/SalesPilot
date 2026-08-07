@@ -103,6 +103,7 @@ export async function generateG5Outreach(input: {
   channelStrategy: Record<string, unknown>;
   sourceSnapshot: Record<string, unknown>;
   personalisationSafety: Record<string, unknown>;
+  rewriteInstruction?: Record<string, unknown> | null;
 }): Promise<{ result: G5OutreachGeneration; model: string; sourceFingerprint: string }> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
@@ -113,9 +114,10 @@ export async function generateG5Outreach(input: {
     channelStrategy: input.channelStrategy,
     immutableG4: input.sourceSnapshot,
     personalisationSafety: input.personalisationSafety,
+    rewriteInstruction: input.rewriteInstruction ?? null,
   }, { evidenceLimit: 8, depth: 8 }) as Record<string, unknown>;
   const sourceFingerprint = stableFingerprint(compactInput);
-  const requestFingerprint = stableFingerprint({ prompt: "g5-outreach-generation/v2", model, sourceFingerprint });
+  const requestFingerprint = stableFingerprint({ prompt: "g5-outreach-generation/v3", model, sourceFingerprint });
   const startedAt = Date.now();
   const reservation = await reserveAiRequest({
     organisationId: input.organisationId,
@@ -144,6 +146,7 @@ export async function generateG5Outreach(input: {
           "Commercial reasoning is the factual spine. Respect every prohibited claim and limitation it contains.",
           "Use only items allowed by personalisationSafety. VERIFIED_FACT may be directly referenced. COMMERCIAL_INFERENCE may only be used as clearly framed inference. DO_NOT_USE must never appear or be implied.",
           "personalisationBasis must contain only personalisationSafety itemId values actually used in the message. Never return free-text descriptions in personalisationBasis.",
+          "If rewriteInstruction is present, this is an automatic R6 rewrite. Correct every valid criticism and follow its rewrite instructions without changing the selected route, inventing evidence or adding new claims.",
           "EMAIL: concise subject and complete emailBody. No 'I hope this email finds you well', fake familiarity or bloated pitch. Use a low-friction CTA.",
           "LINKEDIN: native conversational message, materially shorter than email. A connection note is optional. No subject line or email formatting.",
           "SWITCHBOARD: produce a practical spoken opening and routing request whose purpose is to reach the correct operational/commercial owner. Do not pitch the receptionist as the buyer.",

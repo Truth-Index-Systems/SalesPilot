@@ -18,6 +18,7 @@ type Context = {
   channel_strategy_json: Record<string, unknown>;
   source_snapshot_json: Record<string, unknown>;
   personalisation_safety_json: Record<string, unknown>;
+  rewrite_instruction_json: Record<string, unknown> | null;
 };
 
 export async function runNextG5OutreachGeneration(schedulerRunId: string): Promise<G5OutreachGenerationWorkerResult> {
@@ -49,6 +50,7 @@ export async function runNextG5OutreachGeneration(schedulerRunId: string): Promi
       channelStrategy: context.channel_strategy_json,
       sourceSnapshot: context.source_snapshot_json,
       personalisationSafety: context.personalisation_safety_json,
+      rewriteInstruction: context.rewrite_instruction_json,
     });
 
     await databaseRequest("rpc/complete_g5_outreach_generation_owned", {
