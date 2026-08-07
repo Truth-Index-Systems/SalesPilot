@@ -105,7 +105,8 @@
     "genesis:g5-release4-check": "node scripts/validate-genesis-g5-release4.mjs",
     "genesis:g5-release6-check": "node scripts/validate-genesis-g5-release6.mjs",
     "genesis:g5-release8-check": "node scripts/validate-genesis-g5-release8.mjs",
-    "genesis:g5-release9-check": "node scripts/validate-genesis-g5-release9.mjs"
+    "genesis:g5-release9-check": "node scripts/validate-genesis-g5-release9.mjs",
+    "genesis:g5-release11-check": "node scripts/validate-genesis-g5-release11.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
