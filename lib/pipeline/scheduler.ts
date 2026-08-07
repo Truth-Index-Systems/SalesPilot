@@ -14,6 +14,7 @@ import { runNextG5OutreachGeneration, type G5OutreachGenerationWorkerResult } fr
 import { runNextG5PersonalisationSafety, type G5PersonalisationSafetyWorkerResult } from "@/lib/engagement/g5-personalisation-safety";
 import { runNextG5SelfReview, type G5SelfReviewWorkerResult } from "@/lib/engagement/g5-self-review";
 import { runNextG5EngagementQuality, type G5EngagementQualityWorkerResult } from "@/lib/engagement/g5-engagement-quality";
+import { runG5ExecutionCycle, type G5ExecutionResult } from "@/lib/engagement/g5-execution";
 import { buildEngagementLearning } from "@/lib/learning/service";
 import { syncEngagementStrategies, syncEngagementLearningGuidance, reconcileEngagementFailures, type EngagementStrategySyncResult, type EngagementLearningGuidanceResult } from "@/lib/engagement/strategy";
 import type { EngagementLearningBuilderResult } from "@/lib/learning/types";
@@ -67,7 +68,7 @@ export type PipelineSchedulerResult = {
   outreachGeneration: G5OutreachGenerationWorkerResult | null;
   engagementSelfReview: G5SelfReviewWorkerResult | null;
   engagementQuality: G5EngagementQualityWorkerResult | null;
-  engagementQueue: null;
+  engagementQueue: G5ExecutionResult | null;
   engagementLearning: EngagementLearningBuilderResult | null;
 };
 
@@ -199,7 +200,12 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     const engagementQuality: G5EngagementQualityWorkerResult | null = hasSchedulerBudget(schedulerStartedAt, 8_000)
       ? await runNextG5EngagementQuality(runId)
       : null;
-    const engagementQueue = null;
+    // R9 deterministic execution: approval is converted to a durable queue item,
+    // then a due email may execute only inside the recipient-local 08:00-18:00 window.
+    // Transport failure never regenerates reviewed content.
+    const engagementQueue: G5ExecutionResult | null = hasSchedulerBudget(schedulerStartedAt, 8_000)
+      ? await runG5ExecutionCycle(runId)
+      : null;
     const engagementLearning = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await buildEngagementLearning(runId) : null;
 
     await recordPipelineSchedulerOutcome(runId, company, contact, {
