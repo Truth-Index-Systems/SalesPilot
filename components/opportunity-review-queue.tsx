@@ -9,10 +9,15 @@ import { buildAccessRoute, routeConfidenceClass } from "@/lib/opportunities/rout
 function band(row: OpportunityOverview) {
   if (row.status === "APPROVED") return { label: "Approved", className: "approved" };
   if (row.status === "REJECTED") return { label: "Not selected", className: "rejected" };
+  if (row.status === "BUILDING") return { label: "Research in progress", className: "hold" };
   if (row.status === "NEEDS_CONTACT") return { label: "Route research needed", className: "hold" };
   if (row.status === "NEEDS_EVIDENCE") return { label: "Needs evidence", className: "hold" };
   if (row.status === "LOW_PRIORITY") return { label: "Low priority", className: "archived" };
   return { label: (row.opportunity_score ?? 0) >= 80 ? "Recommended" : "Review", className: "pending_review" };
+}
+
+function reviewable(row: OpportunityOverview) {
+  return row.status === "READY";
 }
 
 function reachable(row: OpportunityOverview) {
@@ -25,7 +30,8 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const selectedSet = useMemo(() => new Set(selected), [selected]);
-  const all = rows.length > 0 && selected.length === rows.length;
+  const reviewableRows = useMemo(() => rows.filter(reviewable), [rows]);
+  const all = reviewableRows.length > 0 && selected.length === reviewableRows.length;
 
   async function review(status: "APPROVED" | "REJECTED") {
     if (!selected.length) return;
@@ -50,7 +56,7 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
 
   return <>
     <div className="review-queue-toolbar">
-      <label className="review-select-all"><input type="checkbox" checked={all} onChange={() => setSelected(all ? [] : rows.map(row => row.id))} /> Select all on this page</label>
+      <label className="review-select-all"><input type="checkbox" checked={all} disabled={!reviewableRows.length} onChange={() => setSelected(all ? [] : reviewableRows.map(row => row.id))} /> Select all ready for review</label>
       <div><strong>{selected.length}</strong> selected</div>
       <button className="button primary" disabled={!selected.length || !!busy} onClick={() => review("APPROVED")}>{busy === "APPROVED" ? "Approving…" : "Approve selected"}</button>
       <button className="button secondary" disabled={!selected.length || !!busy} onClick={() => review("REJECTED")}>{busy === "REJECTED" ? "Saving…" : "Reject selected"}</button>
@@ -69,7 +75,7 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
                 <span className="eyebrow">#{row.rank} · {row.campaign_name}</span><h3>{row.company_name}</h3><span>{row.company_industry || "Industry not confirmed"}{row.company_country ? ` · ${row.company_country}` : ""}</span>
               </Link>
               <div className="opportunity-card-head-actions">
-                <label className="opportunity-select"><input type="checkbox" checked={selectedSet.has(row.id)} onChange={() => setSelected(current => current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id])} aria-label={`Select ${row.company_name}`} /><span>Select</span></label>
+                {reviewable(row) ? <label className="opportunity-select"><input type="checkbox" checked={selectedSet.has(row.id)} onChange={() => setSelected(current => current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id])} aria-label={`Select ${row.company_name}`} /><span>Select</span></label> : <span className="opportunity-select opportunity-select-disabled">Researching</span>}
                 <div className="opportunity-score"><strong>{score}</strong><span>Opportunity score</span></div>
               </div>
             </div>
@@ -98,7 +104,7 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
             <div className="opportunity-channel-row">
               <div className={channel ? "available" : "unknown"}><Mail size={15}/><span>{channel || "Email route not found"}</span></div>
               <div className={route.linkedinUrl ? "available" : "unknown"}><ExternalLink size={15}/><span>{route.linkedinUrl ? "LinkedIn route available" : "LinkedIn route unknown"}</span></div>
-              <div><ShieldCheck size={15}/><span>{Number(row.company_evidence_count) + Number(row.contact_evidence_count) + Number(row.commercial_route_evidence_count || 0)} evidence sources · {row.commercial_route_count || 0} viable routes</span></div>
+              <div><ShieldCheck size={15}/><span>{row.status === "BUILDING" ? `${Number(row.company_evidence_count)} company evidence source${Number(row.company_evidence_count) === 1 ? "" : "s"} · route evidence building` : `${Number(row.company_evidence_count) + Number(row.contact_evidence_count) + Number(row.commercial_route_evidence_count || 0)} evidence sources · ${row.commercial_route_count || 0} viable routes`}</span></div>
             </div>
             </Link>
           </div>
