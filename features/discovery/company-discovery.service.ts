@@ -156,8 +156,8 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       );
       await activity(job.session_id,context.schedulerRunId,"SEARCH_PREPARED","Approved strategy verified","The audience, buyer roles and commercial angle are ready for company research.");
       failurePhase = "PLANNING";
-      await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"PLANNING",p_progress:28})});
-      await activity(job.session_id,context.schedulerRunId,"SEARCH_PLAN_STARTED","Building the market search plan","MarketRoute is deterministically translating the approved campaign into operational conditions, target account archetypes and high-value evidence sources before external research begins.",{searchPass,searchStrategy});
+      await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"SEARCH_PLAN_RUNNING",p_progress:24})});
+      await activity(job.session_id,context.schedulerRunId,"SEARCH_PLAN_STARTED","Building your market search strategy","MarketRoute is turning the approved campaign into focused target-account archetypes, search language and evidence priorities so market discovery can start immediately.",{searchPass,searchStrategy});
       searchPlan = await buildCompanySearchPlan({
         organisationId: job.organisation_id,
         campaignId: job.campaign_id,
@@ -228,12 +228,17 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     const targetCandidateLimit = candidateLimitFromEnv();
     const researchProgress = 40 + Math.round((archetypeIndex / archetypeTotal) * 30);
     failurePhase = "SEARCHING";
-    await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"SEARCHING",p_progress:researchProgress})});
+    await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"BREADTH_DISCOVERY",p_progress:Math.max(38,researchProgress)})});
     await activityOnce(job.session_id,context.schedulerRunId,`archetype-start:${searchPass}:${archetypeIndex}`,"ARCHETYPE_RESEARCH_STARTED",`Researching target account archetype ${archetypeIndex + 1} of ${archetypeTotal}`,`${archetype.name}: ${archetype.operatingReality}`,{archetypeIndex,archetypeTotal,archetypeName:archetype.name,targetCandidateLimit,searchPass,searchStrategy});
 
-    const existingCompanies = await databaseRequest<Array<{ company_name: string; canonical_domain: string }>>(
-      `companies?organisation_id=eq.${job.organisation_id}&campaign_id=eq.${job.campaign_id}&select=company_name,canonical_domain&limit=1000`
-    );
+    const [existingCompanies,stagedCandidates] = await Promise.all([
+      databaseRequest<Array<{ company_name: string; canonical_domain: string }>>(
+        `companies?organisation_id=eq.${job.organisation_id}&campaign_id=eq.${job.campaign_id}&select=company_name,canonical_domain&limit=1000`
+      ),
+      databaseRequest<Array<{ company_name: string; canonical_domain: string }>>(
+        `company_discovery_candidates?discovery_session_id=eq.${job.session_id}&search_pass=eq.${searchPass}&select=company_name,canonical_domain&limit=1000`
+      ),
+    ]);
     let result: ReturnType<typeof CompanyDiscoveryResultSchema.parse> | null = null;
     if (Number(session.company_search_active_result_index ?? -1) === archetypeIndex && session.company_search_active_result_json) {
       const persisted = CompanyDiscoveryResultSchema.safeParse(session.company_search_active_result_json);
@@ -251,7 +256,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
         campaign:{name:campaign.name,objective:campaign.objective,audience:campaign.audience,buyerRoles:campaign.buyer_roles,messageAngle:campaign.message_angle,why:campaign.why,fitScore:campaign.fit_score},
         business,
         customerWebsite:campaign.website_url,
-        excludedCompanies:existingCompanies.map(company=>({name:company.company_name,domain:company.canonical_domain})),
+        excludedCompanies:[...existingCompanies,...stagedCandidates].map(company=>({name:company.company_name,domain:company.canonical_domain})),
         searchPass,
         searchStrategy,
         searchPlan:boundedPlan,
@@ -264,6 +269,33 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
         body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_archetype_index:archetypeIndex,p_result:result}),
       });
     }
+
+    // G5.1.13.1: breadth-search candidates are persisted immediately into a
+    // staging surface. This makes discovery visible before evidence verification
+    // without allowing unverified candidates into the canonical companies table.
+    await databaseRequest("rpc/persist_company_discovery_candidate_batch_owned",{
+      method:"POST",
+      body:JSON.stringify({
+        p_session_id:job.session_id,
+        p_scheduler_run_id:context.schedulerRunId,
+        p_search_pass:searchPass,
+        p_archetype_index:archetypeIndex,
+        p_candidates:result.companies,
+      }),
+    });
+    await activityOnce(
+      job.session_id,
+      context.schedulerRunId,
+      `breadth-batch:${searchPass}:${archetypeIndex}`,
+      "DISCOVERY_BATCH_READY",
+      result.companies.length>0
+        ? `${result.companies.length} compan${result.companies.length===1?"y":"ies"} discovered in ${archetype.name}`
+        : `Market scan completed for ${archetype.name}`,
+      result.companies.length>0
+        ? "These candidates are visible immediately while MarketRoute checks official evidence before recommending them."
+        : "No supported breadth candidates were returned for this archetype; MarketRoute is continuing through the rest of the search plan.",
+      {searchPass,archetypeIndex,archetypeTotal,archetypeName:archetype.name,candidateCount:result.companies.length,companyNames:result.companies.slice(0,6).map(company=>company.name)},
+    );
 
     failurePhase = "VERIFYING";
     const verificationProgress = 44 + Math.round(((archetypeIndex + 1) / archetypeTotal) * 26);
@@ -288,6 +320,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       excerptMatches += verification.diagnostics.excerptMatches;
       if (!verification.accepted) {
         heldReasons[verification.reason] += 1;
+        await databaseRequest("rpc/mark_company_discovery_candidate_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_search_pass:searchPass,p_website_url:candidate.websiteUrl,p_status:"HELD",p_hold_reason:verification.reason})}).catch(()=>undefined);
         await activity(job.session_id,context.schedulerRunId,"CANDIDATE_HELD",`${candidate.name} held back`,"The available official-site evidence was not strong enough to recommend this company.",{companyName:candidate.name,reason:verification.reason,diagnostics:verification.diagnostics,archetypeName:archetype.name});
         continue;
       }
@@ -295,6 +328,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       verified+=1;
       const count=await databaseRequest<number>("rpc/save_company_discovery_batch_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_companies:[company]})});
       saved+=Number(count);
+      await databaseRequest("rpc/mark_company_discovery_candidate_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_search_pass:searchPass,p_website_url:candidate.websiteUrl,p_status:"VERIFIED"})}).catch(()=>undefined);
       await activity(job.session_id,context.schedulerRunId,"COMPANY_SAVED",`${company.name} verified and added`,`${company.matchLabel} · ${company.confidence}/100 confidence · ${company.evidenceQuality}/100 evidence quality`,{companyName:company.name,confidence:company.confidence,evidenceQuality:company.evidenceQuality,savedCount:saved,archetypeName:archetype.name});
     }
 
