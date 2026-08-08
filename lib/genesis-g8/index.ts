@@ -23,3 +23,4 @@ export type {
 } from "./persistence/types";
 export * from "./read-model";
 export * from "./knowledge-gaps";
+export * from "./eligibility";
