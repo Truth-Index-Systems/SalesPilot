@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createBusinessAnalysisJob, getBusinessAnalysisJob } from "@/lib/intelligence/business-analysis-jobs";
+import { createBusinessAnalysisJob, deleteQueuedAnonymousBusinessAnalysisJob, getBusinessAnalysisJob } from "@/lib/intelligence/business-analysis-jobs";
 import { normaliseBusinessAnalysis } from "@/lib/intelligence/fit-score";
 import { consumeAnonymousAnalysisAllowance, readAnonymousAnalysisAllowance, resolveAnonymousVisitor } from "@/lib/security/request-guard";
 import { getCurrentUser } from "@/lib/auth/current-user";
@@ -94,16 +94,28 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   let visitor: ReturnType<typeof resolveAnonymousVisitor> | null = null;
+  let anonymousCreated: Awaited<ReturnType<typeof createBusinessAnalysisJob>> | null = null;
   try {
     const input = StartSchema.parse(await request.json());
     const user = await getCurrentUser();
     let allowance = null;
 
-    if (!user) {
-      visitor = resolveAnonymousVisitor(request);
+    if (!user) visitor = resolveAnonymousVisitor(request);
+
+    // Persist the durable job before committing the complimentary entitlement.
+    // If quota enforcement rejects the request, remove the still-QUEUED ownerless
+    // job immediately. A database/create failure therefore never burns one of the
+    // visitor's three analyses.
+    const created = await createBusinessAnalysisJob(input.website, { forceAnonymous: !user });
+    if (!user) anonymousCreated = created;
+    if (!user && visitor) {
       const consumed = await consumeAnonymousAnalysisAllowance(request, visitor);
       allowance = consumed.allowance;
       if (!consumed.allowed) {
+        await deleteQueuedAnonymousBusinessAnalysisJob(created.job.id, created.accessToken).catch(error =>
+          console.error("Rejected anonymous analysis cleanup failed", { jobId: created.job.id, error }),
+        );
+        anonymousCreated = null;
         return attachAnonymousVisitorCookie(
           NextResponse.json({ ok: false, allowance, error: { code: "ANALYSIS_LIMIT_REACHED", title: "Your complimentary analyses are complete", message: `You have used your ${allowance.limit} complimentary website analyses.`, hint: "Create an account or sign in to continue with MarketRoute." } }, { status: 429 }),
           visitor,
@@ -111,10 +123,15 @@ export async function POST(request: Request) {
       }
     }
 
-    const created = await createBusinessAnalysisJob(input.website, { forceAnonymous: !user });
     const response = NextResponse.json({ ok: true, job: publicJob(created.job), accessToken: created.accessToken, allowance }, { status: 202, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+    anonymousCreated = null;
     return visitor ? attachAnonymousVisitorCookie(response, visitor) : response;
   } catch (error) {
+    if (anonymousCreated) {
+      await deleteQueuedAnonymousBusinessAnalysisJob(anonymousCreated.job.id, anonymousCreated.accessToken).catch(cleanupError =>
+        console.error("Failed anonymous analysis startup cleanup", { jobId: anonymousCreated?.job.id, cleanupError }),
+      );
+    }
     console.error("Business analysis job creation failed", error);
     const response = error instanceof z.ZodError
       ? NextResponse.json({ ok: false, error: { code: "INVALID_REQUEST", title: "Check the website address", message: "Please enter a valid company website.", hint: "Enter an address such as yourcompany.com." } }, { status: 400 })

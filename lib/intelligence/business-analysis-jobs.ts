@@ -5,8 +5,18 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { sanitisePostgresJson, stripPostgresNul } from "@/lib/database/postgres-json";
 
 type JobStatus = "QUEUED"|"RUNNING"|"COMPLETED"|"FAILED_RETRYABLE"|"FAILED_TERMINAL"|"CANCELLED";
+export type BusinessAnalysisStage =
+  | "QUEUED"
+  | "READING_WEBSITE"
+  | "WEBSITE_CONNECTED"
+  | "BUILDING_BUSINESS_DNA"
+  | "BUSINESS_DNA_READY"
+  | "GROWTH_STRATEGY_RUNNING"
+  | "PREPARING_RECOMMENDATIONS"
+  | "COMPLETE"
+  | "FAILED";
 export type BusinessAnalysisJob = {
-  id:string; organisation_id:string|null; requested_by:string|null; website_input:string; canonical_url:string|null; status:JobStatus; stage:string; progress:number;
+  id:string; organisation_id:string|null; requested_by:string|null; website_input:string; canonical_url:string|null; status:JobStatus; stage:BusinessAnalysisStage; progress:number;
   attempt_count:number; next_retry_at:string|null; last_error_code:string|null; last_error_message:string|null;
   pages_read:number; core_analysis_json:unknown|null; analysis_json:unknown|null; worker_token?:string|null; created_at:string; updated_at:string;
 };
@@ -33,6 +43,11 @@ export async function createBusinessAnalysisJob(website:string, options?:{ force
   return {job,accessToken};
 }
 
+
+export async function deleteQueuedAnonymousBusinessAnalysisJob(id:string,token:string){
+  await databaseRequest("rpc/delete_queued_anonymous_business_analysis_job",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token)})});
+}
+
 export async function getBusinessAnalysisJob(id:string,token:string){
   const hash=hashAnalysisToken(token);
   const rows=await databaseRequest<BusinessAnalysisJob[]>(`business_analysis_jobs?id=eq.${encodeURIComponent(id)}&access_token_hash=eq.${hash}&select=id,organisation_id,requested_by,website_input,canonical_url,status,stage,progress,attempt_count,next_retry_at,last_error_code,last_error_message,pages_read,core_analysis_json,analysis_json,created_at,updated_at&limit=1`);
@@ -48,7 +63,7 @@ export async function claimBusinessAnalysisJob(id:string,token:string){
   if(typeof claimed.website_input!=="string"||!claimed.website_input.trim())return null;
   return claimed;
 }
-export async function updateBusinessAnalysisProgress(id:string,token:string,workerToken:string,stage:string,progress:number,canonicalUrl?:string,pagesRead?:number){
+export async function updateBusinessAnalysisProgress(id:string,token:string,workerToken:string,stage:BusinessAnalysisStage,progress:number,canonicalUrl?:string,pagesRead?:number){
   await databaseRequest("rpc/update_business_analysis_progress_owned",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_worker_token:workerToken,p_stage:stage,p_progress:progress,p_canonical_url:canonicalUrl??null,p_pages_read:pagesRead??null})});
 }
 export async function persistBusinessAnalysisCore(id:string,token:string,workerToken:string,canonicalUrl:string,pagesRead:number,core:unknown){

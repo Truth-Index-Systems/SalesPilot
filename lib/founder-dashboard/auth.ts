@@ -2,7 +2,8 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 
-const COOKIE_NAME = "salespilot_founder_dashboard";
+const COOKIE_NAME = "marketroute_founder_dashboard";
+const LEGACY_COOKIE_NAME = "salespilot_founder_dashboard";
 const MAX_AGE_SECONDS = 60 * 60 * 12;
 
 function secret(): string {
@@ -33,7 +34,11 @@ export function dashboardCookieOptions() {
 }
 
 export async function hasFounderDashboardSession(): Promise<boolean> {
-  const value = (await cookies()).get(COOKIE_NAME)?.value;
+  const store = await cookies();
+  // Read the legacy cookie during the rebrand transition so an existing founder
+  // dashboard session is not unexpectedly invalidated. New logins only issue the
+  // MarketRoute cookie.
+  const value = store.get(COOKIE_NAME)?.value ?? store.get(LEGACY_COOKIE_NAME)?.value;
   if (!value) return false;
   const [expiresAt, supplied] = value.split(".");
   if (!expiresAt || !supplied || Number(expiresAt) <= Math.floor(Date.now() / 1000)) return false;
@@ -44,3 +49,4 @@ export async function hasFounderDashboardSession(): Promise<boolean> {
 }
 
 export const founderDashboardCookieName = COOKIE_NAME;
+export const legacyFounderDashboardCookieName = LEGACY_COOKIE_NAME;

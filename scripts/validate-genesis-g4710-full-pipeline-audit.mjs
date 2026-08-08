@@ -37,7 +37,7 @@ must("lib/pipeline/ownership.ts",["DatabaseRequestError","details?.message","OWN
 must("lib/opportunities/scoring.ts",["enforce_opportunity_route_readiness"]);
 must("lib/engagement/strategy.ts",["record_engagement_pipeline_stage_owned"]);
 must("lib/pipeline/repository.ts",["plan_contact_discovery_dispatch_owned","record_pipeline_scheduler_outcome_owned"]);
-must("lib/pipeline/scheduler.ts",["acquirePipelineSchedulerLease(owner, 300)","ROUTE_INTELLIGENCE_START_BUDGET_MS","prioritising Route Intelligence"]);
+must("lib/pipeline/scheduler.ts",["acquirePipelineSchedulerLease(owner, 300)","hasSchedulerBudget(schedulerStartedAt, 45_000)","const routeDue = contactPlan.dispatch_count > 0", "runNextRouteIntelligence"]);
 for(const f of ["lib/engagement/commercial-reasoning.ts","lib/engagement/outreach-generation.ts","lib/engagement/self-review.ts"]){must(f,["SUPERSEDED","isPipelineOwnershipLost","_owned"])}
 for(const dead of ["lib/data/mock.ts","lib/pipeline/campaign-state.ts","lib/pipeline/retry.ts","lib/pipeline/heartbeat.ts"]){if(fs.existsSync(dead))throw new Error(`dead legacy runtime file still exists: ${dead}`)}
 mustNot("lib/domain/campaign.ts",["ANALYSING","DISCOVERING","QUALIFYING","ENRICHING","AWAITING_APPROVAL","ACTIVE","COMPLETED"]);

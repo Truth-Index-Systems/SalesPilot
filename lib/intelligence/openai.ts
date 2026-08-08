@@ -1,7 +1,5 @@
 import { z } from "zod";
 import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
-import { type AiEnvelope } from "@/lib/ai/contracts";
-import { type BusinessDnaPayload } from "@/lib/ai/schemas/business-dna";
 import type { WebsiteSource } from "@/lib/intelligence/website-reader";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
@@ -14,7 +12,6 @@ import {
   GrowthStrategyEnvelopeSchema,
   coreBusinessDnaJsonSchema,
   growthStrategyJsonSchema,
-  assembleBusinessAnalysis,
   type CoreBusinessDnaEnvelope,
   type GrowthStrategyEnvelope,
 } from "@/lib/intelligence/business-analysis-decomposition";
@@ -143,10 +140,3 @@ export async function analyseBusinessGrowth(params: CommonParams & {core:CoreBus
   return runPhase({...params,phase:"growth",instructions,input:`PERSISTED CORE BUSINESS DNA:\n${coreInput}`,jsonSchema:growthStrategyJsonSchema,schemaName:"marketroute_growth_strategy",maxOutputTokens:Math.min(profile.maxOutputTokens,3800),reasoningEffort:"medium",estimatedCostUsd:Number(process.env.MARKETROUTE_BUSINESS_ANALYSIS_GROWTH_ESTIMATED_COST_USD??"0.06"),fingerprintData:{prompt:"business-discovery-growth/v1",cacheKey:`${aiPromptCacheKey("BUSINESS_ANALYSIS")}:growth`,core:params.core.payload},canonicalise:canonicalGrowth});
 }
 
-/** Compatibility wrapper for non-job callers. The persisted worker uses the two
- * phase functions directly so Core DNA survives a Growth retry. */
-export async function analyseBusiness(params: CommonParams & {sources:WebsiteSource[]}):Promise<AiEnvelope<BusinessDnaPayload>>{
-  const core=await analyseBusinessCore(params);
-  const growth=await analyseBusinessGrowth({...params,core});
-  return assembleBusinessAnalysis(core,growth);
-}

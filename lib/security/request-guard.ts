@@ -153,14 +153,17 @@ export async function consumeAnonymousAnalysisAllowance(request: Request, visito
   const windowSeconds = config.windowDays * 24 * 60 * 60;
   const visitorScope = "PUBLIC_BUSINESS_ANALYSIS_VISITOR";
   const visitorFingerprint = fingerprintValue(visitorScope, visitor.id);
+  // Check the coarse abuse ceiling first. If it is exhausted, do not burn a
+  // customer-facing complimentary analysis from this visitor. The IP counter is
+  // intentionally only a safety throttle, not the entitlement itself.
+  const ipAllowed = await consumeRequestLimit(request, "PUBLIC_BUSINESS_ANALYSIS_IP_SAFETY", config.ipDailyLimit, 24 * 60 * 60);
+  if (!ipAllowed) {
+    return { allowed: false, allowance: await readAnonymousAnalysisAllowance(visitor) };
+  }
+
   const visitorAllowed = await consumeFingerprintLimit(visitorScope, visitorFingerprint, config.limit, windowSeconds);
   const allowance = await readAnonymousAnalysisAllowance(visitor);
-  if (!visitorAllowed) return { allowed: false, allowance };
-
-  // Secondary abuse ceiling: intentionally much higher than the per-browser allowance.
-  // This is not the customer-facing entitlement; it only slows repeated cookie resets from one connection.
-  const ipAllowed = await consumeRequestLimit(request, "PUBLIC_BUSINESS_ANALYSIS_IP_SAFETY", config.ipDailyLimit, 24 * 60 * 60);
-  return { allowed: ipAllowed, allowance };
+  return { allowed: visitorAllowed, allowance };
 }
 
 export async function resetRequestLimit(request: Request, scope: string): Promise<void> {
