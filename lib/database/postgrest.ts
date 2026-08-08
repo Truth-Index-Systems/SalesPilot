@@ -25,7 +25,7 @@ function parseDatabaseBody(raw: string): unknown {
 export async function databaseRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const config = getDatabaseConfig();
   const method = init.method ?? "GET";
-  // Every PostgREST write is JSON in SalesPilot. Sanitise the parsed payload at
+  // Every PostgREST write is JSON in MarketRoute. Sanitise the parsed payload at
   // the single database boundary so AI/web control characters such as U+0000
   // cannot break one stage while a different stage remains protected.
   let safeInit = init;

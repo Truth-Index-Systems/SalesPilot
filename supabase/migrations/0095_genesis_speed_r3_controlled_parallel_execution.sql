@@ -1,4 +1,4 @@
--- SalesPilot Genesis — Speed R3: controlled parallel AI execution.
+-- MarketRoute Genesis — Speed R3: controlled parallel AI execution.
 -- Independent scheduler lanes may dispatch concurrently, but the reservation
 -- transaction remains the hard authority for spend and in-flight concurrency.
 -- No G4/G5 commercial state transition rules are changed by this release.

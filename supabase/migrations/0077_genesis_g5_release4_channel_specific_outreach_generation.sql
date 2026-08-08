@@ -1,4 +1,4 @@
--- SalesPilot Genesis G5 — Release 4: Channel-Specific Outreach Generation
+-- MarketRoute Genesis G5 — Release 4: Channel-Specific Outreach Generation
 -- G4 remains immutable. R4 consumes persisted R2 commercial reasoning and the
 -- persisted R3 primary route/channel decision. It generates first-touch content,
 -- persists it under fenced ownership, and stops at SELF_REVIEW.
@@ -206,7 +206,7 @@ begin
   ) values(
     v.organisation_id,v.campaign_id,'G5_OUTREACH_GENERATED',
     'First-touch outreach prepared',
-    'SalesPilot has prepared channel-native outreach from the approved commercial argument and selected route. Independent AI self-review is next.',
+    'MarketRoute has prepared channel-native outreach from the approved commercial argument and selected route. Independent AI self-review is next.',
     'CUSTOMER',
     jsonb_build_object('strategyId',v.id,'opportunityId',v.opportunity_id,'confidence',p_confidence,'nextState','SELF_REVIEW')
   );

@@ -1,4 +1,4 @@
--- SalesPilot Genesis — post-freeze governance deferral + canonical contact/route synchronisation
+-- MarketRoute Genesis — post-freeze governance deferral + canonical contact/route synchronisation
 -- 1) AI allowance exhaustion parks claimed work without consuming an attempt.
 -- 2) Route Intelligence named direct-email/LinkedIn findings reconcile into public.contacts.
 -- G4/G5 intelligence remains authoritative; this migration changes recovery/presentation persistence only.
@@ -35,7 +35,7 @@ begin
 
   insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
   values(s.organisation_id,s.campaign_id,'AI_ALLOWANCE_DEFERRED','Research waiting for AI allowance',
-    'SalesPilot kept the current company-research job intact. It will resume automatically when the workspace AI allowance permits another request.',
+    'MarketRoute kept the current company-research job intact. It will resume automatically when the workspace AI allowance permits another request.',
     'CUSTOMER',jsonb_build_object('sessionId',s.id,'reasonCode',coalesce(p_reason_code,'UNKNOWN'),'attemptConsumed',false));
   return true;
 end $$;
@@ -72,7 +72,7 @@ begin
 
   insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
   values(s.organisation_id,s.campaign_id,'AI_ALLOWANCE_DEFERRED','Route research waiting for AI allowance',
-    'SalesPilot kept this account at its current route-research pass. It will resume automatically when the workspace AI allowance permits another request.',
+    'MarketRoute kept this account at its current route-research pass. It will resume automatically when the workspace AI allowance permits another request.',
     'CUSTOMER',jsonb_build_object('sessionId',s.id,'companyId',s.company_id,'reasonCode',coalesce(p_reason_code,'UNKNOWN'),'attemptConsumed',false,'routeExpansionPass',coalesce(s.route_expansion_pass,0)));
   return true;
 end $$;

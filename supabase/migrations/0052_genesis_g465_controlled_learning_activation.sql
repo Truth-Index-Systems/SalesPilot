@@ -1,4 +1,4 @@
--- SalesPilot Genesis G4.6.5: controlled learning activation and G4.6 freeze.
+-- MarketRoute Genesis G4.6.5: controlled learning activation and G4.6 freeze.
 
 alter table public.opportunity_engagements
   add column if not exists learned_channel text,
@@ -42,7 +42,7 @@ begin
       when r.channel=coalesce(e.fallback_channel,'NONE') then
         'Observed market evidence supports the selected fallback channel after the primary sequence is exhausted.'
       else
-        'Observed market evidence favours '||replace(initcap(lower(r.channel)),'_',' ')||', but SalesPilot has not overridden the verified access route.'
+        'Observed market evidence favours '||replace(initcap(lower(r.channel)),'_',' ')||', but MarketRoute has not overridden the verified access route.'
       end,
     learning_applied_at=now(),updated_at=now()
   from ranked r

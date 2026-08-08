@@ -14,6 +14,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Company discovery retry failed", error);
-    return NextResponse.json({ ok: false, error: { message: "SalesPilot could not restart company discovery." } }, { status: 400 });
+    return NextResponse.json({ ok: false, error: { message: "MarketRoute could not restart company discovery." } }, { status: 400 });
   }
 }

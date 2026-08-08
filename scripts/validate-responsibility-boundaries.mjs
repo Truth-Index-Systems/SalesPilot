@@ -22,7 +22,7 @@ for (const [name,text] of [['business',business],['discovery',discovery],['conta
   add(text.includes('ACCOUNTABLE FOR'),`${name} has explicit accountable-for boundary`);
   add(text.includes('ADVISES BUT DOES NOT DECIDE'),`${name} has explicit advisory boundary`);
   add(text.includes('OUT OF SCOPE / HAND OFF'),`${name} has explicit hand-off boundary`);
-  add(text.includes('deterministic SalesPilot'),`${name} recognises deterministic SalesPilot authority`);
+  add(text.includes('deterministic MarketRoute'),`${name} recognises deterministic MarketRoute authority`);
 }
 add(business.includes('do NOT approve campaigns') && business.includes('Company Discovery owns'),'business strategy does not steal discovery/workflow authority');
 add(discovery.includes("'Is this a commercially attractive account under this campaign?' not 'How do we get in?'"),'company discovery is separated from route intelligence');
@@ -36,7 +36,7 @@ add(outreach.includes('You are an executive editor, not a researcher or strategi
 add(outreach.includes('Never introduce a new commercial proposition'),'writer cannot improve copy by inventing strategy');
 add(review.includes('PASS/REWRITE/BLOCK field is a recommendation'),'review outcome is explicitly advisory');
 add(!review.includes('if (review.outcome === "BLOCK"'),'model cannot directly force terminal block');
-add(review.includes('SalesPilot applies deterministic policy'),'SalesPilot owns final review workflow outcome');
+add(review.includes('MarketRoute applies deterministic policy'),'MarketRoute owns final review workflow outcome');
 add(!quality.includes('OPENAI_API_KEY') && !quality.includes('/v1/responses'),'R7 quality remains deterministic, not another AI judge');
 add(!safety.includes('OPENAI_API_KEY') && !safety.includes('/v1/responses'),'R5 personalisation safety remains deterministic');
 add(scheduler.includes('acquirePipelineSchedulerLease') && scheduler.includes('planContactDiscoveryDispatch'),'scheduler/VP Sales Operations authority remains deterministic');

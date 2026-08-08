@@ -13,4 +13,4 @@ for (const [ok, label] of checks) {
   if (!ok) throw new Error(`FAILED: ${label}`);
   console.log(`✓ ${label}`);
 }
-console.log("SalesPilot Outreach Generation claim hotfix passed");
+console.log("MarketRoute Outreach Generation claim hotfix passed");

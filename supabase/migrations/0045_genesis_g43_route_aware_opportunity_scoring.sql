@@ -263,7 +263,7 @@ begin
       when v_route.id is not null
         then 'Use the supported company route to establish an internal champion and request the correct owner.'
       when v_contact.id is not null and nullif(v_contact.linkedin_profile_url,'') is not null
-        then 'Use LinkedIn as the initial route while SalesPilot continues verifying a direct channel.'
+        then 'Use LinkedIn as the initial route while MarketRoute continues verifying a direct channel.'
       else 'Continue route research before investing in outreach.' end;
 
     v_evidence_quality:=least(100,greatest(0,round(

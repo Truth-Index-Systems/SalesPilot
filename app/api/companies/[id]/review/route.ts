@@ -30,6 +30,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ ok: true, company: { id: company.id, campaignId: company.campaign_id, status: company.review_status } });
   } catch (error) {
     console.error("Company review failed", error);
-    return NextResponse.json({ ok: false, error: { message: "SalesPilot could not save this review." } }, { status: 400 });
+    return NextResponse.json({ ok: false, error: { message: "MarketRoute could not save this review." } }, { status: 400 });
   }
 }

@@ -21,4 +21,4 @@ for (const [ok, label] of checks) {
   if (!ok) throw new Error(`FAIL: ${label}`);
   console.log(`✓ ${label}`);
 }
-console.log("SalesPilot Genesis SQL hardening pass validated");
+console.log("MarketRoute Genesis SQL hardening pass validated");

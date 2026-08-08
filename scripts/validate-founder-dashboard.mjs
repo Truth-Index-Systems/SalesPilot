@@ -11,4 +11,4 @@ const repo=fs.readFileSync("lib/founder-dashboard/repository.ts","utf8");
 for(const token of ["Founder Dashboard","Most expensive requests","Optimisation centre","Production timeline","hasFounderDashboardSession"]) if(!page.includes(token)) throw new Error(`Dashboard contract missing ${token}`);
 for(const token of ["DASHBOARD_PASSWORD","timingSafeEqual","httpOnly","sameSite"]) if(!auth.includes(token)) throw new Error(`Auth contract missing ${token}`);
 for(const token of ["ai_usage_ledger","engagement_learning_records","campaign_timeline","opportunity_engagements"]) if(!repo.includes(token)) throw new Error(`Repository contract missing ${token}`);
-console.log("SalesPilot Founder Dashboard passed");
+console.log("MarketRoute Founder Dashboard passed");

@@ -142,14 +142,14 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
         searchPass > 1 ? "DISCOVERY_EXPANSION_STARTED" : "DISCOVERY_STARTED",
         searchPass > 1 ? `Expanding company search · pass ${searchPass}` : "Company discovery started",
         searchPass > 1
-          ? "SalesPilot is planning another evidence-backed market pass because the earlier search retained too few strong matches."
-          : "SalesPilot is preparing a search from the approved campaign.",
+          ? "MarketRoute is planning another evidence-backed market pass because the earlier search retained too few strong matches."
+          : "MarketRoute is preparing a search from the approved campaign.",
         { searchPass, searchStrategy, minimumSupportedCompanies, maxExpansionPasses },
       );
       await activity(job.session_id,context.schedulerRunId,"SEARCH_PREPARED","Approved strategy verified","The audience, buyer roles and commercial angle are ready for company research.");
       failurePhase = "PLANNING";
       await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"PLANNING",p_progress:28})});
-      await activity(job.session_id,context.schedulerRunId,"SEARCH_PLAN_STARTED","Building the market search plan","SalesPilot is deterministically translating the approved campaign into operational conditions, target account archetypes and high-value evidence sources before external research begins.",{searchPass,searchStrategy});
+      await activity(job.session_id,context.schedulerRunId,"SEARCH_PLAN_STARTED","Building the market search plan","MarketRoute is deterministically translating the approved campaign into operational conditions, target account archetypes and high-value evidence sources before external research begins.",{searchPass,searchStrategy});
       searchPlan = await buildCompanySearchPlan({
         organisationId: job.organisation_id,
         campaignId: job.campaign_id,
@@ -231,7 +231,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
       const persisted = CompanyDiscoveryResultSchema.safeParse(session.company_search_active_result_json);
       if (persisted.success) {
         result = persisted.data;
-        await activity(job.session_id,context.schedulerRunId,"ARCHETYPE_RESULT_RESUMED",`Resuming ${archetype.name} evidence verification`,"The completed GPT-5 research result was already persisted, so SalesPilot is resuming verification without repeating the AI request.",{archetypeIndex,archetypeTotal,archetypeName:archetype.name});
+        await activity(job.session_id,context.schedulerRunId,"ARCHETYPE_RESULT_RESUMED",`Resuming ${archetype.name} evidence verification`,"The completed GPT-5 research result was already persisted, so MarketRoute is resuming verification without repeating the AI request.",{archetypeIndex,archetypeTotal,archetypeName:archetype.name});
       }
     }
     if (!result) {
@@ -260,7 +260,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     failurePhase = "VERIFYING";
     const verificationProgress = 44 + Math.round(((archetypeIndex + 1) / archetypeTotal) * 26);
     await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"VERIFYING",p_progress:Math.min(70,verificationProgress),p_candidates:cumulative.candidatesReturned + result.companies.length})});
-    await activity(job.session_id,context.schedulerRunId,"ARCHETYPE_CANDIDATES_FOUND",result.companies.length>0?`${result.companies.length} candidates found for ${archetype.name}`:`No supported candidates found for ${archetype.name}`,result.companies.length>0?"SalesPilot is independently checking each candidate against official-site evidence.":"This archetype completed without supported candidates. The remaining market plan will continue without weakening the evidence standard.",{candidateCount:result.companies.length,archetypeIndex,archetypeTotal,archetypeName:archetype.name});
+    await activity(job.session_id,context.schedulerRunId,"ARCHETYPE_CANDIDATES_FOUND",result.companies.length>0?`${result.companies.length} candidates found for ${archetype.name}`:`No supported candidates found for ${archetype.name}`,result.companies.length>0?"MarketRoute is independently checking each candidate against official-site evidence.":"This archetype completed without supported candidates. The remaining market plan will continue without weakening the evidence standard.",{candidateCount:result.companies.length,archetypeIndex,archetypeTotal,archetypeName:archetype.name});
 
     let saved=0;
     let verified=0;
@@ -339,13 +339,13 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     const finalSessionRows = await databaseRequest<Array<{ status: string; result_summary_json?: Record<string, unknown> | null }>>(`discovery_sessions?id=eq.${job.session_id}&organisation_id=eq.${job.organisation_id}&select=status,result_summary_json&limit=1`);
     const expansionPending = finalSessionRows[0]?.status === "QUEUED" || finalSessionRows[0]?.result_summary_json?.expansionPending === true;
     if (!expansionPending) {
-      await activity(job.session_id,context.schedulerRunId,"DISCOVERY_SUMMARY",Number(finalSaved)>0?`${Number(finalSaved)} companies ready for review`:"Extended search completed without enough supported matches",Number(finalSaved)>0?`${cumulative.candidatesVerified} verified from ${cumulative.candidatesReturned} candidates across ${archetypeTotal} target account archetypes.`:"SalesPilot completed every safe expansion pass without weakening the evidence standard. No weak recommendations were added.",discoverySummary);
+      await activity(job.session_id,context.schedulerRunId,"DISCOVERY_SUMMARY",Number(finalSaved)>0?`${Number(finalSaved)} companies ready for review`:"Extended search completed without enough supported matches",Number(finalSaved)>0?`${cumulative.candidatesVerified} verified from ${cumulative.candidatesReturned} candidates across ${archetypeTotal} target account archetypes.`:"MarketRoute completed every safe expansion pass without weakening the evidence standard. No weak recommendations were added.",discoverySummary);
     }
     return { worker:"COMPANY_DISCOVERY",processed:true,outcome:expansionPending?"CONTINUING":Number(finalSaved)>0?"COMPLETED_WITH_RESULTS":"COMPLETED_NO_RESULTS",sessionId:job.session_id,saved:Number(finalSaved) };
   } catch (error) {
     if (isOpenAIBackgroundPending(error)) {
       await databaseRequest("rpc/defer_company_discovery_background_owned", { method:"POST", body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId}) }).catch(()=>undefined);
-      await activity(job.session_id,context.schedulerRunId,"AI_BACKGROUND_CONTINUING","Market research is still running","SalesPilot has safely released this scheduler cycle while GPT-5 continues the same bounded research unit. The completed response will be collected on a later cycle without starting the work again.",{failurePhase,responseId:error.responseId,status:error.status}).catch(()=>undefined);
+      await activity(job.session_id,context.schedulerRunId,"AI_BACKGROUND_CONTINUING","Market research is still running","MarketRoute has safely released this scheduler cycle while GPT-5 continues the same bounded research unit. The completed response will be collected on a later cycle without starting the work again.",{failurePhase,responseId:error.responseId,status:error.status}).catch(()=>undefined);
       return { worker:"COMPANY_DISCOVERY",processed:false,outcome:"DEFERRED",sessionId:job.session_id };
     }
     const capacityReason = aiParallelCapacityReason(error);
@@ -356,7 +356,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     const governanceReason = aiGovernanceBlockReason(error);
     if (governanceReason) {
       await databaseRequest("rpc/defer_company_discovery_governance_owned", { method:"POST", body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_reason_code:governanceReason}) }).catch(()=>undefined);
-      await activity(job.session_id,context.schedulerRunId,"AI_ALLOWANCE_DEFERRED","Research paused by current AI allowance","SalesPilot kept this company-discovery unit intact. It will resume from the same target account archetype after the workspace allowance permits another AI request.",{reasonCode:governanceReason,failurePhase}).catch(()=>undefined);
+      await activity(job.session_id,context.schedulerRunId,"AI_ALLOWANCE_DEFERRED","Research paused by current AI allowance","MarketRoute kept this company-discovery unit intact. It will resume from the same target account archetype after the workspace allowance permits another AI request.",{reasonCode:governanceReason,failurePhase}).catch(()=>undefined);
       return { worker:"COMPANY_DISCOVERY",processed:false,outcome:"DEFERRED",sessionId:job.session_id };
     }
     if (isPipelineOwnershipLost(error)) {
@@ -366,7 +366,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     const safeMessage=safeWorkerError(error);
     const classified=classifyPipelineError(error);
     const preparationFailure=failurePhase==="PREPARING"||failurePhase==="PLANNING";
-    await activity(job.session_id,context.schedulerRunId,"DISCOVERY_TECHNICAL_RETRY",preparationFailure?"Company research preparation will retry":"Company research unit will retry",preparationFailure?"SalesPilot could not finish preparing the market search plan. No company search was counted as completed, and preparation will resume automatically.":classified.code==="INVALID_AI_OUTPUT"?"The bounded research response did not complete cleanly, so SalesPilot held back every recommendation and will retry the same target account archetype.":"SalesPilot encountered a technical issue during this bounded company-research unit. Completed archetypes remain persisted and the same unit will retry safely.",{errorCode:classified.code,failurePhase}).catch(()=>undefined);
+    await activity(job.session_id,context.schedulerRunId,"DISCOVERY_TECHNICAL_RETRY",preparationFailure?"Company research preparation will retry":"Company research unit will retry",preparationFailure?"MarketRoute could not finish preparing the market search plan. No company search was counted as completed, and preparation will resume automatically.":classified.code==="INVALID_AI_OUTPUT"?"The bounded research response did not complete cleanly, so MarketRoute held back every recommendation and will retry the same target account archetype.":"MarketRoute encountered a technical issue during this bounded company-research unit. Completed archetypes remain persisted and the same unit will retry safely.",{errorCode:classified.code,failurePhase}).catch(()=>undefined);
     await databaseRequest("rpc/record_company_discovery_failure_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_error_code:classified.code,p_error_message:safeMessage,p_retryable:classified.retryable,p_failure_phase:failurePhase})}).catch(()=>undefined);
     throw error;
   }

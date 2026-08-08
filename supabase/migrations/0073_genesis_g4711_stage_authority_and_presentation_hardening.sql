@@ -133,7 +133,7 @@ begin
       v_company_created:=v_company_created+1;
       if not exists(select 1 from public.campaign_timeline where organisation_id=v_campaign.organisation_id and campaign_id=v_campaign.id and event_type='COMPANY_DISCOVERY_QUEUED') then
         insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
-        values(v_campaign.organisation_id,v_campaign.id,'COMPANY_DISCOVERY_QUEUED','Company discovery queued','SalesPilot is preparing to find companies that match the approved campaign.','CUSTOMER',jsonb_build_object('sessionId',v_session.id,'cycleNumber',1));
+        values(v_campaign.organisation_id,v_campaign.id,'COMPANY_DISCOVERY_QUEUED','Company discovery queued','MarketRoute is preparing to find companies that match the approved campaign.','CUSTOMER',jsonb_build_object('sessionId',v_session.id,'cycleNumber',1));
       end if;
     elsif v_pending_companies=0
        and v_session.status='COMPLETED'
@@ -153,7 +153,7 @@ begin
       v_company_topups:=v_company_topups+1;
       if not exists(select 1 from public.campaign_timeline where organisation_id=v_campaign.organisation_id and campaign_id=v_campaign.id and event_type='COMPANY_DISCOVERY_TOP_UP_QUEUED' and metadata_json->>'cycleNumber'=v_next_cycle::text) then
         insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
-        values(v_campaign.organisation_id,v_campaign.id,'COMPANY_DISCOVERY_TOP_UP_QUEUED','Company discovery continuing','The current company review batch has been cleared, so SalesPilot scheduled the next evidence-backed discovery cycle while downstream route research can continue in parallel.','CUSTOMER',jsonb_build_object('sessionId',v_session.id,'cycleNumber',v_next_cycle,'baselineCompanyCount',v_total_companies,'restartTrigger','REVIEW_BATCH_CLEARED'));
+        values(v_campaign.organisation_id,v_campaign.id,'COMPANY_DISCOVERY_TOP_UP_QUEUED','Company discovery continuing','The current company review batch has been cleared, so MarketRoute scheduled the next evidence-backed discovery cycle while downstream route research can continue in parallel.','CUSTOMER',jsonb_build_object('sessionId',v_session.id,'cycleNumber',v_next_cycle,'baselineCompanyCount',v_total_companies,'restartTrigger','REVIEW_BATCH_CLEARED'));
       end if;
       if not exists(select 1 from public.domain_outbox where organisation_id=v_campaign.organisation_id and event_type='CompanyDiscoveryTopUpQueued' and aggregate_id=v_session.id and payload_json->>'cycleNumber'=v_next_cycle::text) then
         v_event_id:=gen_random_uuid();
@@ -232,7 +232,7 @@ begin
     update public.engagement_drafts set next_attempt_at=now(),updated_at=now() where campaign_id=c.id and status='PENDING' and next_attempt_at='infinity'::timestamptz;
     update public.engagement_draft_reviews set next_attempt_at=now(),updated_at=now() where campaign_id=c.id and status='PENDING' and next_attempt_at='infinity'::timestamptz;
     insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json,occurred_at)
-    values(c.organisation_id,c.id,'CAMPAIGN_RESUMED','Campaign resumed','SalesPilot can continue autonomous work from the saved campaign state.','CUSTOMER','{}'::jsonb,now());
+    values(c.organisation_id,c.id,'CAMPAIGN_RESUMED','Campaign resumed','MarketRoute can continue autonomous work from the saved campaign state.','CUSTOMER','{}'::jsonb,now());
   elsif p_action='DELETE' then
     if p_confirmation<>c.name then raise exception 'confirmation mismatch'; end if;
     delete from public.campaigns where id=c.id and organisation_id=c.organisation_id;
@@ -380,8 +380,8 @@ begin
         ) values(
           v_opp.organisation_id,v_opp.campaign_id,'ENGAGEMENT_PREPARED','Opportunity prepared for engagement',
           case when v_next_status='READY_FOR_DRAFT'
-            then 'SalesPilot selected the strongest supported route and prepared this opportunity for personalised outreach.'
-            else 'The opportunity is approved, but SalesPilot still needs a supported contact route before outreach can be prepared.' end,
+            then 'MarketRoute selected the strongest supported route and prepared this opportunity for personalised outreach.'
+            else 'The opportunity is approved, but MarketRoute still needs a supported contact route before outreach can be prepared.' end,
           'CUSTOMER',jsonb_build_object('opportunityId',v_opp.id,'engagementId',v_engagement_id,'channelType',v_channel,'status',v_next_status)
         );
       end if;

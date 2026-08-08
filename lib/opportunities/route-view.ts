@@ -49,7 +49,7 @@ function confidencePresentation(confidence: number) {
   if (confidence >= 90) return { label: "High confidence", summary: "Evidence strongly supports this route." };
   if (confidence >= 70) return { label: "Good confidence", summary: "The route is supported, with some uncertainty remaining." };
   if (confidence >= 50) return { label: "Moderate confidence", summary: "Useful route signals exist, but human judgement is still important." };
-  return { label: "Low confidence", summary: "SalesPilot needs stronger route evidence before relying on this path." };
+  return { label: "Low confidence", summary: "MarketRoute needs stronger route evidence before relying on this path." };
 }
 
 export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
@@ -97,7 +97,7 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
   const recommendation = row.commercial_route_rationale || row.recommended_entry_strategy || row.primary_route_reason || row.contact_reason_selected || (
     reasons.length
       ? `Recommended because ${reasons.slice(0, 2).join(" and ")}.`
-      : "SalesPilot is still gathering enough evidence to recommend a reliable entry route."
+      : "MarketRoute is still gathering enough evidence to recommend a reliable entry route."
   );
   const confidencePresentationValue = confidencePresentation(confidence);
   const nextStep = row.commercial_route_next_step || (email

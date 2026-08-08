@@ -43,7 +43,7 @@ export async function generateOutreach(input: {
       body: JSON.stringify({
         model,
         instructions: [
-          "You are SalesPilot Channel-Aware Engagement Intelligence.",
+          "You are MarketRoute Channel-Aware Engagement Intelligence.",
           "Use the primaryChannel in the engagement strategy as the authoritative output channel. Never silently convert a non-email route into email.",
           "Generate native content for that channel and set every irrelevant content field to null or an empty array.",
           "EMAIL: provide a concise subject and complete emailBody with a bespoke opener, value, and low-friction CTA.",

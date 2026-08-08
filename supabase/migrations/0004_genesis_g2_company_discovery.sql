@@ -81,7 +81,7 @@ begin
     values(new.organisation_id,new.aggregate_id,'QUEUED','PREPARING',0)
     on conflict (organisation_id,campaign_id) do nothing;
     insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility)
-    values(new.organisation_id,new.aggregate_id,'COMPANY_DISCOVERY_QUEUED','Company discovery queued','SalesPilot is preparing to find companies that match your approved campaign.','CUSTOMER');
+    values(new.organisation_id,new.aggregate_id,'COMPANY_DISCOVERY_QUEUED','Company discovery queued','MarketRoute is preparing to find companies that match your approved campaign.','CUSTOMER');
   end if;
   return new;
 end $$;

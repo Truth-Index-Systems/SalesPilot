@@ -42,7 +42,7 @@ export async function reviewEngagementDraft(input: {
       body: JSON.stringify({
         model,
         instructions: [
-          "You are SalesPilot's independent engagement quality reviewer.",
+          "You are MarketRoute's independent engagement quality reviewer.",
           "Judge whether the supplied first outreach is likely to win a relevant business conversation.",
           "Review the draft against the supplied commercial analysis, recommended access route and authoritative evidence; do not add new facts.",
           "Penalise drafts that ignore the selected route, misuse the channel, overstate the recipient's authority, or fail to follow the recommended entry strategy.",

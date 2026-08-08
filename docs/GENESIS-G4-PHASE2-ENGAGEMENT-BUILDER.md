@@ -1,4 +1,4 @@
-# SalesPilot Genesis G4 Phase 2 — Engagement Builder
+# MarketRoute Genesis G4 Phase 2 — Engagement Builder
 
 ## Status
 
@@ -10,7 +10,7 @@ Phase 2 formalises approved-opportunity discovery as a scheduler-owned Engagemen
 
 ## Behaviour
 
-For every scheduler cycle, SalesPilot now:
+For every scheduler cycle, MarketRoute now:
 
 1. Runs opportunity foundation and scoring.
 2. Invokes exactly one Engagement Builder execution for the scheduler run.

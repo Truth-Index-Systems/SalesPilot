@@ -1,4 +1,4 @@
--- SalesPilot Genesis G4.6.4: channel and route outcome learning.
+-- MarketRoute Genesis G4.6.4: channel and route outcome learning.
 
 create table if not exists public.engagement_outcomes (
   id uuid primary key default gen_random_uuid(),

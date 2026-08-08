@@ -67,8 +67,8 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
 
     <Card className="opportunity-detail-hero">
       <div>
-        <span className="eyebrow">SalesPilot recommendation</span>
-        <h2>{opportunity.buying_reason || "SalesPilot is still assembling the buying case."}</h2>
+        <span className="eyebrow">MarketRoute recommendation</span>
+        <h2>{opportunity.buying_reason || "MarketRoute is still assembling the buying case."}</h2>
         <p>{opportunity.operational_pain || opportunity.company_summary || "No operational pain statement has been supported yet."}</p>
         <div className="opportunity-hero-actions"><a className="button secondary" href={opportunity.company_website_url} target="_blank" rel="noreferrer">Official company website <ExternalLink size={15}/></a>{route.linkedinUrl && <a className="button secondary" href={route.linkedinUrl || "#"} target="_blank" rel="noreferrer">Open LinkedIn route <ExternalLink size={15}/></a>}</div>
       </div>
@@ -83,7 +83,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
       </Card>
       <Card>
         <div className="card-title">Best commercial route</div><div className="card-subtitle">The strongest currently supported path into the relevant buying centre — not simply the highest-scoring contact.</div>
-        {(route.personName || opportunity.commercial_route_label) ? <div className="opportunity-person opportunity-route-detail section"><ContactRound size={24}/><div><strong>{route.personName || opportunity.commercial_route_label}</strong><span>{route.role} · {route.typeLabel}</span><small>{route.recommendation}</small></div></div> : <div className="verified-empty section"><span>Research in progress. SalesPilot is analysing the strongest commercial route into this organisation.</span></div>}
+        {(route.personName || opportunity.commercial_route_label) ? <div className="opportunity-person opportunity-route-detail section"><ContactRound size={24}/><div><strong>{route.personName || opportunity.commercial_route_label}</strong><span>{route.role} · {route.typeLabel}</span><small>{route.recommendation}</small></div></div> : <div className="verified-empty section"><span>Research in progress. MarketRoute is analysing the strongest commercial route into this organisation.</span></div>}
         <div className="route-signal-grid section">
           <div><span>Route quality</span><strong className="route-stars" aria-label={`${route.quality} out of 5 stars`}>{route.qualityStars}</strong><small>{route.qualityLabel}</small></div>
           <div><span>Route confidence</span><strong className={`route-confidence ${routeConfidenceClass(route.confidence)}`}>{route.confidence}%</strong><small>{route.confidenceLabel}</small></div>
@@ -106,10 +106,10 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
       </Card>
     </div>}
 
-    {!engagementStrategy && engagementStatus && opportunity.status === "APPROVED" && <Card className="section g5-engagement-progress"><div className="section-head"><div><span className="eyebrow">G5 engagement intelligence</span><div className="card-title">Engagement strategy in progress</div><div className="card-subtitle">SalesPilot is preparing or rechecking the approved opportunity without changing G4 intelligence.</div></div><span className="badge">{engagementStatus.state.replaceAll("_", " ").toLowerCase()}</span></div><p>{engagementStatus.human_review_action === "EDIT" ? "Your edits are being sent back through mandatory self-review and Engagement Quality." : engagementStatus.human_review_action === "TRY_SECONDARY_ROUTE" ? "SalesPilot is regenerating engagement from the already-discovered secondary G4 route." : engagementStatus.state === "FAILED_TERMINAL" ? "This engagement has been stopped and will not progress automatically." : "The engagement pipeline is continuing from the immutable approved Opportunity."}</p></Card>}
+    {!engagementStrategy && engagementStatus && opportunity.status === "APPROVED" && <Card className="section g5-engagement-progress"><div className="section-head"><div><span className="eyebrow">Preparing your first move</span><div className="card-title">Outreach strategy in progress</div><div className="card-subtitle">MarketRoute is turning the approved opportunity into a clear, evidence-backed first engagement.</div></div><span className="badge">{engagementStatus.state.replaceAll("_", " ").toLowerCase()}</span></div><p>{engagementStatus.human_review_action === "EDIT" ? "Your edits are being sent back through mandatory self-review and Engagement Quality." : engagementStatus.human_review_action === "TRY_SECONDARY_ROUTE" ? "MarketRoute is rebuilding the engagement around the strongest available alternative route." : engagementStatus.state === "FAILED_TERMINAL" ? "This engagement has been stopped and will not progress automatically." : "MarketRoute is continuing from the opportunity you already approved."}</p></Card>}
 
     {engagementStrategy && engagementReasoning && channelStrategy && outreach && engagementQuality && outreachBody && <Card className="section g5-engagement-workspace">
-      <div className="section-head"><div><span className="eyebrow">G5 engagement intelligence</span><div className="card-title">Recommended first engagement</div><div className="card-subtitle">The commercial argument, chosen G4 route and independently reviewed first-touch message in one approval surface.</div></div><span className={`badge ${engagementStrategy.state === "APPROVED" ? "green" : ""}`}>{engagementStrategy.state === "APPROVED" ? "Approved" : "Ready for approval"}</span></div>
+      <div className="section-head"><div><span className="eyebrow">Your recommended first move</span><div className="card-title">Personalised outreach ready to review</div><div className="card-subtitle">The reason to reach out, strongest route and first-touch message are brought together in one place.</div></div><span className={`badge ${engagementStrategy.state === "APPROVED" ? "green" : ""}`}>{engagementStrategy.state === "APPROVED" ? "Approved" : "Ready for approval"}</span></div>
       <div className="g5-approval-summary section">
         <div className="g5-confidence-panel"><strong>{engagementStrategy.engagement_confidence}</strong><span>Engagement confidence</span><small>Separate from Opportunity Score</small></div>
         <div className="g5-first-move"><span>Recommended first move</span><strong>{channelStrategy.primary.executionChannel}</strong><small>{selectedCommercialRouteDisplay}</small></div>
@@ -131,7 +131,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
     </Card>}
 
     {engagementTimeline && <Card className="section g5-engagement-timeline-card">
-      <div className="section-head"><div><div className="card-title">Engagement activity</div><div className="card-subtitle">Live progress from commercial reasoning through approval and execution. SalesPilot refreshes this view automatically while work is active.</div></div><span className="badge green">G5 live</span></div>
+      <div className="section-head"><div><div className="card-title">Engagement activity</div><div className="card-subtitle">See MarketRoute move from commercial reasoning to a ready-to-review first move. This view refreshes automatically while work is active.</div></div><span className="badge green"><span className="live-dot active"/> Live</span></div>
       <G5EngagementTimeline timeline={engagementTimeline}/>
     </Card>}
 
@@ -147,7 +147,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
       </Card>
     </div>
 
-    {limitations.length > 0 && <Card className="section"><div className="card-title">What still needs human judgement</div><div className="card-subtitle">SalesPilot keeps uncertainty visible instead of hiding the opportunity.</div><div className="uncertainty-box"><ShieldCheck size={18}/><div>{limitations.map(item => <p key={item}>{item}</p>)}</div></div></Card>}
+    {limitations.length > 0 && <Card className="section"><div className="card-title">What still needs human judgement</div><div className="card-subtitle">MarketRoute keeps uncertainty visible instead of hiding the opportunity.</div><div className="uncertainty-box"><ShieldCheck size={18}/><div>{limitations.map(item => <p key={item}>{item}</p>)}</div></div></Card>}
 
     <Card className="section">
       <div className="section-head"><div><div className="card-title">Opportunity evidence</div><div className="card-subtitle">Company and route evidence are brought together while remaining linked to their original sources.</div></div><span className="badge green">{Number(opportunity.company_evidence_count) + Number(opportunity.contact_evidence_count) + Number(opportunity.commercial_route_evidence_count || 0)} sources</span></div>

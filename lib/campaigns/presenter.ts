@@ -3,7 +3,7 @@ import { campaignMatchLabel } from "@/lib/intelligence/fit-score";
 
 export function presentCampaignStatus(status: CampaignSummary["status"]): string {
   switch (status) {
-    case "PREPARING": return "SalesPilot is preparing this campaign";
+    case "PREPARING": return "MarketRoute is preparing this campaign";
     case "READY": return "Ready for the next stage";
     case "PAUSED": return "Paused";
     case "ARCHIVED": return "Archived";

@@ -122,7 +122,7 @@ export function AiGovernanceControls(props: Props) {
 
     {!props.platformEnabled && <div className="ai-governance-notice" role="status">
       <AlertTriangle size={19}/>
-      <div><strong>Enable the deployment gate first</strong><p>Add <code>SALESPILOT_AI_PLATFORM_ENABLED=true</code> in Vercel Environment Variables and redeploy. The workspace switch cannot bypass this safety gate.</p></div>
+      <div><strong>Enable the deployment gate first</strong><p>Add <code>MARKETROUTE_AI_PLATFORM_ENABLED=true</code> in Vercel Environment Variables and redeploy. The workspace switch cannot bypass this safety gate.</p></div>
     </div>}
 
     <div className="ai-governance-usage-grid">
@@ -144,7 +144,7 @@ export function AiGovernanceControls(props: Props) {
     {error && <div className="website-error section" role="alert"><AlertTriangle size={18}/><div className="website-error-copy"><strong>Governance update failed</strong><p>{error}</p></div></div>}
 
     {confirmEnable && !enabled && props.platformEnabled && <div className="ai-enable-confirmation">
-      <ShieldCheck size={20}/><div><strong>Enable AI for this workspace?</strong><p>SalesPilot will be allowed to make governed OpenAI requests. Daily request and cost limits remain enforced before every call.</p></div>
+      <ShieldCheck size={20}/><div><strong>Enable AI for this workspace?</strong><p>MarketRoute will be allowed to make governed OpenAI requests. Daily request and cost limits remain enforced before every call.</p></div>
       <button className="button secondary" disabled={saving} onClick={() => setConfirmEnable(false)}>Cancel</button>
       <button className="button" disabled={saving} onClick={() => save(true)}>{saving ? "Enabling…" : "Confirm enable"}</button>
     </div>}

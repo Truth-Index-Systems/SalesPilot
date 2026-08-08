@@ -21,7 +21,7 @@ export function CompanyReviewActions({ id, campaignId, status, note = "" }: { id
       if (!response.ok) throw new Error();
       router.refresh();
     } catch {
-      setError("SalesPilot could not save this review. Please try again.");
+      setError("MarketRoute could not save this review. Please try again.");
     } finally {
       setBusy(null);
     }

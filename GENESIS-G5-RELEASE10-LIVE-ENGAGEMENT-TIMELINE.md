@@ -1,4 +1,4 @@
-# SalesPilot Genesis G5 — Release 10: Live Engagement Timeline
+# MarketRoute Genesis G5 — Release 10: Live Engagement Timeline
 
 ## Scope
 Presentation and observability only. G4 truth, G5 intelligence, review, approval, queue and transport authority are unchanged.
@@ -36,4 +36,4 @@ Presentation and observability only. G4 truth, G5 intelligence, review, approval
 - Timeline reads existing authoritative G5 event and R9 execution records only.
 
 ## Release freeze test
-The user can open an Opportunity at any active G5 stage and understand what SalesPilot is doing now, what it has completed, and whether it is waiting on the system, the recipient's local-time policy, or a human decision.
+The user can open an Opportunity at any active G5 stage and understand what MarketRoute is doing now, what it has completed, and whether it is waiting on the system, the recipient's local-time policy, or a human decision.

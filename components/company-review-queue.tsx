@@ -64,7 +64,7 @@ export function CompanyReviewQueue({ rows }: { rows: CompanyRow[] }) {
       setSelected([]);
       router.refresh();
     } catch {
-      setError("SalesPilot could not save the selected reviews.");
+      setError("MarketRoute could not save the selected reviews.");
     } finally {
       setBusy(null);
     }
@@ -94,7 +94,7 @@ export function CompanyReviewQueue({ rows }: { rows: CompanyRow[] }) {
           <p className="company-summary-card">{row.summary}</p>
           <div className="company-result-meta"><span>{row.industry || "Industry not confirmed"}</span><span>{row.country || "Location not confirmed"}</span><span><CheckCircle2 size={13}/> {row.evidence_count} official source{Number(row.evidence_count) === 1 ? "" : "s"}</span></div>
           <div className="evidence-meter"><div><span>Evidence quality</span><strong>{evidenceQuality}/100</strong></div><div className="evidence-meter-track"><span style={{ width: `${evidenceQuality}%` }}/></div></div>
-          {row.review_status === "APPROVED" && <div className={`company-contact-progress ${row.contact_state === "CONTACTS_FOUND" ? "complete" : row.contact_state === "RESEARCHING" ? "active" : "waiting"}`}><span className={row.contact_state === "RESEARCHING" ? "roadmap-pulse" : ""}/><div><strong>{row.contact_state === "CONTACTS_FOUND" ? "Decision-makers identified" : row.contact_state === "RESEARCHING" ? "Researching decision-makers" : row.contact_state === "RETRY_SCHEDULED" ? "Route research retry scheduled" : row.contact_state === "NO_RESULTS" ? "No publicly supported decision-maker found" : "Route research queued"}</strong><small>{row.contact_state === "NO_RESULTS" ? "SalesPilot completed this search without inventing a contact." : row.contact_state === "RETRY_SCHEDULED" ? "SalesPilot will retry automatically at the saved retry time." : "SalesPilot automatically moved this company into route research."}</small></div></div>}
+          {row.review_status === "APPROVED" && <div className={`company-contact-progress ${row.contact_state === "CONTACTS_FOUND" ? "complete" : row.contact_state === "RESEARCHING" ? "active" : "waiting"}`}><span className={row.contact_state === "RESEARCHING" ? "roadmap-pulse" : ""}/><div><strong>{row.contact_state === "CONTACTS_FOUND" ? "Decision-makers identified" : row.contact_state === "RESEARCHING" ? "Researching decision-makers" : row.contact_state === "RETRY_SCHEDULED" ? "Route research retry scheduled" : row.contact_state === "NO_RESULTS" ? "No publicly supported decision-maker found" : "Route research queued"}</strong><small>{row.contact_state === "NO_RESULTS" ? "MarketRoute completed this search without inventing a contact." : row.contact_state === "RETRY_SCHEDULED" ? "MarketRoute will retry automatically at the saved retry time." : "MarketRoute automatically moved this company into route research."}</small></div></div>}
           <div className="company-result-footer"><span className={`review-status ${row.review_status.toLowerCase()}`}>{statusLabel(row.review_status)}</span><span className="open-report">Open company report →</span></div>
         </Link>
       </article>;

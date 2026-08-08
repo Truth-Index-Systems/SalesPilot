@@ -23,11 +23,11 @@ export function G5AssistedApprovalActions({ strategyId, channel, state, hasSecon
       });
       if (!response.ok) throw new Error();
       setEditing(false); router.refresh();
-    } catch { setError("SalesPilot could not save this engagement decision."); }
+    } catch { setError("MarketRoute could not save this engagement decision."); }
     finally { setBusy(null); }
   }
 
-  if (state === "APPROVED") return <div className="g5-approval-complete"><strong>Approved</strong><span>SalesPilot is validating the approved route and preparing deterministic execution.</span></div>;
+  if (state === "APPROVED") return <div className="g5-approval-complete"><strong>Approved</strong><span>MarketRoute is validating the approved route and preparing deterministic execution.</span></div>;
 
   return <div className="g5-approval-actions">
     {editing && <div className="g5-outreach-editor">

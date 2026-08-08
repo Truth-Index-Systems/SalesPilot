@@ -54,7 +54,7 @@ begin
       set status='QUEUED',stage='PREPARING',next_attempt_at=now(),updated_at=now(),last_error=null
       where campaign_id=c.id and status='PAUSED';
     insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json,occurred_at)
-    values(c.organisation_id,c.id,'CAMPAIGN_RESUMED','Campaign resumed','SalesPilot can continue autonomous work from the saved campaign state.','CUSTOMER','{}'::jsonb,now());
+    values(c.organisation_id,c.id,'CAMPAIGN_RESUMED','Campaign resumed','MarketRoute can continue autonomous work from the saved campaign state.','CUSTOMER','{}'::jsonb,now());
   elsif p_action='DELETE' then
     if p_confirmation <> c.name then raise exception 'confirmation mismatch'; end if;
     delete from public.campaigns where id=c.id and organisation_id=c.organisation_id;

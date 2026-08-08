@@ -13,7 +13,7 @@ const requiredWizard = [
   'Preparing recommendations',
   'analysis-progress',
   'analysisComplete',
-  'SalesPilot only analyses information that is publicly available on your website.',
+  'MarketRoute only analyses information that is publicly available on your website.',
 ];
 
 for (const token of requiredWizard) {

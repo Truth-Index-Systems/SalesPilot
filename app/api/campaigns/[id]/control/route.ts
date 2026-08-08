@@ -30,6 +30,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     if (error instanceof DatabaseRequestError) console.error("Campaign control failed", error.details);
     else console.error("Campaign control failed", error);
-    return NextResponse.json({ ok: false, error: { title: "Campaign could not be updated", message: "SalesPilot could not complete this campaign action." } }, { status: 400 });
+    return NextResponse.json({ ok: false, error: { title: "Campaign could not be updated", message: "MarketRoute could not complete this campaign action." } }, { status: 400 });
   }
 }

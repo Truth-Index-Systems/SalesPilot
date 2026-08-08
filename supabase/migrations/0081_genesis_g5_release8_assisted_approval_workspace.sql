@@ -1,4 +1,4 @@
--- SalesPilot Genesis G5 — Release 8: Assisted Approval Workspace
+-- MarketRoute Genesis G5 — Release 8: Assisted Approval Workspace
 -- Human approval consumes the frozen R2-R7 strategy. It never modifies G4 truth.
 -- Queueing/sending remain deliberately disabled until Release 9.
 

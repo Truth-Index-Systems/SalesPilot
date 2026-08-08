@@ -192,7 +192,7 @@ export async function POST(request: Request) {
                 }
               : {
                   title: "Account could not be created",
-                  message: "SalesPilot could not create this account.",
+                  message: "MarketRoute could not create this account.",
                   hint: "Check your details and try again.",
                 },
           },
@@ -202,7 +202,7 @@ export async function POST(request: Request) {
 
       // Recovery path for a prior partial signup:
       // authenticate the existing user with the submitted password, then
-      // idempotently create or reuse their SalesPilot workspace.
+      // idempotently create or reuse their MarketRoute workspace.
       const signIn = await signInWithPassword(input.email, input.password);
 
       if (!signIn.response.ok) {
@@ -276,12 +276,12 @@ export async function POST(request: Request) {
     }
 
     if (error instanceof DatabaseRequestError) {
-      console.error("SalesPilot workspace provisioning failed", {
+      console.error("MarketRoute workspace provisioning failed", {
         status: error.status,
         details: error.details,
       });
     } else {
-      console.error("SalesPilot sign-up failed", error);
+      console.error("MarketRoute sign-up failed", error);
     }
 
     return NextResponse.json(
@@ -289,7 +289,7 @@ export async function POST(request: Request) {
         ok: false,
         error: {
           title: "Account creation unavailable",
-          message: "SalesPilot could not finish creating your workspace.",
+          message: "MarketRoute could not finish creating your workspace.",
           hint: "Please try again shortly.",
         },
       },

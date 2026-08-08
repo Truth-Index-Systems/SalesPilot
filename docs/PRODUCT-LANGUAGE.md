@@ -1,12 +1,12 @@
 # Customer language boundary
 
-SalesPilot is experienced as one coherent product. Internal specialists, orchestration, prompts, models, schemas, queues and workers are implementation details and must not appear in normal customer-facing copy.
+MarketRoute is experienced as one coherent product. Internal specialists, orchestration, prompts, models, schemas, queues and workers are implementation details and must not appear in normal customer-facing copy.
 
 ## Customers should see
 
-- What SalesPilot found.
+- What MarketRoute found.
 - What changed.
-- What SalesPilot recommends.
+- What MarketRoute recommends.
 - Why the recommendation is useful.
 - What requires their attention.
 - What commercial result was created.
@@ -24,4 +24,4 @@ Technical traceability remains available to authorised administrators and suppor
 
 ## Intelligence boundary
 
-The customer sees “SalesPilot analysed”, “SalesPilot recommends” and evidence-backed outcomes. Provider names, prompt versions, model names, internal agents, repair attempts and orchestration details remain outside customer-facing UI.
+The customer sees “MarketRoute analysed”, “MarketRoute recommends” and evidence-backed outcomes. Provider names, prompt versions, model names, internal agents, repair attempts and orchestration details remain outside customer-facing UI.

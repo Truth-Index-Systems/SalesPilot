@@ -1,14 +1,14 @@
-# SalesPilot Genesis
+# MarketRoute Genesis
 
-Fresh campaign-first foundation for **SalesPilot by Truth Index Systems**.
+Fresh campaign-first foundation for **MarketRoute by Truth Index Systems**.
 
 ## Product experience
 
-1. SalesPilot understands the customer's business.
+1. MarketRoute understands the customer's business.
 2. It presents a clear, editable summary of the offer and strongest buyers.
 3. It recommends campaign strategies.
 4. The customer approves and launches.
-5. SalesPilot keeps the work moving in the background.
+5. MarketRoute keeps the work moving in the background.
 6. The customer sees outcomes, recommendations, approvals and exceptions—not implementation details.
 
 ## Genesis v0.3.1 includes
@@ -41,7 +41,7 @@ npm run genesis:check
 npm run dev
 ```
 
-## SalesPilot Intelligence
+## MarketRoute Intelligence
 
 Genesis v0.3.1 includes the first live intelligence pathway. The campaign wizard reads a public company website on the server, sends the extracted evidence to the OpenAI Responses API using strict Structured Outputs, validates the result with Zod, and renders Business DNA plus campaign proposals.
 
@@ -62,7 +62,7 @@ No API key is exposed to the browser. Website fetching blocks private-network ta
 
 ## Task-specific model routing
 
-SalesPilot resolves models by task. A task-specific variable wins first, then `OPENAI_MODEL_DEFAULT`, then the legacy `OPENAI_MODEL` value. This lets strategy and deep analysis use a stronger model while high-volume drafting, classification and summaries can use faster or lower-cost models without changing application code.
+MarketRoute resolves models by task. A task-specific variable wins first, then `OPENAI_MODEL_DEFAULT`, then the legacy `OPENAI_MODEL` value. This lets strategy and deep analysis use a stronger model while high-volume drafting, classification and summaries can use faster or lower-cost models without changing application code.
 
 Current routing categories:
 

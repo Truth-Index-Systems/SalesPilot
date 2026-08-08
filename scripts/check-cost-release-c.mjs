@@ -16,4 +16,4 @@ const checks=[
 const failed=checks.filter(([ok])=>!ok);
 for(const [ok,label] of checks) console.log(`${ok?"✓":"✗"} ${label}`);
 if(failed.length) process.exit(1);
-console.log("SalesPilot AI Cost Optimisation Release C passed");
+console.log("MarketRoute AI Cost Optimisation Release C passed");

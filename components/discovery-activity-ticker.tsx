@@ -75,7 +75,7 @@ export function DiscoveryActivityTicker({campaignId,initialDiscovery,initialActi
  const visible=useMemo(()=>activities.slice(0,5),[activities]);
  if(!visible.length)return null;
  return <div className="discovery-live-feed" aria-live="polite">
-  <div className="discovery-live-head"><span className={running?"live-dot active":"live-dot"}/><strong>{running?"SalesPilot is working":jobStateLabel(discovery,{queued:"Company discovery queued",complete:"SalesPilot activity",noResults:"Research completed with no new matches"})}</strong><small>{companyCount} compan{companyCount===1?"y":"ies"} saved</small></div>
+  <div className="discovery-live-head"><span className={running?"live-dot active":"live-dot"}/><strong>{running?"MarketRoute is working":jobStateLabel(discovery,{queued:"Company discovery queued",complete:"MarketRoute activity",noResults:"Research completed with no new matches"})}</strong><small>{companyCount} compan{companyCount===1?"y":"ies"} saved</small></div>
   <div className="discovery-live-items">{visible.map(item=><div className="discovery-live-item" key={item.id}><CheckCircle2 size={16}/><div><strong>{item.title}</strong>{item.description&&<span>{item.description}</span>}</div><time title={new Date(item.occurred_at).toLocaleString()} dateTime={item.occurred_at}>{relative(item.occurred_at)}</time></div>)}</div>
  </div>;
 }

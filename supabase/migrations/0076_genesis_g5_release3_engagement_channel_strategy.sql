@@ -1,4 +1,4 @@
--- SalesPilot Genesis G5 — Release 3: Engagement Channel Strategy
+-- MarketRoute Genesis G5 — Release 3: Engagement Channel Strategy
 -- G4 remains immutable. R3 enriches the canonical G5 strategy while it remains
 -- STRATEGY_READY. It does not add a lifecycle state and does not generate outreach.
 
@@ -183,7 +183,7 @@ begin
   ) values(
     v.organisation_id,v.campaign_id,'G5_CHANNEL_STRATEGY_READY',
     'Strongest engagement route selected',
-    'SalesPilot has selected the strongest evidence-backed first engagement route and safe alternatives.',
+    'MarketRoute has selected the strongest evidence-backed first engagement route and safe alternatives.',
     'CUSTOMER',
     jsonb_build_object('strategyId',v.id,'opportunityId',v.opportunity_id,'confidence',p_confidence)
   );

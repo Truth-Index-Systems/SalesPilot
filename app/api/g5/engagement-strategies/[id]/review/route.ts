@@ -23,6 +23,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     console.error("G5 assisted approval failed", error);
-    return NextResponse.json({ ok: false, error: { message: "SalesPilot could not save this engagement decision." } }, { status: 400 });
+    return NextResponse.json({ ok: false, error: { message: "MarketRoute could not save this engagement decision." } }, { status: 400 });
   }
 }

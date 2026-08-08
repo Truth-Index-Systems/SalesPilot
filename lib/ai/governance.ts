@@ -17,7 +17,7 @@ export type AiGovernanceContext = {
 type Reservation={allowed:boolean;ledger_id:string|null;reason_code:string|null;requests_today:number;cost_today:number;request_limit:number;cost_limit:number};
 type Usage={input_tokens?:number;output_tokens?:number;total_tokens?:number;cached_input_tokens?:number;reasoning_tokens?:number};
 
-function platformEnabled(){return process.env.SALESPILOT_AI_PLATFORM_ENABLED?.trim().toLowerCase()==="true";}
+function platformEnabled(){return (process.env.MARKETROUTE_AI_PLATFORM_ENABLED ?? process.env.SALESPILOT_AI_PLATFORM_ENABLED)?.trim().toLowerCase()==="true";}
 function requestKey(context:AiGovernanceContext){return createHash("sha256").update([context.organisationId??"anonymous",context.campaignId??"none",context.jobType,context.jobId??"none",context.requestScope].join(":"),"utf8").digest("hex");}
 export function estimateActualCost(usage:Usage|undefined,webSearchCalls=0){
   const inputRate=Number(process.env.SALESPILOT_AI_INPUT_USD_PER_MILLION??"2.5");

@@ -1,4 +1,4 @@
--- SalesPilot Genesis G5 — Release 1: Canonical Engagement State Machine
+-- MarketRoute Genesis G5 — Release 1: Canonical Engagement State Machine
 -- G4 is immutable. This migration introduces the G5 execution authority without
 -- modifying opportunities, route intelligence, scoring, discovery, or the frozen
 -- opportunity_engagements bridge.

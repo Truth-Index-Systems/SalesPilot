@@ -8,7 +8,7 @@ export type CustomerOutcome = {
 
 const fallback: CustomerOutcome = {
   title: "Campaign progress updated",
-  detail: "SalesPilot completed another step and updated the campaign.",
+  detail: "MarketRoute completed another step and updated the campaign.",
   category: "progress"
 };
 
@@ -17,7 +17,7 @@ export function presentDomainEvent(event: DomainEvent): CustomerOutcome {
     case "BusinessDnaProposed":
       return {
         title: "Your business has been analysed",
-        detail: "SalesPilot has prepared a clear summary of your offer, strongest buyers and recommended positioning.",
+        detail: "MarketRoute has prepared a clear summary of your offer, strongest buyers and recommended positioning.",
         category: "result"
       };
     case "CampaignProposed":
@@ -29,13 +29,13 @@ export function presentDomainEvent(event: DomainEvent): CustomerOutcome {
     case "CampaignCreated":
       return {
         title: "Campaign approved",
-        detail: "SalesPilot will now work through the approved strategy and keep the campaign updated.",
+        detail: "MarketRoute will now work through the approved strategy and keep the campaign updated.",
         category: "progress"
       };
     case "CampaignLaunched":
       return {
         title: "Campaign launched",
-        detail: "SalesPilot has started finding suitable companies and preparing the next steps.",
+        detail: "MarketRoute has started finding suitable companies and preparing the next steps.",
         category: "progress"
       };
     case "CompaniesDiscovered":
@@ -47,7 +47,7 @@ export function presentDomainEvent(event: DomainEvent): CustomerOutcome {
     case "CompanyQualified":
       return {
         title: "High-fit companies identified",
-        detail: "SalesPilot has prioritised the businesses most likely to benefit from your offer.",
+        detail: "MarketRoute has prioritised the businesses most likely to benefit from your offer.",
         category: "result"
       };
     case "ContactVerified":
@@ -71,7 +71,7 @@ export function presentDomainEvent(event: DomainEvent): CustomerOutcome {
     case "ReplyReceived":
       return {
         title: "New replies received",
-        detail: "SalesPilot has organised the replies and highlighted the conversations worth your attention.",
+        detail: "MarketRoute has organised the replies and highlighted the conversations worth your attention.",
         category: "attention"
       };
     case "OpportunityCreated":

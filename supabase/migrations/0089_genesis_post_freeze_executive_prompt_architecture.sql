@@ -86,7 +86,7 @@ begin
   ) values(
     v.organisation_id,v.campaign_id,'G5_COMMERCIAL_REASONING_READY',
     'Commercial argument ready',
-    'SalesPilot has converted the approved opportunity intelligence into an evidence-backed commercial argument.',
+    'MarketRoute has converted the approved opportunity intelligence into an evidence-backed commercial argument.',
     'CUSTOMER',
     jsonb_build_object('strategyId',v.id,'opportunityId',v.opportunity_id,'confidence',p_confidence)
   );
@@ -171,7 +171,7 @@ begin
   ) values(
     v.organisation_id,v.campaign_id,'G5_CHANNEL_STRATEGY_READY',
     'Strongest engagement route selected',
-    'SalesPilot has selected the strongest evidence-backed first engagement route and safe alternatives.',
+    'MarketRoute has selected the strongest evidence-backed first engagement route and safe alternatives.',
     'CUSTOMER',
     jsonb_build_object('strategyId',v.id,'opportunityId',v.opportunity_id,'confidence',p_confidence)
   );
@@ -265,7 +265,7 @@ begin
   ) values(
     v.organisation_id,v.campaign_id,'G5_OUTREACH_GENERATED',
     'First-touch outreach prepared',
-    'SalesPilot has prepared channel-native outreach using only the verified facts and safely framed commercial inferences allowed by the personalisation safety policy. Independent AI self-review is next.',
+    'MarketRoute has prepared channel-native outreach using only the verified facts and safely framed commercial inferences allowed by the personalisation safety policy. Independent AI self-review is next.',
     'CUSTOMER',
     jsonb_build_object('strategyId',v.id,'opportunityId',v.opportunity_id,'confidence',p_confidence,'nextState','SELF_REVIEW','personalisationSafetyEnforced',true)
   );

@@ -64,7 +64,7 @@ export default async function AutonomyHealthPage() {
 
 
     <div className="grid cols-4 section">
-      <Metric label="AI autonomy" value={governance.summary?.autonomy_enabled ? "Enabled" : "Stopped"} foot={process.env.SALESPILOT_AI_PLATFORM_ENABLED === "true" ? "Platform gate enabled" : "Platform gate disabled"} tone={governance.summary?.autonomy_enabled && process.env.SALESPILOT_AI_PLATFORM_ENABLED === "true" ? "positive" : "negative"}/>
+      <Metric label="AI autonomy" value={governance.summary?.autonomy_enabled ? "Enabled" : "Stopped"} foot={(process.env.MARKETROUTE_AI_PLATFORM_ENABLED ?? process.env.SALESPILOT_AI_PLATFORM_ENABLED) === "true" ? "Platform gate enabled" : "Platform gate disabled"} tone={governance.summary?.autonomy_enabled && (process.env.MARKETROUTE_AI_PLATFORM_ENABLED ?? process.env.SALESPILOT_AI_PLATFORM_ENABLED) === "true" ? "positive" : "negative"}/>
       <Metric label="AI requests today" value={String(governance.summary?.requests_today ?? 0)} foot={`Limit ${governance.summary?.daily_request_limit ?? 0}`} />
       <Metric label="Estimated spend today" value={`$${Number(governance.summary?.cost_today_usd ?? 0).toFixed(2)}`} foot={`Limit $${Number(governance.summary?.daily_cost_limit_usd ?? 0).toFixed(2)}`} tone={Number(governance.summary?.cost_today_usd ?? 0) >= Number(governance.summary?.daily_cost_limit_usd ?? 0) ? "negative" : "positive"}/>
       <Metric label="Blocked requests" value={String(governance.summary?.blocked_today ?? 0)} foot="Stopped before OpenAI" tone={(governance.summary?.blocked_today ?? 0) ? "negative" : "positive"}/>
@@ -74,7 +74,7 @@ export default async function AutonomyHealthPage() {
       <div className="card-title">AI governance and emergency stop</div>
       <div className="card-subtitle">Hard request and estimated-cost limits are checked before every OpenAI request. New work is disabled by default.</div>
       <AiGovernanceControls
-        platformEnabled={process.env.SALESPILOT_AI_PLATFORM_ENABLED === "true"}
+        platformEnabled={(process.env.MARKETROUTE_AI_PLATFORM_ENABLED ?? process.env.SALESPILOT_AI_PLATFORM_ENABLED) === "true"}
         enabled={governance.summary?.autonomy_enabled ?? false}
         dailyRequestLimit={governance.summary?.daily_request_limit ?? 25}
         dailyCostLimitUsd={Number(governance.summary?.daily_cost_limit_usd ?? 5)}

@@ -30,7 +30,7 @@ export function OpportunityReviewActions({
       if (!response.ok) throw new Error();
       router.refresh();
     } catch {
-      setError("SalesPilot could not save this opportunity review.");
+      setError("MarketRoute could not save this opportunity review.");
     } finally {
       setBusy(null);
     }
@@ -39,7 +39,7 @@ export function OpportunityReviewActions({
   const canApprove = status === "READY" || status === "APPROVED";
 
   return <div className="company-review-panel">
-    {!canApprove && <p className="review-gate-note">SalesPilot is still assembling Route Intelligence. Approval unlocks when the opportunity is ready for review.</p>}
+    {!canApprove && <p className="review-gate-note">MarketRoute is still assembling Route Intelligence. Approval unlocks when the opportunity is ready for review.</p>}
     <label htmlFor={`opportunity-note-${id}`}>Review note <span>Optional · visible inside your workspace</span></label>
     <textarea id={`opportunity-note-${id}`} value={reviewNote} onChange={event => setReviewNote(event.target.value)} maxLength={500} placeholder="Record why this opportunity should progress or be rejected." />
     <div className="company-review-actions">

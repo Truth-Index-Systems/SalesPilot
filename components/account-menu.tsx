@@ -53,7 +53,7 @@ export function AccountMenu({ name }: { name: string }) {
     {open ? <div className="account-menu-popover" role="menu">
       <div className="account-menu-heading">
         <strong>{name}</strong>
-        <span>Manage your SalesPilot account</span>
+        <span>Manage your MarketRoute account</span>
       </div>
       <Link href="/settings" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
         Settings

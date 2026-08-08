@@ -1,4 +1,4 @@
--- SalesPilot Genesis G5 — Release 2: Commercial Reasoning Engine
+-- MarketRoute Genesis G5 — Release 2: Commercial Reasoning Engine
 -- G4 remains immutable. This migration only extends the canonical G5 engagement
 -- strategy authority and reads approved G4 opportunity truth through the frozen
 -- opportunity_detail / campaign / business profile contracts.
@@ -163,7 +163,7 @@ begin
   ) values(
     v.organisation_id,v.campaign_id,'G5_COMMERCIAL_REASONING_READY',
     'Commercial argument ready',
-    'SalesPilot has converted the approved opportunity intelligence into an evidence-backed commercial argument.',
+    'MarketRoute has converted the approved opportunity intelligence into an evidence-backed commercial argument.',
     'CUSTOMER',
     jsonb_build_object('strategyId',v.id,'opportunityId',v.opportunity_id,'confidence',p_confidence)
   );

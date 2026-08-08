@@ -97,9 +97,9 @@ begin
   values(p_organisation_id,campaign_id,1,proposal->>'objective',proposal->>'audience',proposal->'buyerRoles',proposal->>'messageAngle',proposal->>'recommendedMode',proposal->'why',proposal->>'id',p_created_by);
   insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility) values
   (p_organisation_id,campaign_id,'CAMPAIGN_CREATED','Campaign created','Your approved campaign has been saved.','CUSTOMER'),
-  (p_organisation_id,campaign_id,'BUSINESS_PROFILE_APPROVED','Business profile approved','SalesPilot saved its approved understanding of your business.','CUSTOMER'),
+  (p_organisation_id,campaign_id,'BUSINESS_PROFILE_APPROVED','Business profile approved','MarketRoute saved its approved understanding of your business.','CUSTOMER'),
   (p_organisation_id,campaign_id,'STRATEGY_SELECTED','Strategy selected','Your chosen campaign strategy is now in place.','CUSTOMER'),
-  (p_organisation_id,campaign_id,'CAMPAIGN_PREPARATION_STARTED','Campaign preparation started','SalesPilot is preparing the campaign for the next stage.','CUSTOMER');
+  (p_organisation_id,campaign_id,'CAMPAIGN_PREPARATION_STARTED','Campaign preparation started','MarketRoute is preparing the campaign for the next stage.','CUSTOMER');
   insert into public.domain_outbox(organisation_id,event_id,event_type,aggregate_type,aggregate_id,payload_json,occurred_at)
   values(p_organisation_id,event_id,'CampaignCreated','Campaign',campaign_id,jsonb_build_object('campaignId',campaign_id,'organisationId',p_organisation_id,'businessProfileId',profile_id,'configVersion',1,'occurredAt',now()),now());
   insert into public.idempotency_records(organisation_id,idempotency_key,operation,resource_id,response_json,created_by)

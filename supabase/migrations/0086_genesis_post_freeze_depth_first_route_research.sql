@@ -97,8 +97,8 @@ begin
       s.organisation_id,
       s.campaign_id,
       'ROUTE_RESEARCH_EXPANDING',
-      'SalesPilot is strengthening the access strategy',
-      'SalesPilot found '||v_route_count||' viable commercial route'||case when v_route_count=1 then '' else 's' end||
+      'MarketRoute is strengthening the access strategy',
+      'MarketRoute found '||v_route_count||' viable commercial route'||case when v_route_count=1 then '' else 's' end||
         ' and is continuing this account before moving to the next company: '||coalesce(v_company_name,'the organisation')||'.',
       'CUSTOMER',
       jsonb_build_object(

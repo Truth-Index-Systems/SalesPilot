@@ -1,4 +1,4 @@
--- SalesPilot Genesis — Speed R5: latency observatory and hardening.
+-- MarketRoute Genesis — Speed R5: latency observatory and hardening.
 -- Measures the durable background lifecycle, records prompt-cache/reasoning token
 -- detail, reconciles webhook/checkpoint races, repairs stale collector ownership,
 -- and makes recovery collection fair across campaigns. Commercial stage authority

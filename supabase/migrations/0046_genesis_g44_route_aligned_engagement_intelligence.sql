@@ -1,4 +1,4 @@
--- SalesPilot Genesis G4.4: Route-aligned Engagement Intelligence.
+-- MarketRoute Genesis G4.4: Route-aligned Engagement Intelligence.
 -- Commercial reasoning and outreach generation now consume the persisted Best Access Route.
 -- Existing approval, queue and dispatch behaviour is unchanged.
 

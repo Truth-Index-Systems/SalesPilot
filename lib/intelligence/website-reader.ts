@@ -189,7 +189,7 @@ async function fetchHtml(initialUrl: URL) {
       const response = await fetch(url, {
         signal: controller.signal,
         redirect: "manual",
-        headers: { "user-agent": "SalesPilotBusinessDiscovery/1.1 (+https://truthindexsystems.co.uk)" },
+        headers: { "user-agent": "MarketRouteBusinessDiscovery/1.1 (+https://truthindexsystems.co.uk)" },
         cache: "no-store",
       });
 
@@ -258,7 +258,7 @@ export async function readWebsite(input: string): Promise<{ canonicalUrl: string
     .filter(item => item.text.length > 100);
 
   if (!sources.length) {
-    throw new WebsiteReadError("INSUFFICIENT_CONTENT", "SalesPilot could not read enough useful content from this website.");
+    throw new WebsiteReadError("INSUFFICIENT_CONTENT", "MarketRoute could not read enough useful content from this website.");
   }
 
   return { canonicalUrl: homepage.toString(), sources };

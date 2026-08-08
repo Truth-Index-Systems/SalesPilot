@@ -5,7 +5,7 @@ const checks=[
  ['lib/discovery/openai.ts','web_search_preview'],
  ['app/api/autonomy/company-discovery/run/route.ts','CRON_SECRET'],
  ['app/companies/page.tsx','Company discovery'],
- ['app/companies/[id]/page.tsx','Why SalesPilot recommended this company'],
+ ['app/companies/[id]/page.tsx','Why MarketRoute recommended this company'],
  ['app/api/companies/[id]/review/route.ts','APPROVED'],
 ];
 for(const [file,needle] of checks){const text=fs.readFileSync(file,'utf8');if(!text.includes(needle))throw new Error(`${file} missing ${needle}`)}

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Allow independent AI work to progress concurrently without weakening SalesPilot's deterministic state authority, spend governance, background resumability, or G4→G5 responsibility boundary.
+Allow independent AI work to progress concurrently without weakening MarketRoute's deterministic state authority, spend governance, background resumability, or G4→G5 responsibility boundary.
 
 ## What changed
 

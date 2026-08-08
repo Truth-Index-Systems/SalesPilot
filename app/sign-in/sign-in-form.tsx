@@ -26,7 +26,7 @@ export function SignInForm() {
       if (!response.ok || !result.ok) {
         setError(result.error ?? {
           title: "Sign in unsuccessful",
-          message: "SalesPilot could not confirm your details.",
+          message: "MarketRoute could not confirm your details.",
           hint: "Please try again.",
         });
         return;
@@ -37,7 +37,7 @@ export function SignInForm() {
     } catch {
       setError({
         title: "Sign in unavailable",
-        message: "SalesPilot could not reach the secure sign-in service.",
+        message: "MarketRoute could not reach the secure sign-in service.",
         hint: "Check your connection and try again.",
       });
     } finally {
@@ -58,6 +58,6 @@ export function SignInForm() {
       <div className="website-error-copy"><strong>{error.title}</strong><p>{error.message}</p><span>{error.hint}</span></div>
     </div> : null}
     <button className="button primary sign-in-submit" type="submit" disabled={submitting}>{submitting ? "Signing in…" : "Sign in"}</button>
-    <div className="auth-switch">New to SalesPilot? <Link href={`/sign-up${searchParams.get("next") ? `?next=${encodeURIComponent(searchParams.get("next")!)}` : ""}`}>Create account</Link></div>
+    <div className="auth-switch">New to MarketRoute? <Link href={`/sign-up${searchParams.get("next") ? `?next=${encodeURIComponent(searchParams.get("next")!)}` : ""}`}>Create account</Link></div>
   </form>;
 }

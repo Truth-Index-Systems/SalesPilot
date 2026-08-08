@@ -1,4 +1,4 @@
-# SalesPilot Genesis G5 — Release 1
+# MarketRoute Genesis G5 — Release 1
 ## Canonical Engagement State Machine
 
 Release 1 establishes a new G5-owned execution authority without changing G4 truth.

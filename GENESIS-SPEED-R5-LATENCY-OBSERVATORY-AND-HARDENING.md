@@ -1,4 +1,4 @@
-# SalesPilot Genesis — Speed R5: Latency Observatory & Hardening
+# MarketRoute Genesis — Speed R5: Latency Observatory & Hardening
 
 ## Purpose
 
@@ -34,7 +34,7 @@ The internal AI Cost Baseline now includes an R5 latency observatory with:
 - workspace-scoped recovery errors
 
 ### Webhook race reconciliation
-If an OpenAI terminal webhook arrives before the background checkpoint has been persisted, R5 adopts that previously unmatched event during checkpoint upsert, marks it matched, and wakes the owning SalesPilot job.
+If an OpenAI terminal webhook arrives before the background checkpoint has been persisted, R5 adopts that previously unmatched event during checkpoint upsert, marks it matched, and wakes the owning MarketRoute job.
 
 ### Stale/orphan recovery
 The recovery collector now runs `repair_ai_background_observability()` before collection. It:

@@ -1,4 +1,4 @@
-# SalesPilot Genesis G5 — Release 6: Mandatory AI Self Review + Automatic Rewrite
+# MarketRoute Genesis G5 — Release 6: Mandatory AI Self Review + Automatic Rewrite
 
 Release 6 consumes only the persisted G5 engagement artefacts produced by Releases 2–5. G4 remains immutable.
 

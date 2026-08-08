@@ -86,7 +86,7 @@ export default async function CompanyDetail({ params }: { params: Promise<{ id: 
     <div className="report-two-column section">
       <Card id="commercial-fit">
         <div className="card-title">How the match was assessed</div>
-        <div className="card-subtitle">SalesPilot scores each dimension independently, then recalculates confidence after evidence verification.</div>
+        <div className="card-subtitle">MarketRoute scores each dimension independently, then recalculates confidence after evidence verification.</div>
         <div className="fit-breakdown section">{Object.entries(fitLabels).map(([key, label]) => {
           const score = Number(fit[key] ?? 0);
           return <div className="fit-row" key={key}><div><span>{label}</span><strong>{score}/100</strong></div><div className="fit-track"><span style={{ width: `${score}%` }}/></div></div>;
@@ -107,7 +107,7 @@ export default async function CompanyDetail({ params }: { params: Promise<{ id: 
 
     <div className="grid cols-2 section" id="recommendation">
       <Card>
-        <div className="card-title">Why SalesPilot recommended this company</div>
+        <div className="card-title">Why MarketRoute recommended this company</div>
         <div className="card-subtitle">Campaign fit is explained rather than assumed.</div>
         <div className="recommendation-reasons section">{(payload.why ?? []).map((reason: string, index: number) => <div key={index}><CheckCircle2 size={19}/><span>{reason}</span></div>)}</div>
       </Card>

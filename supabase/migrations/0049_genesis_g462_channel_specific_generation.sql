@@ -1,4 +1,4 @@
--- SalesPilot Genesis G4.6.2: channel-specific AI content generation.
+-- MarketRoute Genesis G4.6.2: channel-specific AI content generation.
 
 alter table public.engagement_drafts add column if not exists channel_content_json jsonb not null default '{}'::jsonb;
 alter table public.engagement_drafts add column if not exists execution_instruction text;
@@ -108,7 +108,7 @@ begin
 
   insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
   values(v.organisation_id,v.campaign_id,'DRAFT_GENERATED','Channel-specific engagement prepared',
-    'SalesPilot has prepared evidence-backed content for the recommended engagement channel.','CUSTOMER',
+    'MarketRoute has prepared evidence-backed content for the recommended engagement channel.','CUSTOMER',
     jsonb_build_object('engagementId',v.engagement_id,'opportunityId',v.opportunity_id,'draftId',v.id,'confidence',p_confidence));
 
   v_event_id:=gen_random_uuid();

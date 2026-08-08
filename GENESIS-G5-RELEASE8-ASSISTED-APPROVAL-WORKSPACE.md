@@ -1,4 +1,4 @@
-# SalesPilot Genesis G5 — Release 8: Assisted Approval Workspace
+# MarketRoute Genesis G5 — Release 8: Assisted Approval Workspace
 
 ## Boundary
 Release 8 consumes the frozen G4 Opportunity and persisted G5 R2–R7 intelligence. It does not change Company Discovery, Route Intelligence, Opportunity scoring, G4 evidence, or G4 orchestration.

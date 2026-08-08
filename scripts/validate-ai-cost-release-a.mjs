@@ -7,4 +7,4 @@ const autonomy=fs.readFileSync("app/internal/autonomy/page.tsx","utf8");
 for(const text of ["averageActualCostUsd","highest","webSearches","prompt_version","campaign_name"]){if(!repo.includes(text)) throw new Error(`Cost repository missing ${text}`)}
 for(const text of ["AI cost baseline","Cost by intelligence stage","Highest-cost requests","No test-mode behaviour"]){if(!page.includes(text)) throw new Error(`Cost page missing ${text}`)}
 if(!autonomy.includes('/internal/ai-costs')) throw new Error("Autonomy page missing cost dashboard link");
-console.log("SalesPilot AI Cost Optimisation Release A passed");
+console.log("MarketRoute AI Cost Optimisation Release A passed");

@@ -1,4 +1,4 @@
--- SalesPilot Genesis G5 — Release 9: Queue & Execution Engine
+-- MarketRoute Genesis G5 — Release 9: Queue & Execution Engine
 -- Deterministic execution only. G4 truth, G5 reasoning, route strategy and content are immutable here.
 
 create table if not exists public.g5_engagement_execution_queue (
@@ -115,7 +115,7 @@ begin
     select * into v_tz from public.resolve_engagement_timezone(v_location,co.country) limit 1;
     if v_tz.timezone_name is null then
       insert into public.g5_engagement_execution_holds(organisation_id,campaign_id,strategy_id,opportunity_id,reason_code,reason_message,metadata_json,last_checked_at)
-      values(v.organisation_id,v.campaign_id,v.id,v.opportunity_id,'TIMEZONE_UNCERTAIN','Recipient timezone cannot be established with sufficient confidence; SalesPilot will not guess.',jsonb_build_object('contactLocation',v_location,'companyCountry',co.country),now())
+      values(v.organisation_id,v.campaign_id,v.id,v.opportunity_id,'TIMEZONE_UNCERTAIN','Recipient timezone cannot be established with sufficient confidence; MarketRoute will not guess.',jsonb_build_object('contactLocation',v_location,'companyCountry',co.country),now())
       on conflict(strategy_id,reason_code) do update set metadata_json=excluded.metadata_json,last_checked_at=now(),resolved_at=null;
       return query select 1,0,1,0; return;
     end if;

@@ -105,10 +105,10 @@ begin
       s.organisation_id,
       s.campaign_id,
       'ROUTE_RESEARCH_EXPANDING',
-      case when s.depth_focus_started_at is null then 'Market scan captured the first route signals' else 'SalesPilot is strengthening the access strategy' end,
+      case when s.depth_focus_started_at is null then 'Market scan captured the first route signals' else 'MarketRoute is strengthening the access strategy' end,
       case when s.depth_focus_started_at is null
-        then 'SalesPilot completed the first Route Intelligence pass for '||coalesce(v_company_name,'this organisation')||' and will scan the remaining approved companies before deepening this account.'
-        else 'SalesPilot found '||v_route_count||' viable commercial route'||case when v_route_count=1 then '' else 's' end||' and is continuing this focused account before moving to the next company: '||coalesce(v_company_name,'the organisation')||'.'
+        then 'MarketRoute completed the first Route Intelligence pass for '||coalesce(v_company_name,'this organisation')||' and will scan the remaining approved companies before deepening this account.'
+        else 'MarketRoute found '||v_route_count||' viable commercial route'||case when v_route_count=1 then '' else 's' end||' and is continuing this focused account before moving to the next company: '||coalesce(v_company_name,'the organisation')||'.'
       end,
       'CUSTOMER',
       jsonb_build_object(

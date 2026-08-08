@@ -6,7 +6,7 @@ Route Intelligence previously yielded for 15 seconds after an expansion pass. Wi
 
 ## New invariant
 
-Once SalesPilot begins Route Intelligence for an approved company, that account remains the preferred runnable Route Intelligence job until it reaches one of these boundaries:
+Once MarketRoute begins Route Intelligence for an approved company, that account remains the preferred runnable Route Intelligence job until it reaches one of these boundaries:
 
 - `READY` — primary and independent fallback route exist.
 - `EXHAUSTED` — all safe route expansion passes completed.

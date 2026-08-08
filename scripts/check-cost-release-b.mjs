@@ -10,4 +10,4 @@ const checks=[
 ];
 for(const [file,text] of checks){const content=fs.readFileSync(file,'utf8');if(!content.includes(text))throw new Error(`${file} missing ${text}`)}
 for(const file of ['lib/engagement/commercial-reasoning-openai.ts','lib/engagement/outreach-generation-openai.ts','lib/engagement/self-review-openai.ts']){if(fs.readFileSync(file,'utf8').includes('web_search_preview'))throw new Error(`${file} must not use web search`)}
-console.log('SalesPilot AI Cost Optimisation Release B passed');
+console.log('MarketRoute AI Cost Optimisation Release B passed');

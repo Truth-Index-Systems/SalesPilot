@@ -7,7 +7,7 @@ const checks=[
   [migration.includes("s.status='FAILED' and s.job_state='FAILED_RETRYABLE'"),'retry claim is explicit'],
   [migration.includes('next_retry_at=null'),'stale retry is cleared'],
   [presentation.includes('isJobPreparingFirstPass'),'preparation helper exists'],
-  [page.includes('SalesPilot is preparing company discovery.'),'preparation headline exists'],
+  [page.includes('MarketRoute is preparing company discovery.'),'preparation headline exists'],
   [page.includes('No retry has occurred.'),'preparation copy distinguishes retry'],
 ];
 for(const [ok,label] of checks){ if(!ok) throw new Error(`Missing: ${label}`); }

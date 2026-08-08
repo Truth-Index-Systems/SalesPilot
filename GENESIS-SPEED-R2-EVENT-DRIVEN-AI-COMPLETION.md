@@ -1,4 +1,4 @@
-# SalesPilot Genesis — Speed R2: Event-Driven AI Completion
+# MarketRoute Genesis — Speed R2: Event-Driven AI Completion
 
 ## Goal
 
@@ -22,7 +22,7 @@ WEBHOOK INGESTION
 verify signature + replay window
   -> idempotently persist event_id
   -> mark checkpoint provider status
-  -> wake owning SalesPilot job immediately
+  -> wake owning MarketRoute job immediately
   -> on completed, opportunistically retrieve/cache final Response
   -> return
 

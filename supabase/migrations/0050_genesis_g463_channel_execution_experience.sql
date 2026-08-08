@@ -1,4 +1,4 @@
--- SalesPilot Genesis G4.6.3: channel-native execution experience.
+-- MarketRoute Genesis G4.6.3: channel-native execution experience.
 
 alter table public.opportunity_engagements
   add column if not exists execution_state text not null default 'PREPARED',

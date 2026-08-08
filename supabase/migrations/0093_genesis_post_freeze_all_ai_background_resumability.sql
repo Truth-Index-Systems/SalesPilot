@@ -1,4 +1,4 @@
--- SalesPilot Genesis — post-freeze all-AI background resumability.
+-- MarketRoute Genesis — post-freeze all-AI background resumability.
 -- Full GPT-5 reasoning can legitimately take several minutes. Persist the OpenAI
 -- Responses API response id and poll it across scheduler claims instead of holding
 -- a serverless request open. AI judgement/schema/state authority is unchanged.

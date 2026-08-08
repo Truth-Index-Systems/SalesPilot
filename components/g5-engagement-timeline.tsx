@@ -12,7 +12,7 @@ export function G5EngagementTimeline({ timeline }: { timeline: G5LiveTimeline })
     </div>
     <TimelineBox
       entries={timeline.entries.map(entry => ({ id: entry.id, occurredAt: entry.occurredAt, title: entry.title, description: entry.description }))}
-      emptyMessage="SalesPilot has not recorded engagement activity yet."
+      emptyMessage="MarketRoute has not recorded engagement activity yet."
     />
   </>;
 }

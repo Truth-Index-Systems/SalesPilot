@@ -24,10 +24,10 @@ export function SignUpForm() {
       const safeNext = next?.startsWith("/") ? next : "/campaigns/new";
       const response = await fetch("/api/auth/sign-up", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, workspaceName, email, password, next: safeNext }) });
       const result = await response.json() as { ok: boolean; signedIn?: boolean; error?: Message };
-      if (!response.ok || !result.ok) { setError(result.error ?? { title: "Account could not be created", message: "SalesPilot could not create this account.", hint: "Please try again." }); return; }
+      if (!response.ok || !result.ok) { setError(result.error ?? { title: "Account could not be created", message: "MarketRoute could not create this account.", hint: "Please try again." }); return; }
       if (result.signedIn) { const next = searchParams.get("next"); router.replace(next?.startsWith("/") ? next : "/campaigns/new"); router.refresh(); return; }
-      setSuccess({ title: "Check your email", message: "Your SalesPilot workspace has been created.", hint: "Confirm your email address, then return here to sign in." });
-    } catch { setError({ title: "Account creation unavailable", message: "SalesPilot could not reach the secure account service.", hint: "Check your connection and try again." }); }
+      setSuccess({ title: "Check your email", message: "Your MarketRoute workspace has been created.", hint: "Confirm your email address, then return here to sign in." });
+    } catch { setError({ title: "Account creation unavailable", message: "MarketRoute could not reach the secure account service.", hint: "Check your connection and try again." }); }
     finally { setSubmitting(false); }
   }
 

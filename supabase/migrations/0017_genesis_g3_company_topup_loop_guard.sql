@@ -83,7 +83,7 @@ begin
   ) values(
     p_organisation_id,p_campaign_id,'COMPANY_DISCOVERY_TOP_UP_QUEUED',
     'Company discovery continuing',
-    'The review queue fell below six, so SalesPilot automatically started another evidence-backed company search.',
+    'The review queue fell below six, so MarketRoute automatically started another evidence-backed company search.',
     'CUSTOMER',
     jsonb_build_object(
       'sessionId',v_session.id,
@@ -186,7 +186,7 @@ begin
   else
     perform public.record_discovery_activity(
       s.id,'DISCOVERY_TOP_UP_PAUSED','No new unique companies found',
-      'SalesPilot exhausted the current search angle and paused before widening the research again.',
+      'MarketRoute exhausted the current search angle and paused before widening the research again.',
       jsonb_build_object(
         'newCompanyCount',0,
         'companyCount',v_total,

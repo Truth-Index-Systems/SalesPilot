@@ -52,48 +52,48 @@ export default async function Home() {
 
   return <AppShell title="Overview" user={user} workspaceStats={{ campaigns: campaigns.length, companies: companies.total, replies: 0, opportunities: opportunities.length }}>
     <PageHeader
-      eyebrow="Opportunity workspace"
+      eyebrow="Your growth workspace"
       title={greeting(user.name)}
-      subtitle="SalesPilot turns company, contact and evidence intelligence into ranked commercial opportunities and a clear next action."
+      subtitle="MarketRoute turns research into ranked opportunities and clear next moves, so you can spend more time talking to customers."
       action={<ButtonLink href="/campaigns/new"><Plus size={16}/>New campaign</ButtonLink>}
     />
     <div className="grid cols-4">
       <Metric label="Opportunities" value={String(opportunities.length)} foot={storageReady ? `${awaitingDecision} awaiting a decision` : "Opportunity data is temporarily unavailable"}/>
-      <Metric label="Recommended" value={String(recommended)} foot={recommended ? "Strongest commercial cases first" : "SalesPilot is still assembling intelligence"}/>
-      <Metric label="Approved for engagement" value={String(approved)} foot={approved ? "Ready for the engagement engine" : "No approved opportunities yet"}/>
-      <Metric label="Campaigns" value={String(campaigns.length)} foot={`${companies.total} companies held in supporting intelligence`}/>
+      <Metric label="Recommended" value={String(recommended)} foot={recommended ? "Best opportunities first" : "Finding your strongest opportunities"}/>
+      <Metric label="Approved for engagement" value={String(approved)} foot={approved ? "Ready for outreach planning" : "No approved opportunities yet"}/>
+      <Metric label="Campaigns" value={String(campaigns.length)} foot={`${companies.total} companies researched`}/>
     </div>
 
     <div className="section hero">
-      <div className="eyebrow" style={{ color: "#d8f6ff" }}>Recommended next action</div>
+      <div className="eyebrow" style={{ color: "#d8f6ff" }}>Your next best move</div>
       {nextOpportunity ? <>
         <h2>Review {nextOpportunity.company_name}</h2>
-        <p>SalesPilot ranks this #{nextOpportunity.rank} for {nextOpportunity.campaign_name} with an Opportunity Score of {nextOpportunity.opportunity_score ?? 0}/100. Review the commercial need, best access route, evidence and recommended next action in one place.</p>
+        <p>MarketRoute ranks this #{nextOpportunity.rank} for {nextOpportunity.campaign_name} with an Opportunity Score of {nextOpportunity.opportunity_score ?? 0}/100. Review the commercial need, best access route, evidence and recommended next action in one place.</p>
         <div style={{ marginTop: 18 }}><ButtonLink href={`/opportunities/${nextOpportunity.id}`}>Review opportunity <ArrowRight size={16}/></ButtonLink></div>
       </> : campaigns.length === 0 ? <>
         <h2>Create your first campaign</h2>
-        <p>Start with your website. SalesPilot will understand the business and begin assembling your strongest commercial opportunities.</p>
+        <p>Start with your website. MarketRoute will understand the business and begin assembling your strongest commercial opportunities.</p>
         <div style={{ marginTop: 18 }}><ButtonLink href="/campaigns/new">Create campaign <ArrowRight size={16}/></ButtonLink></div>
       </> : <>
         <h2>Opportunities are assembling</h2>
-        <p>{campaigns[0].name} is {presentCampaignStatus(campaigns[0].status).toLowerCase()}. SalesPilot is connecting company fit, commercial need and the strongest access route before asking for your decision.</p>
+        <p>{campaigns[0].name} is {presentCampaignStatus(campaigns[0].status).toLowerCase()}. MarketRoute is connecting company fit, commercial need and the strongest access route before asking for your decision.</p>
         <div style={{ marginTop: 18 }}><ButtonLink href={`/campaigns/${campaigns[0].id}`}>Open campaign <ArrowRight size={16}/></ButtonLink></div>
       </>}
     </div>
 
     <div className="grid cols-2 section">
       <Card>
-        <div className="section-head"><div><div className="card-title">Best opportunities</div><div className="card-subtitle">The next commercial cases SalesPilot recommends reviewing.</div></div><ButtonLink href="/opportunities" secondary>View all</ButtonLink></div>
-        {topOpportunities.length === 0 ? <div className="empty"><h3>No opportunities assembled yet</h3><p>SalesPilot will compose company evidence, commercial need and access routes here automatically.</p></div> : topOpportunities.map(row => <Link href={`/opportunities/${row.id}`} key={row.id} className="activity">
+        <div className="section-head"><div><div className="card-title">Best opportunities</div><div className="card-subtitle">The next commercial cases MarketRoute recommends reviewing.</div></div><ButtonLink href="/opportunities" secondary>View all</ButtonLink></div>
+        {topOpportunities.length === 0 ? <div className="empty"><h3>No opportunities assembled yet</h3><p>MarketRoute will compose company evidence, commercial need and access routes here automatically.</p></div> : topOpportunities.map(row => <Link href={`/opportunities/${row.id}`} key={row.id} className="activity">
           <div className="dot"/><div style={{ flex: 1 }}><div className="name">#{row.rank} · {row.company_name}</div><div className="meta">{row.primary_contact_name ? `${row.primary_contact_name} · ${row.primary_contact_role ?? "Recommended route"}` : "Route research in progress"}</div><div className="meta">{opportunityBand(row)} · Score {row.opportunity_score ?? 0}/100</div></div><ArrowRight size={15}/>
         </Link>)}
       </Card>
       <Card>
-        <div className="section-head"><div><div className="card-title">How SalesPilot thinks</div><div className="card-subtitle">Supporting intelligence becomes one commercial recommendation.</div></div><BriefcaseBusiness size={18}/></div>
+        <div className="section-head"><div><div className="card-title">Why these opportunities rise to the top</div><div className="card-subtitle">Fit, need, evidence and a credible route in become one clear recommendation.</div></div><BriefcaseBusiness size={18}/></div>
         <div className="recommendation-reasons section">
           <div><Sparkles size={19}/><span>Is this organisation likely to need and buy the solution?</span></div>
           <div><Sparkles size={19}/><span>Is there a credible route to someone who can act?</span></div>
-          <div><Sparkles size={19}/><span>Can SalesPilot reach them through a supported route?</span></div>
+          <div><Sparkles size={19}/><span>Can MarketRoute reach them through a supported route?</span></div>
           <div><Sparkles size={19}/><span>Is the evidence strong enough to recommend engagement?</span></div>
         </div>
       </Card>

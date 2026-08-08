@@ -1,4 +1,4 @@
--- SalesPilot Genesis G4 Phase 1: production Engagement domain.
+-- MarketRoute Genesis G4 Phase 1: production Engagement domain.
 -- Extends the frozen G3.5 Opportunity -> Engagement bridge. No AI generation,
 -- drafting, scheduling or sending is introduced by this migration.
 

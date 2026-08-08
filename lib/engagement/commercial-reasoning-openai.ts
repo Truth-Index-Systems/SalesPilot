@@ -12,7 +12,7 @@ export async function reasonAboutEngagement(input:{organisationId:string;campaig
   const reservation=await reserveAiRequest({organisationId:input.organisationId,campaignId:input.campaignId,schedulerRunId:input.schedulerRunId,jobType:"COMMERCIAL_REASONING",jobId:input.analysisId,requestScope:`commercial-reasoning:${fingerprint}`,model,estimatedCostUsd:Number(process.env.SALESPILOT_COMMERCIAL_REASONING_ESTIMATED_COST_USD??"0.08")});
   let response:Response;
   try{response=await fetch(ENDPOINT,{method:"POST",cache:"no-store",signal:AbortSignal.timeout(120_000),headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model,instructions:[
-    "You are SalesPilot Engagement Intelligence. Think like an exceptional enterprise salesperson before any outreach is written.",
+    "You are MarketRoute Engagement Intelligence. Think like an exceptional enterprise salesperson before any outreach is written.",
     "Determine the strongest evidence-backed commercial angle for winning a conversation through the recommended access route.",
     "Treat access strategy as a first-class decision. Use the supplied Best Access Route, Route Quality, Route Confidence and Recommended Entry Strategy to decide how the conversation should begin.",
     "Explain why the route is commercially sensible, how authority and accessibility affect the approach, and provide a realistic fallback path.",

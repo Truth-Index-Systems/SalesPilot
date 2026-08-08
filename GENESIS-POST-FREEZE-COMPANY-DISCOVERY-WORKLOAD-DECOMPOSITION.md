@@ -4,7 +4,7 @@ Full GPT-5 Company Discovery is decomposed into bounded, resumable target-accoun
 
 ## Authority
 
-SalesPilot deterministically builds and persists the market search plan, owns the archetype cursor, schedules one unit at a time, validates official-site evidence, deduplicates persisted companies and decides when the existing Company Discovery finaliser runs. The VP Market Intelligence model researches only the single archetype assigned to it.
+MarketRoute deterministically builds and persists the market search plan, owns the archetype cursor, schedules one unit at a time, validates official-site evidence, deduplicates persisted companies and decides when the existing Company Discovery finaliser runs. The VP Market Intelligence model researches only the single archetype assigned to it.
 
 ## Runtime behaviour
 

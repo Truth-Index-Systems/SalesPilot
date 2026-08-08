@@ -16,7 +16,7 @@ export function DiscoveryRetryButton({ campaignId }: { campaignId: string }) {
       if (!response.ok) throw new Error("retry failed");
       router.refresh();
     } catch {
-      setMessage("SalesPilot could not restart discovery. Please try again.");
+      setMessage("MarketRoute could not restart discovery. Please try again.");
     } finally {
       setBusy(false);
     }

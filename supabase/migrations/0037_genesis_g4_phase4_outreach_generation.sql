@@ -1,4 +1,4 @@
--- SalesPilot Genesis G4 Phase 4: evidence-backed first-outreach generation.
+-- MarketRoute Genesis G4 Phase 4: evidence-backed first-outreach generation.
 -- Extends the frozen Engagement foundation without sending, scheduling or human review.
 
 alter table public.opportunity_engagements drop constraint if exists opportunity_engagements_status_check;
@@ -169,7 +169,7 @@ begin
 
   insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
   values(v.organisation_id,v.campaign_id,'DRAFT_GENERATED','Personalised outreach prepared',
-    'SalesPilot has prepared evidence-backed outreach for this opportunity.','CUSTOMER',
+    'MarketRoute has prepared evidence-backed outreach for this opportunity.','CUSTOMER',
     jsonb_build_object('engagementId',v.engagement_id,'opportunityId',v.opportunity_id,'draftId',v.id,'confidence',p_confidence));
 
   v_event_id:=gen_random_uuid();

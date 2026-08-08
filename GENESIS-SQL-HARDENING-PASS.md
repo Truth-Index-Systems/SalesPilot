@@ -1,4 +1,4 @@
-# SalesPilot Genesis SQL Hardening Pass
+# MarketRoute Genesis SQL Hardening Pass
 
 Apply `supabase/migrations/0044_genesis_sql_hardening_pass.sql` after migration `0043`.
 

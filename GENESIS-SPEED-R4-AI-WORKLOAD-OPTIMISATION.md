@@ -1,7 +1,7 @@
 # Genesis Speed R4 — AI Workload Optimisation
 
 ## Goal
-Reduce provider reasoning time, input tokens and output tokens without weakening SalesPilot's commercial authority boundaries or the R1–R3 resumability/event/concurrency architecture.
+Reduce provider reasoning time, input tokens and output tokens without weakening MarketRoute's commercial authority boundaries or the R1–R3 resumability/event/concurrency architecture.
 
 ## Changes
 
@@ -18,7 +18,7 @@ Defaults:
 - G5 Outreach: low / 1,400
 - G5 Self Review: medium / 1,500
 
-Commercial Reasoning remains protected at high effort. Route Intelligence moves from high to medium because its responsibility is now bounded and evidence-led. Self Review moves from high to medium because deterministic SalesPilot still owns the final policy decision.
+Commercial Reasoning remains protected at high effort. Route Intelligence moves from high to medium because its responsibility is now bounded and evidence-led. Self Review moves from high to medium because deterministic MarketRoute still owns the final policy decision.
 
 Per-task R4 environment overrides exist, but defaults are conservative and bounded.
 
@@ -32,7 +32,7 @@ Per-task R4 environment overrides exist, but defaults are conservative and bound
 Deterministic validators still use the complete authoritative source snapshots. Only model input is compacted.
 
 ### 3. Deterministic channel fast path
-If there is exactly one G4 route that is viable, reachable and maps unambiguously to an execution channel, SalesPilot constructs the G5 Channel Strategy deterministically. No OpenAI request is reserved or submitted for that decision.
+If there is exactly one G4 route that is viable, reachable and maps unambiguously to an execution channel, MarketRoute constructs the G5 Channel Strategy deterministically. No OpenAI request is reserved or submitted for that decision.
 
 The result still passes the same immutable-route validator before persistence.
 
@@ -50,7 +50,7 @@ Stable responsibility instructions remain in the instruction prefix. Variable or
 - R3 parallel reservation caps unchanged.
 - G4 truth remains immutable.
 - G5 commercial reasoning remains AI-led.
-- deterministic SalesPilot continues to own validation, state transitions, approval and execution.
+- deterministic MarketRoute continues to own validation, state transitions, approval and execution.
 
 ## Validation
 Run:

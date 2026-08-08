@@ -37,7 +37,7 @@ export function CampaignControlActions({ campaignId, campaignName, status }: { c
       if (action === "delete") router.replace("/campaigns");
       else { close(); router.refresh(); }
     } catch {
-      setError("SalesPilot could not update this campaign. Please try again.");
+      setError("MarketRoute could not update this campaign. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -57,7 +57,7 @@ export function CampaignControlActions({ campaignId, campaignName, status }: { c
       <div className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="campaign-confirm-title">
         <div className={`confirm-icon ${action === "delete" ? "danger" : "warning"}`}><AlertTriangle size={22}/></div>
         <h2 id="campaign-confirm-title">{action === "delete" ? "Delete this campaign?" : action === "pause" ? "Pause this campaign?" : "Resume this campaign?"}</h2>
-        <p>{action === "delete" ? "This permanently deletes the campaign, discovered companies, evidence, review history and timeline. This cannot be undone." : action === "pause" ? "SalesPilot will stop claiming new autonomous work for this campaign. Saved companies and evidence remain available." : "SalesPilot will allow autonomous work to continue from the saved campaign state."}</p>
+        <p>{action === "delete" ? "This permanently deletes the campaign, discovered companies, evidence, review history and timeline. This cannot be undone." : action === "pause" ? "MarketRoute will stop claiming new autonomous work for this campaign. Saved companies and evidence remain available." : "MarketRoute will allow autonomous work to continue from the saved campaign state."}</p>
         <label>Type <strong>{required}</strong> to confirm<input autoFocus value={confirmation} onChange={event => setConfirmation(event.target.value)} autoComplete="off" spellCheck={false}/></label>
         {error && <p className="confirm-error" role="alert">{error}</p>}
         <div className="confirm-buttons">

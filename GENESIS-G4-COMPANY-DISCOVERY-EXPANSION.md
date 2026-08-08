@@ -11,4 +11,4 @@ Valid discovery attempts that retain fewer than three evidence-backed companies 
 - Evidence, official-domain verification, confidence and deduplication gates remain unchanged.
 - The next pass is queued after 15 seconds.
 - Technical failures continue to use the separate retry/dead-letter path.
-- After all four passes are exhausted, SalesPilot explains that no weak recommendations were added and invites a campaign strategy adjustment.
+- After all four passes are exhausted, MarketRoute explains that no weak recommendations were added and invites a campaign strategy adjustment.

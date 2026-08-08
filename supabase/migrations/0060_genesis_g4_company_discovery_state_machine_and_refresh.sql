@@ -150,8 +150,8 @@ begin
     perform public.record_discovery_activity(
       s.id,
       'DISCOVERY_EXPANDING',
-      'SalesPilot is expanding the search',
-      'This search pass retained fewer than three supported companies, so SalesPilot is automatically exploring another commercial angle without weakening the evidence standard.',
+      'MarketRoute is expanding the search',
+      'This search pass retained fewer than three supported companies, so MarketRoute is automatically exploring another commercial angle without weakening the evidence standard.',
       jsonb_build_object(
         'companyCount',v_total,
         'targetCompanyCount',v_target,
@@ -169,7 +169,7 @@ begin
       s.campaign_id,
       'COMPANY_DISCOVERY_EXPANDING',
       'Company search expanding',
-      'SalesPilot retained too few supported matches from this pass and is automatically widening the research.',
+      'MarketRoute retained too few supported matches from this pass and is automatically widening the research.',
       'CUSTOMER',
       jsonb_build_object('companyCount',v_total,'targetCompanyCount',v_target,'nextPass',v_next_pass+1)
     );
@@ -211,7 +211,7 @@ begin
       s.id,
       'DISCOVERY_COMPLETE',
       v_total||' companies ready for review',
-      'SalesPilot retained enough evidence-backed commercial matches to continue the campaign.',
+      'MarketRoute retained enough evidence-backed commercial matches to continue the campaign.',
       jsonb_build_object('companyCount',v_total,'searchPasses',v_next_pass,'targetCompanyCount',v_target)
     );
   else
@@ -219,7 +219,7 @@ begin
       s.id,
       'DISCOVERY_EXHAUSTED',
       'Extended search completed',
-      'SalesPilot completed every safe search pass without finding three supported matches. No weak recommendations were added.',
+      'MarketRoute completed every safe search pass without finding three supported matches. No weak recommendations were added.',
       jsonb_build_object('companyCount',v_total,'searchPasses',v_next_pass,'targetCompanyCount',v_target)
     );
   end if;

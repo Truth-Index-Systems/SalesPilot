@@ -1,4 +1,4 @@
--- SalesPilot Genesis G5 — Release 7: Engagement Quality Engine
+-- MarketRoute Genesis G5 — Release 7: Engagement Quality Engine
 -- Deterministic, explainable and separate from Opportunity Score.
 -- G4 truth and the R6 PASS decision remain immutable.
 

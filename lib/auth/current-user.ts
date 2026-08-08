@@ -4,7 +4,7 @@ import { getDatabaseConfig } from "@/lib/database/config";
 
 type SessionShape = { access_token?: string } | [string, string, number?, number?, string?];
 
-export type SalesPilotUser = {
+export type MarketRouteUser = {
   id: string;
   email: string | null;
   name: string;
@@ -48,7 +48,7 @@ async function getAccessToken(): Promise<string | null> {
   return null;
 }
 
-export async function getCurrentUser(): Promise<SalesPilotUser | null> {
+export async function getCurrentUser(): Promise<MarketRouteUser | null> {
   const token = await getAccessToken();
   if (!token) return null;
 
@@ -82,7 +82,7 @@ export async function getCurrentUser(): Promise<SalesPilotUser | null> {
       name,
     };
   } catch (error) {
-    console.error("SalesPilot session lookup failed", error);
+    console.error("MarketRoute session lookup failed", error);
     return null;
   }
 }

@@ -64,18 +64,18 @@ function describeEvent(row: EventRow): G5TimelineEntry | null {
   const base = { id: row.id, occurredAt: row.occurred_at, status: "complete" as const };
 
   if (row.event_type === "CREATED") return { ...base, title: "Engagement strategy started", description: "The approved G4 opportunity has entered Engagement Intelligence." };
-  if (row.event_type === "CLAIMED" && (worker === "COMMERCIAL_REASONING" || next === "REASONING")) return { ...base, title: "Building commercial argument", description: "SalesPilot is converting the approved opportunity into an evidence-backed reason to engage." };
+  if (row.event_type === "CLAIMED" && (worker === "COMMERCIAL_REASONING" || next === "REASONING")) return { ...base, title: "Building commercial argument", description: "MarketRoute is converting the approved opportunity into an evidence-backed reason to engage." };
   if (row.event_type === "TRANSITIONED" && row.previous_state === "REASONING" && next === "STRATEGY_READY") return { ...base, title: "Commercial argument ready", description: "The commercial problem, consequence, credible outcome and next commitment have been established." };
-  if (row.event_type === "CLAIMED" && worker === "CHANNEL_STRATEGY") return { ...base, title: "Selecting strongest engagement route", description: "SalesPilot is choosing the best executable route from G4's already-discovered commercial routes." };
+  if (row.event_type === "CLAIMED" && worker === "CHANNEL_STRATEGY") return { ...base, title: "Selecting strongest engagement route", description: "MarketRoute is choosing the best executable route from G4's already-discovered commercial routes." };
   if (row.event_type === "CHANNEL_STRATEGY_READY") return { ...base, title: "Engagement route selected", description: "The primary, secondary and fallback route strategy is ready." };
   if (row.event_type === "PERSONALISATION_SAFETY_READY") return { ...base, title: "Checking personalisation safety", description: "Verified facts, commercial inferences and prohibited claims have been separated before outreach." };
-  if (row.event_type === "CLAIMED" && worker === "OUTREACH_GENERATION") return { ...base, title: "Writing outreach", description: "SalesPilot is preparing channel-specific first-touch outreach for the selected route." };
+  if (row.event_type === "CLAIMED" && worker === "OUTREACH_GENERATION") return { ...base, title: "Writing outreach", description: "MarketRoute is preparing channel-specific first-touch outreach for the selected route." };
   if (row.event_type === "TRANSITIONED" && next === "SELF_REVIEW") return { ...base, title: "Outreach drafted", description: "The first-touch message has been generated and moved into mandatory independent review." };
-  if (row.event_type === "CLAIMED" && worker === "SELF_REVIEW") return { ...base, title: "Checking evidence and factual accuracy", description: "SalesPilot is reviewing claims, route alignment, tone, clarity, CTA quality and hallucination risk." };
+  if (row.event_type === "CLAIMED" && worker === "SELF_REVIEW") return { ...base, title: "Checking evidence and factual accuracy", description: "MarketRoute is reviewing claims, route alignment, tone, clarity, CTA quality and hallucination risk." };
   if (row.event_type === "SELF_REVIEW_REWRITE") return { ...base, title: "Improving outreach", description: "The reviewer found issues and returned the draft for an automatic rewrite." };
   if (row.event_type === "SELF_REVIEW_PASS") return { ...base, title: "Independent review passed", description: "The message passed the mandatory evidence, safety and commercial-quality review." };
   if (row.event_type === "SELF_REVIEW_BLOCK") return { ...base, status: "blocked", title: "Outreach blocked", description: "The independent review found issues that prevent this engagement from progressing." };
-  if (row.event_type === "ENGAGEMENT_QUALITY_SCORED") return { ...base, title: "Engagement confidence calculated", description: "SalesPilot has produced the separate, explainable Engagement Confidence score." };
+  if (row.event_type === "ENGAGEMENT_QUALITY_SCORED") return { ...base, title: "Engagement confidence calculated", description: "MarketRoute has produced the separate, explainable Engagement Confidence score." };
   if (row.event_type === "HUMAN_EDITED") return { ...base, title: "Outreach edited", description: "Your edit has been saved and returned to mandatory self-review and quality scoring." };
   if (row.event_type === "HUMAN_ROUTE_CHANGED") return { ...base, title: "Alternative route selected", description: "The secondary G4 route was selected without rerunning discovery or changing G4 truth." };
   if (row.event_type === "HUMAN_APPROVED") return { ...base, title: "Outreach approved", description: "The reviewed first-touch engagement has been approved for execution." };
@@ -96,8 +96,8 @@ function currentCopy(strategy: StrategyRow, queue: QueueRow | null, hold: HoldRo
 
   switch (strategy.state) {
     case "WAITING": return { currentTitle: "Waiting to build commercial argument", currentDescription: "The opportunity is queued for Engagement Intelligence.", isActive: true };
-    case "REASONING": return { currentTitle: "Building commercial argument", currentDescription: "SalesPilot is determining why to engage, why now and the smallest credible next commitment.", isActive: true };
-    case "STRATEGY_READY": return { currentTitle: "Preparing engagement strategy", currentDescription: "The commercial argument is ready and SalesPilot is selecting or preparing the strongest route.", isActive: true };
+    case "REASONING": return { currentTitle: "Building commercial argument", currentDescription: "MarketRoute is determining why to engage, why now and the smallest credible next commitment.", isActive: true };
+    case "STRATEGY_READY": return { currentTitle: "Preparing engagement strategy", currentDescription: "The commercial argument is ready and MarketRoute is selecting or preparing the strongest route.", isActive: true };
     case "GENERATING": return { currentTitle: "Writing outreach", currentDescription: "Channel-specific outreach is being generated from the approved commercial strategy.", isActive: true };
     case "SELF_REVIEW": return { currentTitle: "Checking evidence and factual accuracy", currentDescription: "The generated outreach is undergoing mandatory independent review.", isActive: true };
     case "READY_FOR_APPROVAL": return { currentTitle: "Outreach ready for approval", currentDescription: "Commercial reasoning, route strategy, safety review and Engagement Confidence are complete.", isActive: false };

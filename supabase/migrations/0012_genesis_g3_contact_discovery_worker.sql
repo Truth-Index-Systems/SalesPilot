@@ -194,7 +194,7 @@ begin
   v_delay:=case when s.attempt_count<=1 then interval '5 minutes' when s.attempt_count=2 then interval '15 minutes' when s.attempt_count=3 then interval '1 hour' else interval '6 hours' end;
   update public.contact_discovery_sessions set status='FAILED',last_error=left(coalesce(p_error,'CONTACT_DISCOVERY_FAILED'),500),lease_expires_at=null,heartbeat_at=now(),next_attempt_at=case when attempt_count<5 then now()+v_delay else null end,updated_at=now() where id=p_session_id;
   insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
-  values(s.organisation_id,s.campaign_id,'CONTACT_DISCOVERY_RETRY','Contact research will retry','SalesPilot held back uncertain contact results and will retry the research safely.','CUSTOMER',jsonb_build_object('companyId',s.company_id,'sessionId',s.id,'attemptCount',s.attempt_count));
+  values(s.organisation_id,s.campaign_id,'CONTACT_DISCOVERY_RETRY','Contact research will retry','MarketRoute held back uncertain contact results and will retry the research safely.','CUSTOMER',jsonb_build_object('companyId',s.company_id,'sessionId',s.id,'attemptCount',s.attempt_count));
 end $$;
 
 revoke all on function public.queue_contact_discovery_for_company(uuid,uuid,uuid) from public,anon,authenticated;

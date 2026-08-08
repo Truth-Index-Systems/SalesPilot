@@ -1,4 +1,4 @@
-# SalesPilot Genesis G4 Phase 7 — Approval & Queue
+# MarketRoute Genesis G4 Phase 7 — Approval & Queue
 
 ## Purpose
 Convert human-approved outreach into durable send instructions without sending messages.

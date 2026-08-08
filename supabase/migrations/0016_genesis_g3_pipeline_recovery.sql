@@ -124,7 +124,7 @@ begin
   ) values(
     s.organisation_id,s.campaign_id,'CONTACT_DISCOVERY_RETRY',
     'Contact research will retry',
-    'SalesPilot held back uncertain contact results and will safely continue with the remaining approved companies.',
+    'MarketRoute held back uncertain contact results and will safely continue with the remaining approved companies.',
     'CUSTOMER',jsonb_build_object('companyId',s.company_id,'sessionId',s.id,'attemptCount',s.attempt_count)
   );
 end $$;

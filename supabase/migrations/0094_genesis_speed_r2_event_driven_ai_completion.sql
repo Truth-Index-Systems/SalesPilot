@@ -1,4 +1,4 @@
--- SalesPilot Genesis — Speed R2: event-driven OpenAI completion.
+-- MarketRoute Genesis — Speed R2: event-driven OpenAI completion.
 -- Webhook notification becomes the primary completion signal. A dedicated
 -- collector owns response retrieval/polling; AI workers only submit or consume
 -- cached completed responses and therefore never block on provider thinking time.
@@ -40,7 +40,7 @@ alter table public.openai_webhook_events enable row level security;
 revoke all on table public.openai_webhook_events from public,anon,authenticated;
 grant select,insert,update,delete on table public.openai_webhook_events to service_role;
 
--- Make the owning SalesPilot job eligible immediately after a provider event.
+-- Make the owning MarketRoute job eligible immediately after a provider event.
 -- This changes timing only; it does not alter stage authority or transition rules.
 create or replace function public.wake_ai_background_owner(p_response_id text) returns void
 language plpgsql security definer set search_path=public as $$

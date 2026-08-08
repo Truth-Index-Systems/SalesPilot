@@ -1,4 +1,4 @@
-# SalesPilot Genesis G5 — Release 9: Queue & Execution Engine
+# MarketRoute Genesis G5 — Release 9: Queue & Execution Engine
 
 R9 owns only the deterministic execution boundary after human approval.
 
@@ -12,7 +12,7 @@ R9 owns only the deterministic execution boundary after human approval.
 - Campaign PAUSED/ARCHIVED blocks queueing.
 - One queue row per G5 strategy; duplicate sends are structurally prevented.
 - EMAIL requires a valid recipient and deterministic timezone.
-- Unknown timezone creates a hold; SalesPilot never guesses.
+- Unknown timezone creates a hold; MarketRoute never guesses.
 - IANA timezone scheduling preserves DST and the 08:00–18:00 recipient-local first-outreach rule.
 - Due work is lease-owned; stale workers cannot commit a send.
 - SMTP transport failures retry the same approved content and never trigger regeneration.

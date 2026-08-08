@@ -1,4 +1,4 @@
--- SalesPilot Genesis G5 — Release 13: Freeze Hardening
+-- MarketRoute Genesis G5 — Release 13: Freeze Hardening
 -- No new product capability. Removes legacy engagement authority, repairs the R2 retry path,
 -- and hardens terminal execution ownership before G5 is frozen.
 

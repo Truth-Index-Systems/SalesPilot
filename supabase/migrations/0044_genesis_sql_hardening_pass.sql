@@ -1,4 +1,4 @@
--- SalesPilot Genesis SQL hardening pass.
+-- MarketRoute Genesis SQL hardening pass.
 -- Replaces live RPCs that are vulnerable to PL/pgSQL output-variable/column ambiguity.
 
 create or replace function public.claim_business_analysis_job(

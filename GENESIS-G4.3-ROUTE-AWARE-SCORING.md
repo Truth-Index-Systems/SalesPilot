@@ -1,8 +1,8 @@
-# SalesPilot Genesis G4.3 — Route-Aware Opportunity Scoring
+# MarketRoute Genesis G4.3 — Route-Aware Opportunity Scoring
 
 ## Purpose
 
-G4.3 changes the opportunity decision from **who has the most authority** to **whether SalesPilot has a credible, supported and commercially useful route into the organisation**.
+G4.3 changes the opportunity decision from **who has the most authority** to **whether MarketRoute has a credible, supported and commercially useful route into the organisation**.
 
 ## Database migration
 

@@ -63,7 +63,7 @@ begin
     ) values(
       s.organisation_id,s.campaign_id,'CONTACT_DISCOVERY_NO_SUPPORTED_CONTACTS',
       'Contact research completed',
-      'SalesPilot could not independently verify a suitable current decision-maker at '||coalesce(v_company_name,'this company')||'. Nothing was invented or queued for review.',
+      'MarketRoute could not independently verify a suitable current decision-maker at '||coalesce(v_company_name,'this company')||'. Nothing was invented or queued for review.',
       'CUSTOMER',
       jsonb_build_object(
         'companyId',s.company_id,
@@ -150,7 +150,7 @@ begin
     ) values(
       s.organisation_id,s.campaign_id,'CONTACT_DISCOVERY_RETRY',
       'Contact research will retry',
-      'SalesPilot paused this attempt safely and will continue without presenting uncertain contacts.',
+      'MarketRoute paused this attempt safely and will continue without presenting uncertain contacts.',
       'CUSTOMER',jsonb_build_object('companyId',s.company_id,'sessionId',s.id,'attemptCount',s.attempt_count)
     );
   end if;

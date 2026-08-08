@@ -1,4 +1,4 @@
--- SalesPilot Genesis G5 — Release 6: Mandatory AI Self Review + Automatic Rewrite
+-- MarketRoute Genesis G5 — Release 6: Mandatory AI Self Review + Automatic Rewrite
 -- G4 truth remains immutable. R6 owns review of R4 outreach only.
 
 alter table public.engagement_strategies
@@ -114,7 +114,7 @@ begin
   insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
   values(v.organisation_id,v.campaign_id,'G5_SELF_REVIEW_'||p_outcome,
     case p_outcome when 'PASS' then 'Outreach passed independent review' when 'REWRITE' then 'Outreach is being improved' else 'Outreach blocked by safety review' end,
-    case p_outcome when 'PASS' then 'SalesPilot checked factual accuracy, evidence, route alignment and message quality. The outreach is ready for approval.' when 'REWRITE' then 'SalesPilot found issues in the draft and is automatically rewriting it before showing it for approval.' else 'SalesPilot found issues that should not progress to approval.' end,
+    case p_outcome when 'PASS' then 'MarketRoute checked factual accuracy, evidence, route alignment and message quality. The outreach is ready for approval.' when 'REWRITE' then 'MarketRoute found issues in the draft and is automatically rewriting it before showing it for approval.' else 'MarketRoute found issues that should not progress to approval.' end,
     'CUSTOMER',jsonb_build_object('strategyId',v.id,'opportunityId',v.opportunity_id,'outcome',p_outcome,'rewriteCount',v.rewrite_count));
   return v;
 end $$;

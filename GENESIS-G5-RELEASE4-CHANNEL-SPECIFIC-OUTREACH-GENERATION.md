@@ -1,4 +1,4 @@
-# SalesPilot Genesis G5 — Release 4
+# MarketRoute Genesis G5 — Release 4
 ## Channel-Specific Outreach Generation
 
 Release 4 consumes the canonical G5 commercial reasoning and the persisted Release 3 primary route/channel decision. G4 remains immutable.

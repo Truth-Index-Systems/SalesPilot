@@ -217,7 +217,7 @@ begin
 
   insert into public.campaign_timeline(campaign_id,event_type,title,description,visibility) values
     (campaign_id,'CAMPAIGN_CREATED','Campaign created','Your approved strategy has been saved.','CUSTOMER'),
-    (campaign_id,'BUSINESS_PROFILE_APPROVED','Business profile approved','SalesPilot saved what it understood about your business.','CUSTOMER'),
+    (campaign_id,'BUSINESS_PROFILE_APPROVED','Business profile approved','MarketRoute saved what it understood about your business.','CUSTOMER'),
     (campaign_id,'STRATEGY_SELECTED','Strategy selected',proposal->>'name','CUSTOMER'),
     (campaign_id,'CAMPAIGN_PREPARATION_STARTED','Campaign preparation started','Company discovery is the next stage.','CUSTOMER');
 

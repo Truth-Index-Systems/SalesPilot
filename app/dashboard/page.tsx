@@ -19,12 +19,12 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
   const maxStage=Math.max(...data.stages.map(d=>d.cost),0.000001);
   return <main className="founder-dashboard-shell">
     <header className="founder-topbar">
-      <div className="founder-wordmark light"><span>SP</span><div><strong>SalesPilot</strong><small>Founder Operations</small></div></div>
+      <div className="founder-wordmark light"><span>SP</span><div><strong>MarketRoute</strong><small>Founder Operations</small></div></div>
       <div className="founder-topbar-actions"><small>Updated {new Date(data.generatedAt).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</small><form method="post" action="/api/founder-dashboard/logout"><button type="submit">Lock dashboard</button></form></div>
     </header>
     <div className="founder-dashboard-content">
       <section className="founder-dashboard-head">
-        <div><span className="founder-kicker">Production command centre</span><h1>Founder Dashboard</h1><p>AI economics, autonomous pipeline health and operational learning across SalesPilot.</p></div>
+        <div><span className="founder-kicker">Production command centre</span><h1>Founder Dashboard</h1><p>AI economics, autonomous pipeline health and operational learning across MarketRoute.</p></div>
         <nav className="founder-range" aria-label="Dashboard period"><a className={range===7?"active":""} href="/dashboard?range=7">7 days</a><a className={range===14?"active":""} href="/dashboard?range=14">14 days</a><a className={range===30?"active":""} href="/dashboard?range=30">30 days</a></nav>
       </section>
 
@@ -98,7 +98,7 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
           <article><span>Won value</span><strong>${data.outcomeTotals.wonValue.toFixed(0)}</strong><small>recorded commercial value</small></article>
         </div>
         <div className="founder-table-wrap section"><table className="founder-table"><thead><tr><th>Channel</th><th>Sample</th><th>Response rate</th><th>Meeting rate</th><th>Wins</th><th>Route quality</th><th>Signal</th></tr></thead><tbody>{data.channelLearning.length?data.channelLearning.map(row=><tr key={row.channel}><td><strong>{row.channel.replaceAll("_"," ")}</strong></td><td>{row.engagements}</td><td>{row.responseRate}%</td><td>{row.meetingRate}%</td><td>{row.wins}</td><td>{row.averageRouteQuality}/100</td><td>{row.sampleReady?"Learning signal":"Collecting evidence"}</td></tr>):<tr><td colSpan={7}>No commercial outcomes recorded in this period.</td></tr>}</tbody></table></div>
-        <p className="founder-method-note">SalesPilot only treats a channel comparison as a learning signal after at least five completed engagements. Smaller samples remain visible but do not influence recommendations.</p>
+        <p className="founder-method-note">MarketRoute only treats a channel comparison as a learning signal after at least five completed engagements. Smaller samples remain visible but do not influence recommendations.</p>
       </section>
 
       <section className="founder-panel">
@@ -119,7 +119,7 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
 
       <section className="founder-grid founder-grid-equal">
         <article className="founder-panel"><div className="founder-panel-head"><div><span>Prompt intelligence</span><h2>Prompt cost profile</h2></div></div><div className="founder-ranked-list">{data.prompts.map((row,index)=><div key={row.prompt}><b>{String(index+1).padStart(2,"0")}</b><div><strong>{row.prompt}</strong><small>{row.calls} calls · {number(row.avgTokens)} average tokens</small></div><span>{money(row.avgCost)} avg</span></div>)}</div></article>
-        <article className="founder-panel"><div className="founder-panel-head"><div><span>Production timeline</span><h2>SalesPilot working</h2></div></div><TimelineBox dark entries={data.timeline.map(row=>({id:row.id,occurredAt:row.occurred_at,title:row.title,description:row.description??row.event_type.replaceAll("_"," "),meta:`${row.campaignName} · ${new Date(row.occurred_at).toLocaleString("en-GB")}`}))}/></article>
+        <article className="founder-panel"><div className="founder-panel-head"><div><span>Production timeline</span><h2>MarketRoute working</h2></div></div><TimelineBox dark entries={data.timeline.map(row=>({id:row.id,occurredAt:row.occurred_at,title:row.title,description:row.description??row.event_type.replaceAll("_"," "),meta:`${row.campaignName} · ${new Date(row.occurred_at).toLocaleString("en-GB")}`}))}/></article>
       </section>
     </div>
   </main>;

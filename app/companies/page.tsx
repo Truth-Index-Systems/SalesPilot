@@ -33,7 +33,7 @@ export default async function Companies({ searchParams }: { searchParams: Promis
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.confidence);
 
   return <AppShell title="Companies" user={user} workspaceStats={{ campaigns: campaigns.length, companies: workspaceCounts.total, replies: 0, opportunities: 0 }}>
-    <PageHeader eyebrow="Supporting company intelligence" title="Company intelligence" subtitle="Inspect the organisations behind SalesPilot’s opportunity recommendations. Company records remain visible for evidence review, correction and deeper analysis." />
+    <PageHeader eyebrow="Companies worth knowing" title="Company research" subtitle="Review the businesses MarketRoute has found for your campaigns, see why they fit and decide which ones are worth taking further." />
 
     <Card className="company-review-summary">
       <div><span>Awaiting review</span><strong>{counts.pending}</strong></div>
@@ -58,6 +58,6 @@ export default async function Companies({ searchParams }: { searchParams: Promis
       <Link className={`filter-chip ${search.status === "REJECTED" ? "active" : ""}`} href={queryString({ ...search, status: "REJECTED" })}>Not selected · {counts.rejected}</Link>
     </div>
 
-    {rows.length === 0 ? <Card><div className="empty"><h3>{hasFilters ? "No companies match these filters" : campaigns.length ? "Company discovery is preparing" : "No companies yet"}</h3><p>{hasFilters ? "Adjust or clear the filters to review more recommendations." : campaigns.length ? "SalesPilot will add independently verified recommendations here as discovery completes." : "Launch an outbound sales campaign to begin company discovery."}</p></div></Card> : <CompanyReviewQueue rows={rowsWithContactState} />}
+    {rows.length === 0 ? <Card><div className="empty"><h3>{hasFilters ? "No companies match these filters" : campaigns.length ? "MarketRoute is preparing your company search" : "No companies yet"}</h3><p>{hasFilters ? "Adjust or clear the filters to review more recommendations." : campaigns.length ? "Best-fit companies will appear here as MarketRoute completes its research." : "Start a campaign to begin finding companies that fit your business."}</p></div></Card> : <CompanyReviewQueue rows={rowsWithContactState} />}
   </AppShell>;
 }

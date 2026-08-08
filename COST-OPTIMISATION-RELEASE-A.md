@@ -1,4 +1,4 @@
-# SalesPilot AI Cost Optimisation — Release A
+# MarketRoute AI Cost Optimisation — Release A
 
 Adds production cost observability only. It does not introduce test mode or alter scheduler, governance, model, prompt, research, queue, or sending behaviour.
 

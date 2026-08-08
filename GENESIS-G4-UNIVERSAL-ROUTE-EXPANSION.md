@@ -1,6 +1,6 @@
 # Genesis G4 — Universal Route Expansion
 
-Every approved company now receives bounded, evidence-preserving route research until SalesPilot has both a usable primary route and an independent fallback, or four safe passes are exhausted.
+Every approved company now receives bounded, evidence-preserving route research until MarketRoute has both a usable primary route and an independent fallback, or four safe passes are exhausted.
 
 - Pass 1: strongest direct route and fallback
 - Pass 2: role synonyms, adjacent buyers, email and LinkedIn

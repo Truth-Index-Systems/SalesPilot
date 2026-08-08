@@ -319,3 +319,37 @@
 
 /* Genesis G5 R10 — live engagement timeline */
 .g5-live-status{margin-top:16px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:#fbfcff}.g5-live-status>div{display:grid;gap:3px}.g5-live-status>div>span{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.g5-live-status>div>strong{font-size:15px}.g5-live-status>div>small{color:var(--muted);line-height:1.45}.g5-live-dot{width:10px;height:10px;border-radius:999px;background:#92a0b3;box-shadow:0 0 0 5px rgba(146,160,179,.12)}.g5-live-dot.active{background:#18a77b;box-shadow:0 0 0 5px rgba(24,167,123,.13);animation:g5-live-pulse 1.8s ease-in-out infinite}@keyframes g5-live-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.78);opacity:.65}}@media(max-width:700px){.g5-live-status{grid-template-columns:auto 1fr}.g5-live-status>.badge{grid-column:2;justify-self:start}}
+
+/* MarketRoute Genesis G5.1 — premium brand and founder-facing polish */
+.marketroute-wordmark{display:block;width:auto;height:auto;max-width:100%;object-fit:contain}
+.marketroute-home-logo{display:block;padding:5px 8px 21px;border-radius:14px;transition:transform .2s ease,background .2s ease}
+.marketroute-home-logo:hover{transform:translateY(-1px);background:rgba(255,255,255,.035)}
+.marketroute-home-logo .marketroute-wordmark{width:205px;max-height:58px;object-fit:contain;object-position:left center;filter:drop-shadow(0 8px 22px rgba(31,92,255,.12))}
+.public-brand-logo{width:max-content;max-width:240px}
+.public-brand-logo .marketroute-wordmark{width:226px;max-height:62px;object-position:left center}
+.sign-in-brand .marketroute-wordmark{width:230px;max-height:64px;object-position:left center}
+.button{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease}
+.button:not(:disabled):hover{transform:translateY(-1px)}
+.button.primary:not(:disabled):hover{box-shadow:0 13px 31px rgba(36,84,230,.27)}
+.topbar{box-shadow:0 8px 28px rgba(20,41,82,.025)}
+.topbar-title{letter-spacing:-.01em}
+.page-title{letter-spacing:-.025em}
+.card{position:relative;overflow:hidden}
+.card:before{content:"";position:absolute;inset:0 auto auto 0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(36,84,230,.16),transparent);opacity:0;transition:opacity .2s ease}
+.card:hover:before{opacity:1}
+.metric-value{letter-spacing:-.035em}
+.badge.green .live-dot{width:7px;height:7px;margin-right:2px;box-shadow:none}
+.public-hero-copy h1{background:linear-gradient(115deg,#071936 4%,#143b8e 58%,#155c9f 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.public-preview{overflow:hidden}
+.public-preview:after{content:"";position:absolute;top:-120px;right:-120px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(36,84,230,.08),transparent 68%);pointer-events:none}
+.public-steps article,.public-benefit-grid article,.public-security-grid>div{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.public-benefit-grid article:hover,.public-security-grid>div:hover{transform:translateY(-3px)}
+.public-industry-strip{backdrop-filter:blur(12px)}
+.public-footer .marketroute-wordmark{width:190px;max-height:52px}
+.empty{position:relative}
+.empty:before{content:"";display:block;width:42px;height:3px;border-radius:99px;margin:0 auto 16px;background:linear-gradient(90deg,var(--blue),var(--teal));opacity:.7}
+@media(max-width:780px){.public-brand-logo .marketroute-wordmark{width:178px}.sign-in-brand .marketroute-wordmark{width:200px}}
+@media(prefers-reduced-motion:reduce){.marketroute-home-logo,.button,.public-benefit-grid article,.public-security-grid>div{transition:none}.marketroute-home-logo:hover,.button:not(:disabled):hover,.public-benefit-grid article:hover,.public-security-grid>div:hover{transform:none}}
+.marketroute-home-logo{background:rgba(255,255,255,.97);padding:9px 10px;margin:0 2px 18px;box-shadow:0 12px 30px rgba(0,0,0,.12)}
+.marketroute-home-logo:hover{background:#fff;box-shadow:0 15px 34px rgba(0,0,0,.16)}
+.marketroute-home-logo .marketroute-wordmark{width:100%;max-height:54px}

@@ -22,7 +22,7 @@ function classify(error:unknown){
     return {code:"AI_GOVERNANCE_BLOCKED",message:`AI_GOVERNANCE_BLOCKED:${reason}`,retryable:true};
   }
   if(/not configured|authentication|401/i.test(message))return {code:"CONFIGURATION",message:"The protected AI service configuration is incomplete.",retryable:false};
-  if(/STRUCTURED_AI_OUTPUT|JSON|structured output|invalid response|unterminated string|unexpected end/i.test(message))return {code:"INVALID_AI_OUTPUT",message:"SalesPilot received an incomplete structured response. This stage can be retried safely.",retryable:true};
+  if(/STRUCTURED_AI_OUTPUT|JSON|structured output|invalid response|unterminated string|unexpected end/i.test(message))return {code:"INVALID_AI_OUTPUT",message:"MarketRoute received an incomplete structured response. This stage can be retried safely.",retryable:true};
   return {code:"ANALYSIS_FAILED",message:"Business analysis encountered a technical interruption. No partial result was exposed.",retryable:true};
 }
 

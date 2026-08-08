@@ -1,4 +1,4 @@
-# SalesPilot Genesis G4 Phase 4 — Outreach Generation
+# MarketRoute Genesis G4 Phase 4 — Outreach Generation
 
 Phase 4 converts a completed, evidence-backed commercial analysis into one structured first-outreach draft. It does not review, approve, queue or send the message.
 

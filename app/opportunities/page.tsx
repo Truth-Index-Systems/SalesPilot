@@ -49,10 +49,10 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.band);
 
   return <AppShell title="Opportunities" user={user} workspaceStats={{ campaigns: campaigns.length, companies: new Set(allRows.map(row => row.company_id)).size, replies: 0, opportunities: allRows.length }}>
-    <PageHeader eyebrow="Opportunities" title="Your next best sales opportunities" subtitle="SalesPilot combines company fit, commercial need, route quality and evidence into one ranked recommendation. Nothing discovered is hidden because of a low score." action={<span className="badge green"><ShieldCheck size={14}/> Evidence-led ranking</span>} />
+    <PageHeader eyebrow="Your pipeline" title="Your next best sales opportunities" subtitle="See the companies most worth your time, why they may need what you sell and the strongest credible route into each one. Lower-scoring research stays visible rather than being silently discarded." action={<span className="badge green"><ShieldCheck size={14}/> Evidence-led ranking</span>} />
 
     <Card className="opportunity-philosophy">
-      <div><span className="eyebrow">SalesPilot&apos;s recommendation model</span><h2>That&apos;s a great opportunity because there&apos;s a strong commercial need and a credible route into the organisation.</h2><p>Company evidence and access routes remain fully visible beneath every recommendation.</p></div>
+      <div><span className="eyebrow">Why this could become a customer</span><h2>A strong opportunity needs more than company fit — it needs a reason to buy and a credible way in.</h2><p>MarketRoute keeps the evidence and access route visible beneath every recommendation, so you can make the call with context.</p></div>
       <BriefcaseBusiness size={34}/>
     </Card>
 
@@ -82,6 +82,6 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
       <Link className={`filter-chip ${search.status === "APPROVED" ? "active" : ""}`} href={queryString({ ...search, status: "APPROVED" as OpportunityStatus, band: undefined })}>Approved · {approved}</Link>
     </div>
 
-    {rows.length ? <OpportunityReviewQueue rows={rows}/> : <Card><div className="empty"><h3>{hasFilters ? "No opportunities match these filters" : "SalesPilot is assembling opportunities"}</h3><p>{hasFilters ? "Adjust or clear the filters." : "Every discovered company will remain visible as contact and evidence intelligence is added."}</p></div></Card>}
+    {rows.length ? <OpportunityReviewQueue rows={rows}/> : <Card><div className="empty"><h3>{hasFilters ? "No opportunities match these filters" : "MarketRoute is assembling opportunities"}</h3><p>{hasFilters ? "Adjust or clear the filters." : "Every discovered company will remain visible as contact and evidence intelligence is added."}</p></div></Card>}
   </AppShell>;
 }

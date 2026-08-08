@@ -1,4 +1,4 @@
--- SalesPilot Genesis G4 Phase 3: Commercial Reasoning Engine.
+-- MarketRoute Genesis G4 Phase 3: Commercial Reasoning Engine.
 -- Adds evidence-bound, structured opportunity understanding before drafting.
 -- No outreach copy, sending, scheduling or G3.5 redesign is introduced.
 
@@ -154,7 +154,7 @@ begin
   insert into public.opportunity_engagement_history(organisation_id,campaign_id,engagement_id,opportunity_id,event_type,previous_status,next_status,metadata_json)
   select v.organisation_id,v.campaign_id,v.engagement_id,v.opportunity_id,'COMMERCIAL_ANALYSIS_COMPLETED',e.status,e.status,jsonb_build_object('analysisId',v.id,'confidence',p_confidence,'promptVersion',p_prompt_version) from public.opportunity_engagements e where e.id=v.engagement_id;
   insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
-  values(v.organisation_id,v.campaign_id,'COMMERCIAL_ANALYSIS_COMPLETE','Opportunity understood','SalesPilot has established an evidence-backed commercial approach for this opportunity.','CUSTOMER',jsonb_build_object('engagementId',v.engagement_id,'opportunityId',v.opportunity_id,'confidence',p_confidence));
+  values(v.organisation_id,v.campaign_id,'COMMERCIAL_ANALYSIS_COMPLETE','Opportunity understood','MarketRoute has established an evidence-backed commercial approach for this opportunity.','CUSTOMER',jsonb_build_object('engagementId',v.engagement_id,'opportunityId',v.opportunity_id,'confidence',p_confidence));
 end $$;
 
 create or replace function public.fail_engagement_commercial_reasoning(p_analysis_id uuid,p_error text)

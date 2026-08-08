@@ -186,8 +186,8 @@ begin
         ) values(
           v_opp.organisation_id,v_opp.campaign_id,'ENGAGEMENT_PREPARED','Opportunity prepared for engagement',
           case when v_next_status='READY_FOR_DRAFT'
-            then 'SalesPilot selected the strongest supported route and prepared this opportunity for personalised outreach.'
-            else 'The opportunity is approved, but SalesPilot still needs a supported contact route before outreach can be prepared.' end,
+            then 'MarketRoute selected the strongest supported route and prepared this opportunity for personalised outreach.'
+            else 'The opportunity is approved, but MarketRoute still needs a supported contact route before outreach can be prepared.' end,
           'CUSTOMER',jsonb_build_object('opportunityId',v_opp.id,'engagementId',v_engagement_id,'channelType',v_channel,'status',v_next_status)
         );
       end if;

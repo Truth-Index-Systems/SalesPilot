@@ -25,7 +25,7 @@ export async function sendSmtpEmail(input:{to:string;subject:string;body:string}
   if(!secure) throw new Error("SMTP_CONFIG_UNSUPPORTED:Use implicit TLS for R9");
   await command(socket,"AUTH LOGIN",[334]); await command(socket,Buffer.from(user).toString("base64"),[334]); await command(socket,Buffer.from(password).toString("base64"),[235]);
   await command(socket,`MAIL FROM:<${from}>`,[250]); await command(socket,`RCPT TO:<${input.to}>`,[250,251]); await command(socket,"DATA",[354]);
-  const messageId=`<${randomUUID()}@${from.split("@")[1]||"salespilot.local"}>`; const fromName=headerSafe(process.env.OUTBOUND_FROM_NAME?.trim()||"SalesPilot");
+  const messageId=`<${randomUUID()}@${from.split("@")[1]||"salespilot.local"}>`; const fromName=headerSafe(process.env.OUTBOUND_FROM_NAME?.trim()||"MarketRoute");
   const message=[`From: ${fromName} <${from}>`,`To: <${headerSafe(input.to)}>`,`Subject: ${headerSafe(input.subject)}`,`Message-ID: ${messageId}`,`Date: ${new Date().toUTCString()}`,"MIME-Version: 1.0","Content-Type: text/plain; charset=UTF-8","Content-Transfer-Encoding: 8bit","",dotStuff(input.body),"."].join("\r\n");
   socket.write(message+"\r\n"); const response=await waitResponse(socket); if(Number(response.slice(0,3))!==250) throw new Error(`SMTP_SEND_FAILED:${response.slice(0,240)}`); await command(socket,"QUIT",[221]).catch(()=>undefined); socket.destroy(); return {messageId};
 }

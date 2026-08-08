@@ -1,4 +1,4 @@
-# SalesPilot Genesis G5 — Release 7: Engagement Quality Engine
+# MarketRoute Genesis G5 — Release 7: Engagement Quality Engine
 
 Release 7 adds a separate, deterministic Engagement Confidence score after mandatory R6 self-review has passed.
 

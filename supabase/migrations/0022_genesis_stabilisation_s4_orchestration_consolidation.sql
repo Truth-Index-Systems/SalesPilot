@@ -128,7 +128,7 @@ begin
         ) values(
           v_campaign.organisation_id,v_campaign.id,'COMPANY_DISCOVERY_QUEUED',
           'Company discovery queued',
-          'SalesPilot is preparing to find companies that match the approved campaign.',
+          'MarketRoute is preparing to find companies that match the approved campaign.',
           'CUSTOMER',jsonb_build_object('sessionId',v_session.id,'cycleNumber',1)
         );
       end if;
@@ -166,7 +166,7 @@ begin
           ) values(
             v_campaign.organisation_id,v_campaign.id,'COMPANY_DISCOVERY_TOP_UP_QUEUED',
             'Company discovery continuing',
-            'The review queue fell below six, so SalesPilot scheduled one new evidence-backed discovery cycle.',
+            'The review queue fell below six, so MarketRoute scheduled one new evidence-backed discovery cycle.',
             'CUSTOMER',jsonb_build_object(
               'sessionId',v_session.id,'pendingCount',v_pending_companies,
               'queueFloor',v_queue_floor,'cycleNumber',v_next_cycle,

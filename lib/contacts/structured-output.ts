@@ -148,7 +148,7 @@ function canonicalChannel(value: unknown) {
 function canonicalOrganisationMap(value: unknown) {
   const item = record(value) ?? {};
   return {
-    summary: text(item.summary, 1200, "SalesPilot mapped the likely commercial ownership structure from existing company intelligence and route research."),
+    summary: text(item.summary, 1200, "MarketRoute mapped the likely commercial ownership structure from existing company intelligence and route research."),
     departments: strings(item.departments, 24, 180),
     businessUnits: strings(item.businessUnits, 24, 180),
     buyingCentres: strings(item.buyingCentres, 20, 180),

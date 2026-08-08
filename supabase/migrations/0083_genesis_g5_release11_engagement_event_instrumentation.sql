@@ -1,4 +1,4 @@
--- SalesPilot Genesis G5 — Release 11: Engagement Event Instrumentation
+-- MarketRoute Genesis G5 — Release 11: Engagement Event Instrumentation
 -- Facts now, learning later. This migration adds a separate append-only business
 -- event ledger for future Reply Intelligence / learning. It does not alter G4
 -- truth, G5 state transitions, scoring, approval, queueing or transport behaviour.

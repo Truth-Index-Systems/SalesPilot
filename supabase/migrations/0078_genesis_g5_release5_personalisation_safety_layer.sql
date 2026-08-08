@@ -1,4 +1,4 @@
--- SalesPilot Genesis G5 — Release 5: Personalisation Safety Layer
+-- MarketRoute Genesis G5 — Release 5: Personalisation Safety Layer
 -- G4 remains immutable. R5 derives a deterministic personalisation manifest from
 -- persisted R2 commercial reasoning + its immutable G4 source snapshot.
 -- It does not add a lifecycle state. Outreach generation is now impossible until
@@ -216,8 +216,8 @@ begin
     v.organisation_id,v.campaign_id,'G5_PERSONALISATION_SAFETY_READY',
     'Personalisation evidence checked',
     case when v_enforced_before_generation
-      then 'SalesPilot has separated verified facts, safe commercial inference and claims that must not be used before writing outreach.'
-      else 'SalesPilot has backfilled the personalisation safety manifest for outreach generated before the Release 5 gate; independent self-review remains mandatory.'
+      then 'MarketRoute has separated verified facts, safe commercial inference and claims that must not be used before writing outreach.'
+      else 'MarketRoute has backfilled the personalisation safety manifest for outreach generated before the Release 5 gate; independent self-review remains mandatory.'
     end,
     'CUSTOMER',
     jsonb_build_object('strategyId',v.id,'opportunityId',v.opportunity_id,'state',v_state,'enforcedBeforeGeneration',v_enforced_before_generation)
@@ -544,7 +544,7 @@ begin
   ) values(
     v.organisation_id,v.campaign_id,'G5_OUTREACH_GENERATED',
     'First-touch outreach prepared',
-    'SalesPilot has prepared channel-native outreach using only the verified facts and safely framed commercial inferences allowed by the personalisation safety policy. Independent AI self-review is next.',
+    'MarketRoute has prepared channel-native outreach using only the verified facts and safely framed commercial inferences allowed by the personalisation safety policy. Independent AI self-review is next.',
     'CUSTOMER',
     jsonb_build_object('strategyId',v.id,'opportunityId',v.opportunity_id,'confidence',p_confidence,'nextState','SELF_REVIEW','personalisationSafetyEnforced',true)
   );

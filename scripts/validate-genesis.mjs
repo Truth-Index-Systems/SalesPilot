@@ -4,4 +4,4 @@ for(const f of must){if(!fs.existsSync(path.join(root,f))) throw new Error(`Miss
 const all=must.map(f=>fs.readFileSync(path.join(root,f),"utf8")).join("\n");
 for(const token of ["schemaVersion","confidence","evidence","CampaignLaunched","AUTO_EXECUTE","BusinessDiscoveryAgent"]){if(!all.includes(token)) throw new Error(`Missing foundation token: ${token}`)}
 const pages=fs.readdirSync(path.join(root,"app")); if(pages.includes("qualification")||pages.includes("evidence")||pages.includes("workflows")) throw new Error("Internal engine modules leaked into primary route structure");
-console.log("SalesPilot Genesis validation passed.");
+console.log("MarketRoute Genesis validation passed.");

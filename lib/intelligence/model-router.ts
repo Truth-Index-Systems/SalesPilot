@@ -23,7 +23,7 @@ export type ResolvedModel = {
 };
 
 /**
- * Resolves the model for a SalesPilot intelligence task.
+ * Resolves the model for a MarketRoute intelligence task.
  *
  * Resolution order:
  * 1. Task-specific model, e.g. OPENAI_MODEL_STRATEGY

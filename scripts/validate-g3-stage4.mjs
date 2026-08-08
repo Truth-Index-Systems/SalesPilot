@@ -1,6 +1,6 @@
 import fs from "node:fs";
 const checks = [
-  ["app/contacts/page.tsx", ["Company contact coverage", "SalesPilot activity", "Next autonomous stage", "Outreach"]],
+  ["app/contacts/page.tsx", ["Company contact coverage", "MarketRoute activity", "Next autonomous stage", "Outreach"]],
   ["components/contact-review-queue.tsx", ["Recommended because", "Strong identity and role confidence"]],
   ["app/campaigns/[id]/page.tsx", ["contactCounts", "Contact Discovery", "campaign-contact-status", "Open campaign contacts"]],
   ["components/company-review-queue.tsx", ["company-contact-progress", "Contact research queued"]],

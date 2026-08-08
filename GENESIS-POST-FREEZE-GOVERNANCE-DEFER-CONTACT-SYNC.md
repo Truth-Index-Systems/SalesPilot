@@ -1,4 +1,4 @@
-# SalesPilot Genesis — Post-Freeze Governance Deferral + Contact/Route Sync
+# MarketRoute Genesis — Post-Freeze Governance Deferral + Contact/Route Sync
 
 This patch is based on the compiled depth-first Route Intelligence candidate.
 

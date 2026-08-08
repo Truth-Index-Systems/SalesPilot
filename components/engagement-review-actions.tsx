@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 export function EngagementReviewActions({id,initial,channel="EMAIL"}:{id:string;channel?:string;initial:{subject:string;opening:string;personalisation:string;valueProposition:string;callToAction:string}}){
   const router=useRouter();const [busy,setBusy]=useState<string|null>(null);const [editing,setEditing]=useState(false);const [error,setError]=useState("");const [note,setNote]=useState("");const [draft,setDraft]=useState(initial);
   async function act(action:"APPROVED"|"EDITED"|"REJECTED"|"REGENERATE_REQUESTED"){
-    setBusy(action);setError("");try{const response=await fetch(`/api/engagements/${id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action,note:note||undefined,edit:action==="EDITED"?draft:undefined})});if(!response.ok)throw new Error();router.push("/replies");router.refresh();}catch{setError("SalesPilot could not save this engagement review.");}finally{setBusy(null);}
+    setBusy(action);setError("");try{const response=await fetch(`/api/engagements/${id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action,note:note||undefined,edit:action==="EDITED"?draft:undefined})});if(!response.ok)throw new Error();router.push("/replies");router.refresh();}catch{setError("MarketRoute could not save this engagement review.");}finally{setBusy(null);}
   }
   return <div className="engagement-review-panel">
     {editing&&<div className="engagement-editor">

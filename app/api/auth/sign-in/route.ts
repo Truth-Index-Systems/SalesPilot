@@ -47,12 +47,12 @@ export async function POST(request: Request) {
     writeSessionCookie(response, session);
     return response;
   } catch (error) {
-    console.error("SalesPilot sign-in failed", error);
+    console.error("MarketRoute sign-in failed", error);
     return NextResponse.json({
       ok: false,
       error: {
         title: "Sign in unavailable",
-        message: "SalesPilot could not complete sign in.",
+        message: "MarketRoute could not complete sign in.",
         hint: "Please try again shortly.",
       },
     }, { status: 500 });

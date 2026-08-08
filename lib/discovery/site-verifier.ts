@@ -89,7 +89,7 @@ async function fetchPublicPage(initialUrl: string, expectedDomain: string): Prom
         redirect: "manual",
         cache: "no-store",
         signal: controller.signal,
-        headers: { "user-agent": "SalesPilot Company Research/1.0", accept: "text/html,application/xhtml+xml" },
+        headers: { "user-agent": "MarketRoute Company Research/1.0", accept: "text/html,application/xhtml+xml" },
       });
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");

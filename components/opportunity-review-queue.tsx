@@ -48,7 +48,7 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
       setSelected([]);
       router.refresh();
     } catch {
-      setError("SalesPilot could not save the selected opportunity reviews.");
+      setError("MarketRoute could not save the selected opportunity reviews.");
     } finally {
       setBusy(null);
     }
@@ -85,7 +85,7 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
               <div className="opportunity-route-copy">
                 <span>Best commercial route</span>
                 <strong>{route.personName || "Research in progress"}</strong>
-                <small>{route.personName ? `${route.role} · ${route.typeLabel}` : "SalesPilot is analysing the strongest commercial route into this organisation."}</small>
+                <small>{route.personName ? `${route.role} · ${route.typeLabel}` : "MarketRoute is analysing the strongest commercial route into this organisation."}</small>
                 {route.personName && <p>{route.recommendation}</p>}
               </div>
               <div className="opportunity-route-signals">
@@ -93,7 +93,7 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
                 <div><span>Route confidence</span><strong className={`route-confidence ${routeConfidenceClass(route.confidence)}`}>{route.confidence}%</strong><small>{route.confidenceLabel}</small></div>
               </div>
             </div>
-            <div className="opportunity-reason"><span>Why this is an opportunity</span><p>{row.buying_reason || row.company_summary || "SalesPilot is still assembling the recommendation."}</p></div>
+            <div className="opportunity-reason"><span>Why this is an opportunity</span><p>{row.buying_reason || row.company_summary || "MarketRoute is still assembling the recommendation."}</p></div>
             {route.isReady && <div className="route-next-step"><span>Recommended next step</span><p>{route.nextStep}</p></div>}
             <div className="opportunity-score-grid">
               <div><span>Company fit</span><strong>{row.company_fit ?? 0}</strong></div>

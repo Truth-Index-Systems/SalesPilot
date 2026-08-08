@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function NewCampaign() {
   const user = await getCurrentUser();
   return <AppShell title="New campaign" user={user}>
-    <PageHeader eyebrow="Business discovery" title="Build the campaign around your business" subtitle="SalesPilot starts by understanding your business, then proposes the strategy for you to review and launch."/>
+    <PageHeader eyebrow="Start with your business" title="Turn your website into a customer-finding campaign" subtitle="MarketRoute learns what you sell, who it helps and where you are strongest, then proposes a focused growth campaign for you to approve."/>
     <CampaignWizard/>
   </AppShell>;
 }

@@ -35,6 +35,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, reviewed });
   } catch (error) {
     console.error("Bulk opportunity review failed", error);
-    return NextResponse.json({ ok: false, error: { message: "SalesPilot could not save these opportunity reviews." } }, { status: 400 });
+    return NextResponse.json({ ok: false, error: { message: "MarketRoute could not save these opportunity reviews." } }, { status: 400 });
   }
 }

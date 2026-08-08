@@ -1,4 +1,4 @@
--- SalesPilot Genesis G4 Phase 6: human engagement review.
+-- MarketRoute Genesis G4 Phase 6: human engagement review.
 -- Adds auditable approve, edit, reject, regenerate and bulk-review actions. No sending is introduced.
 
 alter table public.opportunity_engagement_history drop constraint if exists opportunity_engagement_history_event_type_check;

@@ -253,8 +253,8 @@ begin
       last_error=null,last_error_code=null,last_error_message=null,updated_at=now() where id=s.id;
     select company_name into v_company_name from public.companies where id=s.company_id;
     insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
-    values(s.organisation_id,s.campaign_id,'ROUTE_RESEARCH_EXPANDING','SalesPilot is strengthening the access strategy',
-      'SalesPilot found '||v_route_count||' viable route'||case when v_route_count=1 then '' else 's' end||' and is researching another independent way into '||coalesce(v_company_name,'the organisation')||'.',
+    values(s.organisation_id,s.campaign_id,'ROUTE_RESEARCH_EXPANDING','MarketRoute is strengthening the access strategy',
+      'MarketRoute found '||v_route_count||' viable route'||case when v_route_count=1 then '' else 's' end||' and is researching another independent way into '||coalesce(v_company_name,'the organisation')||'.',
       'CUSTOMER',jsonb_build_object('companyId',s.company_id,'sessionId',s.id,'pass',v_next_pass,'primaryReady',v_primary,'fallbackReady',v_fallback,'routeCount',v_route_count));
     return query select 'EXPAND'::text,v_primary,v_fallback,v_route_count,v_next_pass; return;
   end if;

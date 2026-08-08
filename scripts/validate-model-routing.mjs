@@ -33,4 +33,4 @@ for (const marker of [
   if (!env.includes(marker)) throw new Error(`Missing environment example: ${marker}`);
 }
 
-console.log("SalesPilot model routing validation passed.");
+console.log("MarketRoute model routing validation passed.");

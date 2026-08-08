@@ -40,7 +40,7 @@ export function EngagementExecutionActions({ id, channel, executionState, target
       if (!response.ok) throw new Error();
       router.refresh();
     } catch {
-      setError("SalesPilot could not update this engagement.");
+      setError("MarketRoute could not update this engagement.");
     } finally { setBusy(null); }
   }
 

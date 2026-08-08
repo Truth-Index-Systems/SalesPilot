@@ -27,33 +27,33 @@ function publicJob(job: Awaited<ReturnType<typeof getBusinessAnalysisJob>>) {
         if (governanceReason === "PLATFORM_DISABLED") return {
           code: "AI_PLATFORM_PAUSED",
           title: "AI research is currently paused",
-          message: "SalesPilot's deployment-level AI safety gate is disabled, so no OpenAI request was made.",
+          message: "MarketRoute's deployment-level AI safety gate is disabled, so no OpenAI request was made.",
           hint: "Enable the platform gate in Vercel, then manage workspace access from Settings → AI governance.",
         };
         if (governanceReason === "AUTONOMY_DISABLED") return {
           code: "AI_WORKSPACE_PAUSED",
           title: "AI research is paused for this workspace",
-          message: "The workspace AI switch is off, so SalesPilot stopped before using any credit.",
+          message: "The workspace AI switch is off, so MarketRoute stopped before using any credit.",
           hint: "An owner or administrator can enable it in Settings → AI governance.",
         };
         return {
           code: "AI_BUDGET_BLOCKED",
           title: "AI research stopped at its safety limit",
-          message: "SalesPilot blocked this request before OpenAI because a daily request or cost limit was reached.",
+          message: "MarketRoute blocked this request before OpenAI because a daily request or cost limit was reached.",
           hint: "Review today's usage and limits in Settings → AI governance.",
         };
       }
       if (job.last_error_code === "INVALID_AI_OUTPUT") return {
         code: "INVALID_AI_OUTPUT",
-        title: job.status === "FAILED_TERMINAL" ? "SalesPilot could not complete this analysis" : "Analysis paused safely",
-        message: "SalesPilot received an incomplete AI response while building the strategy.",
+        title: job.status === "FAILED_TERMINAL" ? "MarketRoute could not complete this analysis" : "Analysis paused safely",
+        message: "MarketRoute received an incomplete AI response while building the strategy.",
         hint: job.status === "FAILED_RETRYABLE" ? "The saved job can retry this stage without repeating the website research." : "Start the analysis again. No incomplete AI output has been saved.",
       };
       return {
         code: job.last_error_code,
-        title: job.status === "FAILED_TERMINAL" ? "SalesPilot could not complete this analysis" : "Analysis paused before completion",
-        message: "SalesPilot encountered a technical interruption. No partial result was exposed.",
-        hint: job.status === "FAILED_RETRYABLE" ? "SalesPilot has saved the job. Retry it when the scheduled time arrives." : "Check the website and configuration before trying again.",
+        title: job.status === "FAILED_TERMINAL" ? "MarketRoute could not complete this analysis" : "Analysis paused before completion",
+        message: "MarketRoute encountered a technical interruption. No partial result was exposed.",
+        hint: job.status === "FAILED_RETRYABLE" ? "MarketRoute has saved the job. Retry it when the scheduled time arrives." : "Check the website and configuration before trying again.",
       };
     })() : null,
     pagesRead: job.pages_read,
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     if (!user) {
       const allowed = await consumeRequestLimit(request, "PUBLIC_BUSINESS_ANALYSIS", 5, 24 * 60 * 60);
       if (!allowed) {
-        return NextResponse.json({ ok: false, error: { code: "ANALYSIS_LIMIT_REACHED", title: "Analysis limit reached", message: "This connection has reached the public analysis limit for today.", hint: "Sign in to continue working in your SalesPilot workspace." } }, { status: 429 });
+        return NextResponse.json({ ok: false, error: { code: "ANALYSIS_LIMIT_REACHED", title: "Analysis limit reached", message: "This connection has reached the public analysis limit for today.", hint: "Sign in to continue working in your MarketRoute workspace." } }, { status: 429 });
       }
     }
     const created = await createBusinessAnalysisJob(input.website);
@@ -79,6 +79,6 @@ export async function POST(request: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ ok: false, error: { code: "INVALID_REQUEST", title: "Check the website address", message: "Please enter a valid company website.", hint: "Enter an address such as yourcompany.com." } }, { status: 400 });
     }
-    return NextResponse.json({ ok: false, error: { code: "SERVICE_UNAVAILABLE", title: "Analysis could not be started", message: "SalesPilot could not save the analysis job.", hint: "Please try again in a moment." } }, { status: 503 });
+    return NextResponse.json({ ok: false, error: { code: "SERVICE_UNAVAILABLE", title: "Analysis could not be started", message: "MarketRoute could not save the analysis job.", hint: "Please try again in a moment." } }, { status: 503 });
   }
 }

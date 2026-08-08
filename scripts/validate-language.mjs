@@ -41,4 +41,4 @@ for (const required of ["presentDomainEvent", "CustomerOutcome", "CampaignLaunch
   if (!presentation.includes(required)) throw new Error(`Missing presentation boundary token: ${required}`);
 }
 
-console.log("SalesPilot customer-language validation passed.");
+console.log("MarketRoute customer-language validation passed.");

@@ -1,4 +1,4 @@
--- SalesPilot Genesis G4 Phase 5: independent AI self-review and quality gating.
+-- MarketRoute Genesis G4 Phase 5: independent AI self-review and quality gating.
 -- No human review actions, sending, scheduling or automatic regeneration are introduced.
 
 alter table public.opportunity_engagement_history drop constraint if exists opportunity_engagement_history_event_type_check;
@@ -174,7 +174,7 @@ begin
 
   insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
   values(v.organisation_id,v.campaign_id,'DRAFT_REVIEWED',case when v_pass then 'Outreach quality review complete' else 'Outreach needs refinement' end,
-    case when v_pass then 'SalesPilot has quality-checked this outreach and prepared it for review.' else 'SalesPilot identified improvements required before this outreach should be reviewed.' end,
+    case when v_pass then 'MarketRoute has quality-checked this outreach and prepared it for review.' else 'MarketRoute identified improvements required before this outreach should be reviewed.' end,
     'CUSTOMER',jsonb_build_object('engagementId',v.engagement_id,'opportunityId',v.opportunity_id,'draftId',v.draft_id,'reviewId',v.id,'approvedByAI',v_pass,'engagementScore',p_score));
 
   v_event_id:=gen_random_uuid();

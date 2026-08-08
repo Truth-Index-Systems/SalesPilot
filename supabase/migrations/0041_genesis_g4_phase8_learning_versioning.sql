@@ -133,7 +133,7 @@ begin
     insert into public.opportunity_engagement_history(organisation_id,campaign_id,engagement_id,opportunity_id,event_type,previous_status,next_status,metadata_json)
     select v.organisation_id,v.campaign_id,v.engagement_id,v.opportunity_id,'LEARNING_SNAPSHOT_CREATED',e.status,e.status,jsonb_build_object('learningRecordId',v_learning_id,'schedulerRunId',p_scheduler_run_id) from public.opportunity_engagements e where e.id=v.engagement_id;
     insert into public.campaign_timeline(organisation_id,campaign_id,event_type,title,description,visibility,metadata_json)
-    values(v.organisation_id,v.campaign_id,'LEARNING_SNAPSHOT_CREATED','Engagement learning recorded','SalesPilot recorded the complete decision and generation trail for future improvement.','INTERNAL',jsonb_build_object('engagementId',v.engagement_id,'learningRecordId',v_learning_id));
+    values(v.organisation_id,v.campaign_id,'LEARNING_SNAPSHOT_CREATED','Engagement learning recorded','MarketRoute recorded the complete decision and generation trail for future improvement.','INTERNAL',jsonb_build_object('engagementId',v.engagement_id,'learningRecordId',v_learning_id));
     v_event_id:=gen_random_uuid();
     insert into public.domain_outbox(organisation_id,event_id,event_type,aggregate_type,aggregate_id,payload_json,occurred_at)
     values(v.organisation_id,v_event_id,'EngagementLearningRecorded','Engagement',v.engagement_id,jsonb_build_object('campaignId',v.campaign_id,'opportunityId',v.opportunity_id,'learningRecordId',v_learning_id),now());

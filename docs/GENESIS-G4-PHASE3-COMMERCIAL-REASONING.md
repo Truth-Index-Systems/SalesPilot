@@ -1,4 +1,4 @@
-# SalesPilot Genesis G4 Phase 3 — Commercial Reasoning Engine
+# MarketRoute Genesis G4 Phase 3 — Commercial Reasoning Engine
 
 Phase 3 adds the intelligence step that understands an approved opportunity before any outreach is written.
 

@@ -1,4 +1,4 @@
-# SalesPilot Founder Dashboard
+# MarketRoute Founder Dashboard
 
 Private route: `/dashboard`
 

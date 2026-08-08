@@ -69,12 +69,12 @@ const LEGACY_CAMPAIGN_DRAFT_KEY = "salespilot:campaign-draft:v1";
 const CAMPAIGN_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 const ANALYSIS_STAGES = [
-  { label: "Website reached", detail: "Connecting securely to the public website." },
-  { label: "Reading your website", detail: "Reviewing services, products and sector pages." },
+  { label: "Website connected", detail: "Connecting securely to your public website." },
+  { label: "Learning what you sell", detail: "Reviewing your offer, proof points and customer language." },
   { label: "Understanding what you sell", detail: "Identifying the offer, proof points and positioning." },
   { label: "Finding your ideal buyers", detail: "Looking for customer language and buying signals." },
   { label: "Building your Business DNA", detail: "Structuring the strongest commercial understanding." },
-  { label: "Designing outbound sales campaigns", detail: "Creating and ranking focused campaign options." },
+  { label: "Finding your growth angle", detail: "Creating and ranking focused ways to reach your best-fit customers." },
   { label: "Preparing recommendations", detail: "Checking confidence before opening your review." },
 ] as const;
 
@@ -255,7 +255,7 @@ export function CampaignWizard() {
     });
     const data = await response.json().catch(() => null) as { ok?: boolean; error?: DiscoveryError } | null;
     if (!response.ok || data?.ok === false) {
-      throw new Error(data?.error?.message ?? "Business analysis worker request failed.");
+      throw new Error(data?.error?.message ?? "Business analysis request failed.");
     }
   }
 
@@ -287,7 +287,7 @@ export function CampaignWizard() {
           return;
         }
         if (job.status === "FAILED_TERMINAL" || job.status === "CANCELLED") {
-          setError(job.error ?? { code: "ANALYSIS_FAILED", title: "SalesPilot couldn't complete the analysis", message: "The saved analysis ended before completion.", hint: "Check the website and try again." });
+          setError(job.error ?? { code: "ANALYSIS_FAILED", title: "MarketRoute couldn't complete the analysis", message: "The saved analysis ended before completion.", hint: "Check the website and try again." });
           return;
         }
         if (job.status === "FAILED_RETRYABLE") {
@@ -309,7 +309,7 @@ export function CampaignWizard() {
         job = await fetchAnalysisJob(jobId, accessToken);
         setAnalysisJob(job);
       }
-      setError({ code: "ANALYSIS_STILL_RUNNING", title: "Analysis is still running", message: "SalesPilot has saved this analysis and will not lose it.", hint: "You can leave this page and return later." });
+      setError({ code: "ANALYSIS_STILL_RUNNING", title: "Analysis is still running", message: "MarketRoute has saved this analysis and will not lose it.", hint: "You can leave this page and return later." });
     } catch (reason) {
       console.error("Website analysis monitoring failed", reason);
       setError({ code: "SERVICE_UNAVAILABLE", title: "We couldn't refresh the analysis", message: "The analysis job remains saved, but its latest status could not be loaded.", hint: "Check your connection and try again." });
@@ -321,7 +321,7 @@ export function CampaignWizard() {
   async function analyse() {
     const normalisedUrl = normaliseWebsiteInput(url);
     if (!normalisedUrl) {
-      setError({ code: "INVALID_REQUEST", title: "Enter your company website", message: "SalesPilot needs a public website address before it can begin.", hint: "Enter an address such as yourcompany.com." });
+      setError({ code: "INVALID_REQUEST", title: "Enter your company website", message: "MarketRoute needs a public website address before it can begin.", hint: "Enter an address such as yourcompany.com." });
       return;
     }
 
@@ -345,12 +345,12 @@ export function CampaignWizard() {
       const saved = { jobId: data.job.id, accessToken: data.accessToken, savedAt: Date.now() } satisfies SavedAnalysisJob;
       sessionStorage.setItem(ANALYSIS_JOB_KEY, JSON.stringify(saved));
       setAnalysisJob(data.job);
-      // monitorAnalysisJob owns the single worker dispatch. Starting it here as
+      // monitorAnalysisJob owns the single background dispatch. Starting it here as
       // well caused two concurrent claim attempts for the same persisted job.
       await monitorAnalysisJob(data.job.id, data.accessToken);
     } catch (reason) {
       console.error("Website analysis request failed", reason);
-      setError({ code: "SERVICE_UNAVAILABLE", title: "We couldn't start the analysis", message: "SalesPilot could not save the website analysis job.", hint: "Check your connection and try again in a moment." });
+      setError({ code: "SERVICE_UNAVAILABLE", title: "We couldn't start the analysis", message: "MarketRoute could not save the website analysis job.", hint: "Check your connection and try again in a moment." });
     } finally {
       setLoading(false);
     }
@@ -430,7 +430,7 @@ export function CampaignWizard() {
         code: "NETWORK_ERROR",
         title: "Campaign could not be launched",
         message:
-          "SalesPilot could not connect to campaign storage.",
+          "MarketRoute could not connect to campaign storage.",
         hint:
           "Please try again. Your selected strategy is still available.",
       });
@@ -472,9 +472,9 @@ export function CampaignWizard() {
             <h2>What is your website?</h2>
 
             <p className="page-subtitle">
-              SalesPilot will read your public website, understand
-              what you sell and propose the strongest first
-              campaigns.
+              MarketRoute will read your public website, understand
+              what you sell, who it helps and the strongest first
+              route to potential customers.
             </p>
 
             <div className="field section">
@@ -503,7 +503,7 @@ export function CampaignWizard() {
                   disabled={loading || !url.trim()}
                 >
                   <Sparkles size={16} />
-                  {loading ? "Analysing…" : "Analyse"}
+                  {loading ? "Learning your business…" : "Start with my website"}
                 </button>
               </div>
 
@@ -528,7 +528,7 @@ export function CampaignWizard() {
                       type="button"
                       onClick={() => router.push("/settings")}
                     >
-                      Open AI settings
+                      Open automation settings
                     </button>
                   ) : (
                     <button
@@ -547,13 +547,13 @@ export function CampaignWizard() {
             <div className="section card soft">
               <div className="card-title">
                 <Globe2 size={16} />
-                What SalesPilot will inspect
+                What MarketRoute looks for
               </div>
 
               <p className="card-subtitle">
-                Services, products, sector pages, proof points,
-                buyer language and commercial positioning.
-                Unknowns are shown rather than invented.
+                Your offer, ideal customers, proof points, buyer language
+                and the reasons someone should choose you. Unknowns stay
+                visible rather than being guessed.
               </p>
             </div>
           </div>
@@ -566,7 +566,7 @@ export function CampaignWizard() {
                     <div className="eyebrow" style={{ color: "#d8f6ff" }}>
                       Understanding your business
                     </div>
-                    <h2>{analysisComplete ? "Business understood" : analysisJob?.status === "QUEUED" ? "Analysis queued" : analysisJob?.status === "FAILED_RETRYABLE" ? "Analysis retry scheduled" : "SalesPilot is analysing your website"}</h2>
+                    <h2>{analysisComplete ? "Business understood" : analysisJob?.status === "QUEUED" ? "Analysis queued" : analysisJob?.status === "FAILED_RETRYABLE" ? "Analysis retry scheduled" : "MarketRoute is learning your business"}</h2>
                   </div>
                   <span className="analysis-percent">
                     {analysisJob?.progress ?? 0}%
@@ -600,17 +600,17 @@ export function CampaignWizard() {
                 </div>
 
                 <p className="analysis-privacy">
-                  SalesPilot only analyses information that is publicly available on your website.
+                  MarketRoute only analyses information that is publicly available on your website.
                 </p>
               </div>
             ) : (
               <>
                 <div className="eyebrow" style={{ color: "#d8f6ff" }}>
-                  One input. A complete strategy.
+                  One input. A route to customers.
                 </div>
-                <h2>Your first campaign should not start with forms.</h2>
+                <h2>Start with your business, not a blank CRM.</h2>
                 <p>
-                  SalesPilot first learns the business, then proposes the answer. You stay in control while the complexity remains in the background.
+                  MarketRoute learns what makes your business worth buying from, then turns that into a focused route to potential customers. You stay in control while the research stays in the background.
                 </p>
               </>
             )}
@@ -623,7 +623,7 @@ export function CampaignWizard() {
           <div className="page-head">
             <div>
               <div className="eyebrow">
-                What SalesPilot understood
+                What MarketRoute learned
               </div>
 
               <h2 className="page-title">
@@ -716,16 +716,16 @@ export function CampaignWizard() {
           <div className="page-head">
             <div>
               <div className="eyebrow">
-                Recommended campaigns
+                Recommended growth angles
               </div>
 
               <h2 className="page-title">
-                Choose the strategy to launch first
+                Choose where MarketRoute should look first
               </h2>
 
               <div className="page-subtitle">
-                Ranked using your offer, likely buyer need,
-                evidence strength and message fit.
+                Ranked around your offer, likely customer need,
+                evidence strength and how naturally your message fits.
               </div>
             </div>
           </div>
@@ -762,7 +762,7 @@ export function CampaignWizard() {
                   <div className="proposal-section">
                     <div className="proposal-section-label">
                       <Target size={15} />
-                      Audience
+                      Best-fit companies
                     </div>
 
                     <p>{proposal.audience}</p>
@@ -771,7 +771,7 @@ export function CampaignWizard() {
                   <div className="proposal-section">
                     <div className="proposal-section-label">
                       <Users size={15} />
-                      Buyers
+                      People to reach
                     </div>
 
                     <p>
@@ -782,7 +782,7 @@ export function CampaignWizard() {
                   <div className="proposal-section">
                     <div className="proposal-section-label">
                       <MessageSquareReply size={15} />
-                      Recommended message
+                      Why they should care
                     </div>
 
                     <p>{proposal.messageAngle}</p>
@@ -796,10 +796,10 @@ export function CampaignWizard() {
                     {isSelected ? (
                       <>
                         <CheckCircle2 size={16} />
-                        Selected campaign
+                        Selected
                       </>
                     ) : (
-                      "Select campaign"
+                      "Choose this route"
                     )}
                   </div>
                 </button>
@@ -816,15 +816,15 @@ export function CampaignWizard() {
               className="eyebrow"
               style={{ color: "#d8f6ff" }}
             >
-              Ready to launch
+              Ready to find customers
             </div>
 
             <h2>{chosen.name}</h2>
 
             <p>
-              {chosen.objective}. SalesPilot will work from the
-              approved strategy and bring you in only when
-              judgement is useful.
+              {chosen.objective}. MarketRoute will use this direction to find
+              strong-fit companies, build credible routes in and bring you
+              the decisions worth your attention.
             </p>
 
             <div className="grid cols-3 section">
@@ -833,7 +833,7 @@ export function CampaignWizard() {
                   className="label"
                   style={{ color: "#cce0ff" }}
                 >
-                  Campaign mode
+                  Working mode
                 </div>
 
                 <div className="value">
@@ -863,7 +863,7 @@ export function CampaignWizard() {
                   className="label"
                   style={{ color: "#cce0ff" }}
                 >
-                  Initial sending
+                  Outreach window
                 </div>
 
                 <div className="value">
@@ -880,7 +880,7 @@ export function CampaignWizard() {
             >
               {launching
                 ? "Launching…"
-                : "Launch campaign"}
+                : "Start finding customers"}
 
               {!launching && <ArrowRight size={16} />}
             </button>
@@ -914,7 +914,7 @@ export function CampaignWizard() {
 
           <div className="section card">
             <div className="card-title">
-              Why this campaign
+              Why this is a strong starting point
             </div>
 
             <div className="grid cols-3 section">
@@ -923,7 +923,7 @@ export function CampaignWizard() {
                 .map((reason, index) => (
                   <div key={reason}>
                     <strong>
-                      {index + 1}. Evidence-backed fit
+                      {index + 1}. Commercial signal
                     </strong>
 
                     <p className="card-subtitle">

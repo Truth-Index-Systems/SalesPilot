@@ -2,7 +2,7 @@ import fs from 'node:fs';
 const must=[
  ['supabase/migrations/0006_genesis_g22_progressive_discovery.sql','save_company_discovery_batch'],
  ['features/discovery/company-discovery.service.ts','COMPANY_SAVED'],
- ['components/discovery-activity-ticker.tsx','SalesPilot is working'],
+ ['components/discovery-activity-ticker.tsx','MarketRoute is working'],
  ['app/api/campaigns/[id]/discovery/status/route.ts','companyCount'],
  ['app/campaigns/[id]/page.tsx','DiscoveryActivityTicker'],
 ];

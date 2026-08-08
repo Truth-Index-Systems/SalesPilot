@@ -24,7 +24,7 @@ check('webhook rejects replay-window violations',webhook.includes('Webhook times
 check('webhook route accepts response completion/failure terminal events',route.includes('response.completed')&&route.includes('response.failed')&&route.includes('response.cancelled')&&route.includes('response.incomplete'));
 check('webhook completion opportunistically collects finished response',route.includes('collectOpenAIBackgroundResponseById'));
 check('webhook event persistence is idempotent',migration.includes('openai_webhook_events')&&migration.includes('on conflict(event_id) do nothing'));
-check('provider event wakes owning SalesPilot job',migration.includes('wake_ai_background_owner')&&migration.includes('next_attempt_at=now()')&&migration.includes('next_retry_at=now()'));
+check('provider event wakes owning MarketRoute job',migration.includes('wake_ai_background_owner')&&migration.includes('next_attempt_at=now()')&&migration.includes('next_retry_at=now()'));
 check('collector polling fallback is separately scheduled',vercel.includes('/api/autonomy/ai/collect'));
 check('collector route remains CRON_SECRET protected',collectorRoute.includes('CRON_SECRET')&&collectorRoute.includes('timingSafeEqual'));
 check('terminal provider states are represented distinctly',migration.includes("'failed','cancelled','incomplete'"));

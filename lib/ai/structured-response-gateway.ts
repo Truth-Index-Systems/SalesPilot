@@ -9,7 +9,7 @@ export class StructuredAiOutputError extends Error {
     super(`STRUCTURED_AI_OUTPUT_${code}${detail ? `:${detail}` : ""}`);
     this.name = "StructuredAiOutputError";
     this.code = code;
-    this.safeMessage = "SalesPilot received an incomplete structured response. The stage will retry automatically.";
+    this.safeMessage = "MarketRoute received an incomplete structured response. The stage will retry automatically.";
   }
 }
 
@@ -90,5 +90,5 @@ export async function parseStructuredAiResponse<S extends ZodTypeAny>(params: {
 
 export function safeStructuredAiError(error: unknown): { code: string; message: string } {
   if (error instanceof StructuredAiOutputError) return { code: error.code, message: error.safeMessage };
-  return { code: "INVALID_STRUCTURED_OUTPUT", message: "SalesPilot received an invalid structured response. The stage will retry automatically." };
+  return { code: "INVALID_STRUCTURED_OUTPUT", message: "MarketRoute received an invalid structured response. The stage will retry automatically." };
 }

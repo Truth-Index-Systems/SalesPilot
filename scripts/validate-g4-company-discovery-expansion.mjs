@@ -15,7 +15,7 @@ const checks = [
   [service.includes("searchStrategy"), "worker selects expansion strategy"],
   [service.includes('outcome: expansionPending ? "CONTINUING"'), "scheduler reports continuing work"],
   [openai.includes("The earlier search retained too few supported companies"), "prompt broadens without weakening quality"],
-  [page.includes("SalesPilot is expanding the company search"), "customer expansion state"],
+  [page.includes("MarketRoute is expanding the company search"), "customer expansion state"],
   [executor.includes('"CONTINUING"'), "worker outcome supports expansion"],
 ];
 for (const [ok, label] of checks) if (!ok) throw new Error(`Missing: ${label}`);

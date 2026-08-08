@@ -1,12 +1,12 @@
 # Genesis Post-Freeze Responsibility Boundary Pass
 
 ## Purpose
-Tighten the responsibility split between SalesPilot's specialist AI executives and deterministic SalesPilot. This is not a new intelligence architecture or state machine.
+Tighten the responsibility split between MarketRoute's specialist AI executives and deterministic MarketRoute. This is not a new intelligence architecture or state machine.
 
 ## Core doctrine
 - AI owns qualitative judgement, evidence interpretation, recommendations and language inside its assigned specialist role.
 - AI never owns scheduler priority, leases, retries, state transitions, persistence authority, thresholds, approval authority, queueing or sending.
-- Deterministic SalesPilot acts as VP Sales Operations / operating system: it validates, gates, persists, orders and executes.
+- Deterministic MarketRoute acts as VP Sales Operations / operating system: it validates, gates, persists, orders and executes.
 - Every AI role now receives explicit **ACCOUNTABLE FOR**, **ADVISES BUT DOES NOT DECIDE**, and **OUT OF SCOPE / HAND OFF** instructions.
 - Missing information must be surfaced as uncertainty, never repaired by assuming another executive's job.
 
@@ -17,7 +17,7 @@ Tighten the responsibility split between SalesPilot's specialist AI executives a
 4. CRO / Executive Deal Strategist: why the account should care; not route creation, channel selection or copy.
 5. VP Sales Development: first move among validated routes; not research or copy.
 6. Executive Communications Director: wording only; no new commercial claims or strategy.
-7. Chief Revenue Risk & Quality Officer: independent assessment only; final PASS/REWRITE/BLOCK workflow outcome is deterministic SalesPilot policy.
+7. Chief Revenue Risk & Quality Officer: independent assessment only; final PASS/REWRITE/BLOCK workflow outcome is deterministic MarketRoute policy.
 
 ## Important behavioural hardening
 The R6 model's `outcome` field is now explicitly advisory. `applyPolicy()` determines PASS/REWRITE/BLOCK solely from the persisted review metrics/findings plus the deterministic rewrite limit; the model can no longer directly force a terminal BLOCK merely by emitting `outcome=BLOCK`.

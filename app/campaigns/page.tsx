@@ -22,9 +22,9 @@ export default async function Campaigns() {
   const companyCount = new Set(opportunities.map(row => row.company_id)).size;
 
   return <AppShell title="Campaigns" user={user} workspaceStats={{ campaigns: campaigns.length, companies: companyCount, replies: 0, opportunities: opportunities.length }}>
-    <PageHeader eyebrow="Opportunity strategies" title="Campaigns" subtitle="Each campaign gives SalesPilot a commercial objective. The engine turns that strategy into ranked opportunities rather than disconnected company and contact lists." action={<ButtonLink href="/campaigns/new"><Plus size={16}/>New campaign</ButtonLink>}/>
-    {unavailable ? <div className="card empty"><h3>Campaigns are temporarily unavailable</h3><p>SalesPilot could not load your saved campaigns just now. Please refresh the page or try again shortly.</p><ButtonLink href="/campaigns/new">Return to campaign setup</ButtonLink></div>
-      : campaigns.length === 0 ? <div className="card empty"><h3>Your first campaign starts with your website</h3><p>SalesPilot will understand your business, propose the strongest strategy and begin assembling commercial opportunities once you approve it.</p><ButtonLink href="/campaigns/new"><Plus size={16}/>Create campaign</ButtonLink></div>
+    <PageHeader eyebrow="Growth campaigns" title="Campaigns" subtitle="Give MarketRoute a focused growth objective. It turns that direction into researched, ranked opportunities instead of another disconnected lead list." action={<ButtonLink href="/campaigns/new"><Plus size={16}/>New campaign</ButtonLink>}/>
+    {unavailable ? <div className="card empty"><h3>Campaigns are temporarily unavailable</h3><p>MarketRoute could not load your saved campaigns just now. Please refresh the page or try again shortly.</p><ButtonLink href="/campaigns/new">Return to campaign setup</ButtonLink></div>
+      : campaigns.length === 0 ? <div className="card empty"><h3>Your first campaign starts with your website</h3><p>MarketRoute will understand your business, propose the strongest strategy and begin assembling commercial opportunities once you approve it.</p><ButtonLink href="/campaigns/new"><Plus size={16}/>Create campaign</ButtonLink></div>
       : <div className="card list">{campaigns.map(c => {
           const rows = opportunitiesByCampaign.get(c.id) ?? [];
           const awaiting = rows.filter(row => !["APPROVED", "REJECTED", "ENGAGED"].includes(row.status)).length;

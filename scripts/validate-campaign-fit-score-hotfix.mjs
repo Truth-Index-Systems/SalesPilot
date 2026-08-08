@@ -25,4 +25,4 @@ for (const [ok, label] of checks) {
   if (!ok) failed = true;
 }
 if (failed) process.exit(1);
-console.log("\nSalesPilot campaign fit-score scale hotfix passed");
+console.log("\nMarketRoute campaign fit-score scale hotfix passed");

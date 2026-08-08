@@ -3,7 +3,7 @@ import fs from "node:fs";
 const checks = [
   ["app/page.tsx", "<PublicLanding />"],
   ["app/page.tsx", "getCurrentUser"],
-  ["components/shell.tsx", "user: SalesPilotUser | null"],
+  ["components/shell.tsx", "user: MarketRouteUser | null"],
   ["components/account-menu.tsx", "router.replace(\"/\")"],
   ["app/campaigns/new/page.tsx", "getCurrentUser"],
   ["app/campaigns/page.tsx", "requirePageUser"],
