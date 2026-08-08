@@ -35,3 +35,5 @@ export * from "./discovery-repair-worker";
 export * from "./repair-replanning";
 
 export * from "./founder-review-resolution";
+
+export * from "./discovery-acquisition-worker";
