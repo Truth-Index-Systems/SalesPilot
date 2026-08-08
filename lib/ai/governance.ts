@@ -50,10 +50,29 @@ export async function reserveAiRequest(context:AiGovernanceContext){
   const existing=await databaseRequest<Array<{id:string;status:string}>>(`ai_usage_ledger?request_key=eq.${encodeURIComponent(key)}&status=in.(RESERVED,SUCCEEDED)&select=id,status&limit=1`).catch(()=>[]);
   if(existing[0]?.id)return {ledgerId:existing[0].id};
   if(!platformEnabled())throw new Error("AI_GOVERNANCE_BLOCKED:PLATFORM_DISABLED");
-  const result=await databaseRequest<Reservation[]|Reservation>("rpc/reserve_ai_request",{method:"POST",body:JSON.stringify({
-    p_organisation_id:context.organisationId,p_campaign_id:context.campaignId??null,p_scheduler_run_id:context.schedulerRunId??null,
-    p_job_type:context.jobType,p_job_id:context.jobId??null,p_request_key:key,p_model:context.model,p_estimated_cost_usd:Math.max(0,context.estimatedCostUsd),
-  })});
+  const publicAnalysis = context.organisationId === null && context.jobType === "BUSINESS_ANALYSIS" && !context.campaignId;
+  const endpoint = publicAnalysis ? "rpc/reserve_public_business_analysis_ai_request" : "rpc/reserve_ai_request";
+  const body = publicAnalysis
+    ? {
+        p_job_id: context.jobId ?? null,
+        p_request_key: key,
+        p_model: context.model,
+        p_estimated_cost_usd: Math.max(0, context.estimatedCostUsd),
+        p_daily_request_limit: Math.max(1, Number(process.env.MARKETROUTE_PUBLIC_AI_DAILY_REQUEST_LIMIT ?? "100")),
+        p_daily_cost_limit_usd: Math.max(0, Number(process.env.MARKETROUTE_PUBLIC_AI_DAILY_COST_LIMIT_USD ?? "10")),
+        p_in_flight_limit: Math.max(1, Number(process.env.MARKETROUTE_PUBLIC_AI_IN_FLIGHT_LIMIT ?? "8")),
+      }
+    : {
+        p_organisation_id: context.organisationId,
+        p_campaign_id: context.campaignId ?? null,
+        p_scheduler_run_id: context.schedulerRunId ?? null,
+        p_job_type: context.jobType,
+        p_job_id: context.jobId ?? null,
+        p_request_key: key,
+        p_model: context.model,
+        p_estimated_cost_usd: Math.max(0, context.estimatedCostUsd),
+      };
+  const result=await databaseRequest<Reservation[]|Reservation>(endpoint,{method:"POST",body:JSON.stringify(body)});
   const reservation=Array.isArray(result)?result[0]:result;
   if(!reservation?.allowed||!reservation.ledger_id){
     const reason=reservation?.reason_code??"UNKNOWN";

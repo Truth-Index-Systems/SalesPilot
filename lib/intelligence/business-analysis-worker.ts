@@ -18,7 +18,7 @@ function classify(error:unknown){
   if(/429|rate limit/i.test(message))return {code:"RATE_LIMIT",message:"The AI provider temporarily rate-limited this request. This analysis can retry safely.",retryable:true};
   if(/timeout|abort/i.test(message))return {code:"TIMEOUT",message:"An external research request timed out. This analysis can retry safely.",retryable:true};
   if(/AI_GOVERNANCE_BLOCKED/i.test(message)){
-    const reason=["PLATFORM_DISABLED","AUTONOMY_DISABLED","REQUEST_LIMIT","COST_LIMIT","CAMPAIGN_LIMIT"].find(value=>message.includes(value))??"LIMIT_REACHED";
+    const reason=["PLATFORM_DISABLED","AUTONOMY_DISABLED","PUBLIC_DAILY_REQUEST_LIMIT","PUBLIC_DAILY_COST_LIMIT","REQUEST_LIMIT","COST_LIMIT","CAMPAIGN_LIMIT"].find(value=>message.includes(value))??"LIMIT_REACHED";
     return {code:"AI_GOVERNANCE_BLOCKED",message:`AI_GOVERNANCE_BLOCKED:${reason}`,retryable:true};
   }
   if(/not configured|authentication|401/i.test(message))return {code:"CONFIGURATION",message:"The protected AI service configuration is incomplete.",retryable:false};
