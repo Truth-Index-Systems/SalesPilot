@@ -444,8 +444,12 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     return { worker:"COMPANY_DISCOVERY",processed:true,outcome:expansionPending?"CONTINUING":Number(finalSaved)>0?"COMPLETED_WITH_RESULTS":"COMPLETED_NO_RESULTS",sessionId:job.session_id,saved:Number(finalSaved) };
   } catch (error) {
     if (isOpenAIBackgroundPending(error)) {
+      // Record the idempotent customer-facing activity while this scheduler run
+      // still owns the discovery session. defer_company_discovery_background_owned
+      // deliberately releases scheduler ownership, so any owned write after it
+      // would correctly fail with COMPANY_DISCOVERY_OWNERSHIP_LOST.
+      await activityOnce(job.session_id,context.schedulerRunId,`ai-background:${error.responseId}`,"AI_BACKGROUND_CONTINUING","Market research is still running","MarketRoute is continuing the same bounded research unit in the background. The completed response will be collected on a later cycle without starting the work again.",{failurePhase,responseId:error.responseId,status:error.status}).catch(()=>undefined);
       await databaseRequest("rpc/defer_company_discovery_background_owned", { method:"POST", body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId}) }).catch(()=>undefined);
-      await activityOnce(job.session_id,context.schedulerRunId,`ai-background:${error.responseId}`,"AI_BACKGROUND_CONTINUING","Market research is still running","MarketRoute has safely released this scheduler cycle while GPT-5 continues the same bounded research unit. The completed response will be collected on a later cycle without starting the work again.",{failurePhase,responseId:error.responseId,status:error.status}).catch(()=>undefined);
       return { worker:"COMPANY_DISCOVERY",processed:false,outcome:"DEFERRED",sessionId:job.session_id };
     }
     const capacityReason = aiParallelCapacityReason(error);

@@ -623,6 +623,14 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
                   </span>
                 </div>
 
+                <div className="analysis-coffee-note">
+                  <span className="analysis-coffee-icon" aria-hidden="true">☕</span>
+                  <div>
+                    <strong>Make yourself a coffee while MarketRoute gets to work.</strong>
+                    <p>This is the only time we'll perform a full analysis of your business. Every opportunity, contact and outreach recommendation is built from this foundation.</p>
+                  </div>
+                </div>
+
                 <div className="analysis-track" aria-hidden="true">
                   <span style={{ width: `${analysisJob?.progress ?? 0}%` }} />
                 </div>
