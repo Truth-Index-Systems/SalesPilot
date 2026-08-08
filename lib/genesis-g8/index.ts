@@ -9,3 +9,15 @@ export type {
   GenesisG8ChannelStrategy,
   GenesisG8IntelligenceChannel,
 } from "./channels";
+export type {
+  GenesisG8EntityStatus,
+  GenesisG8EntityWrite,
+  GenesisG8EvidenceWrite,
+  GenesisG8HumanReviewAction,
+  GenesisG8HumanReviewReceipt,
+  GenesisG8PersistedClaim,
+  GenesisG8PersistedEntity,
+  GenesisG8PersistedEvidence,
+  GenesisG8ReviewState,
+  GenesisG8TruthSnapshot,
+} from "./persistence/types";
