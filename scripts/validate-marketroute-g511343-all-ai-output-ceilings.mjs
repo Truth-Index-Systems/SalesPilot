@@ -1,0 +1,17 @@
+import fs from "node:fs";
+const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),"utf8");
+const profile=read("lib/ai/workload-profile.ts");
+const intelligence=read("lib/intelligence/openai.ts");
+const commercial=read("lib/engagement/commercial-reasoning-openai.ts");
+const outreach=read("lib/engagement/outreach-generation-openai.ts");
+const review=read("lib/engagement/self-review-openai.ts");
+const checks=[]; const add=(ok,msg)=>checks.push([ok,msg]);
+for(const task of ["BUSINESS_ANALYSIS","COMPANY_DISCOVERY","ROUTE_INTELLIGENCE_FIRST_PASS","ROUTE_INTELLIGENCE_EXPANSION","G5_COMMERCIAL_REASONING","G5_CHANNEL_STRATEGY","G5_OUTREACH_GENERATION","G5_SELF_REVIEW"]) add(new RegExp(`${task}:[\\s\\S]*?maxOutputTokens: 10_000`).test(profile),`${task} default ceiling is 10k`);
+add(profile.includes('800, 20_000'),"environment override cap is 20k");
+add(intelligence.includes('maxOutputTokens:profile.maxOutputTokens'),"Business DNA Core uses governed ceiling");
+add(intelligence.includes('String(profile.maxOutputTokens)'),"Growth Strategy defaults to governed ceiling");
+add(commercial.includes('aiWorkloadProfile("G5_COMMERCIAL_REASONING")')&&commercial.includes('max_output_tokens:profile.maxOutputTokens'),"legacy commercial path uses governed ceiling");
+add(outreach.includes('aiWorkloadProfile("G5_OUTREACH_GENERATION")')&&outreach.includes('max_output_tokens: profile.maxOutputTokens'),"legacy outreach path uses governed ceiling");
+add(review.includes('aiWorkloadProfile("G5_SELF_REVIEW")')&&review.includes('max_output_tokens: profile.maxOutputTokens'),"legacy review path uses governed ceiling");
+add(/STRUCTURED_OUTPUT_REPAIR:[\s\S]*?maxOutputTokens: 0/.test(profile),"deterministic repair remains AI-free");
+let bad=0; for(const [ok,msg] of checks){console.log(`${ok?"PASS":"FAIL"} ${msg}`); if(!ok) bad++;} if(bad) process.exit(1);

@@ -1,5 +1,6 @@
 import "server-only";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
+import { aiWorkloadProfile } from "@/lib/ai/workload-profile";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
@@ -8,7 +9,7 @@ import { CommercialReasoningSchema, commercialReasoningJsonSchema, type Commerci
 const ENDPOINT="https://api.openai.com/v1/responses";
 export async function reasonAboutEngagement(input:{organisationId:string;campaignId:string;schedulerRunId:string;analysisId:string;context:Record<string,unknown>}):Promise<{result:CommercialReasoning;model:string}>{
   const apiKey=process.env.OPENAI_API_KEY?.trim(); if(!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
-  const model=resolveOpenAIModel("analysis").model; const compactContext=compactForAi(input.context,{evidenceLimit:6,depth:6}) as Record<string,unknown>; const fingerprint=stableFingerprint({prompt:"commercial-reasoning/v2-route-strategy",model,compactContext}); const startedAt=Date.now();
+  const model=resolveOpenAIModel("analysis").model; const profile=aiWorkloadProfile("G5_COMMERCIAL_REASONING"); const compactContext=compactForAi(input.context,{evidenceLimit:6,depth:6}) as Record<string,unknown>; const fingerprint=stableFingerprint({prompt:"commercial-reasoning/v2-route-strategy",model,compactContext}); const startedAt=Date.now();
   const reservation=await reserveAiRequest({organisationId:input.organisationId,campaignId:input.campaignId,schedulerRunId:input.schedulerRunId,jobType:"COMMERCIAL_REASONING",jobId:input.analysisId,requestScope:`commercial-reasoning:${fingerprint}`,model,estimatedCostUsd:Number(process.env.SALESPILOT_COMMERCIAL_REASONING_ESTIMATED_COST_USD??"0.08")});
   let response:Response;
   try{response=await fetch(ENDPOINT,{method:"POST",cache:"no-store",signal:AbortSignal.timeout(120_000),headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model,instructions:[
@@ -22,7 +23,7 @@ export async function reasonAboutEngagement(input:{organisationId:string;campaig
     "Evidence references must point to source IDs supplied in the input. Do not create IDs.",
     "The CTA strategy should seek a low-friction business conversation, not claim a sale or guaranteed result.",
     "Return exact JSON only in calm British English. Do not write the outreach message in this phase."
-  ].join(" "),input:JSON.stringify(compactContext),text:{format:{type:"json_schema",name:"salespilot_commercial_reasoning_v2_route_strategy",strict:true,schema:commercialReasoningJsonSchema}},max_output_tokens:2600,store:false})});}
+  ].join(" "),input:JSON.stringify(compactContext),text:{format:{type:"json_schema",name:"salespilot_commercial_reasoning_v2_route_strategy",strict:true,schema:commercialReasoningJsonSchema}},max_output_tokens:profile.maxOutputTokens,store:false})});}
   catch(error){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:"NETWORK",errorMessage:error instanceof Error?error.message:"OpenAI request failed"}).catch(()=>undefined);throw error;}
   const json:unknown=await response.json().catch(()=>null);
   if(!response.ok){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null,errorCode:`HTTP_${response.status}`,errorMessage:JSON.stringify((json as any)?.error??null)}).catch(()=>undefined);throw new Error(`OPENAI_COMMERCIAL_REASONING_FAILED:${response.status}`);}

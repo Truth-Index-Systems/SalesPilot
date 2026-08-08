@@ -1,5 +1,6 @@
 import "server-only";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
+import { aiWorkloadProfile } from "@/lib/ai/workload-profile";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
@@ -19,6 +20,7 @@ export async function generateOutreach(input: {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model = resolveOpenAIModel("analysis").model;
+  const profile = aiWorkloadProfile("G5_OUTREACH_GENERATION");
   const compactContext = compactForAi(input.context, { evidenceLimit: 4, depth: 6 }) as Record<string, unknown>;
   const fingerprint = stableFingerprint({ prompt: "engagement-channel-content/v1", model, compactContext });
   const startedAt = Date.now();
@@ -60,7 +62,7 @@ export async function generateOutreach(input: {
         ].join(" "),
         input: JSON.stringify(compactContext),
         text: { format: { type: "json_schema", name: "salespilot_channel_content_v1", strict: true, schema: outreachGenerationJsonSchema } },
-        max_output_tokens: 1800,
+        max_output_tokens: profile.maxOutputTokens,
         store: false,
       }),
     });

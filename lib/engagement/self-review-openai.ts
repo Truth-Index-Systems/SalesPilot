@@ -1,5 +1,6 @@
 import "server-only";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
+import { aiWorkloadProfile } from "@/lib/ai/workload-profile";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
@@ -18,6 +19,7 @@ export async function reviewEngagementDraft(input: {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model = resolveOpenAIModel("analysis").model;
+  const profile = aiWorkloadProfile("G5_SELF_REVIEW");
   const compactContext = compactForAi(input.context, { evidenceLimit: 4, depth: 6 }) as Record<string, unknown>;
   const fingerprint = stableFingerprint({ prompt: "self-review/v2-route-alignment", model, compactContext });
   const startedAt = Date.now();
@@ -53,7 +55,7 @@ export async function reviewEngagementDraft(input: {
         ].join(" "),
         input: JSON.stringify(compactContext),
         text: { format: { type: "json_schema", name: "salespilot_engagement_self_review_v1", strict: true, schema: engagementSelfReviewJsonSchema } },
-        max_output_tokens: 1600,
+        max_output_tokens: profile.maxOutputTokens,
         store: false,
       }),
     });

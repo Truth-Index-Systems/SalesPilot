@@ -14,7 +14,7 @@ export type AiWorkloadProfile = {
 const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
   BUSINESS_ANALYSIS: {
     reasoningEffort: "medium",
-    maxOutputTokens: 6_500,
+    maxOutputTokens: 10_000,
     evidenceLimit: 8,
     depth: 5,
     promptVersion: "business-discovery/v3-responsibility-boundary",
@@ -22,7 +22,7 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
   },
   COMPANY_DISCOVERY: {
     reasoningEffort: "medium",
-    maxOutputTokens: 4_500,
+    maxOutputTokens: 10_000,
     evidenceLimit: 6,
     depth: 5,
     promptVersion: "company-discovery/v5-bounded-archetype",
@@ -30,7 +30,7 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
   },
   ROUTE_INTELLIGENCE_FIRST_PASS: {
     reasoningEffort: "medium",
-    maxOutputTokens: 6_000,
+    maxOutputTokens: 10_000,
     evidenceLimit: 10,
     depth: 6,
     promptVersion: "contact-discovery/v5-responsibility-boundary",
@@ -38,7 +38,7 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
   },
   ROUTE_INTELLIGENCE_EXPANSION: {
     reasoningEffort: "medium",
-    maxOutputTokens: 4_500,
+    maxOutputTokens: 10_000,
     evidenceLimit: 7,
     depth: 5,
     promptVersion: "contact-discovery/v5-responsibility-boundary",
@@ -46,7 +46,7 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
   },
   G5_COMMERCIAL_REASONING: {
     reasoningEffort: "high",
-    maxOutputTokens: 2_600,
+    maxOutputTokens: 10_000,
     evidenceLimit: 7,
     depth: 6,
     promptVersion: "g5-commercial-reasoning/v3-responsibility-boundary",
@@ -54,7 +54,7 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
   },
   G5_CHANNEL_STRATEGY: {
     reasoningEffort: "medium",
-    maxOutputTokens: 1_800,
+    maxOutputTokens: 10_000,
     evidenceLimit: 6,
     depth: 6,
     promptVersion: "g5-channel-strategy/v3-responsibility-boundary",
@@ -62,7 +62,7 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
   },
   G5_OUTREACH_GENERATION: {
     reasoningEffort: "low",
-    maxOutputTokens: 1_400,
+    maxOutputTokens: 10_000,
     evidenceLimit: 5,
     depth: 6,
     promptVersion: "g5-outreach-generation/v5-responsibility-boundary",
@@ -70,7 +70,7 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
   },
   G5_SELF_REVIEW: {
     reasoningEffort: "medium",
-    maxOutputTokens: 1_500,
+    maxOutputTokens: 10_000,
     evidenceLimit: 6,
     depth: 6,
     promptVersion: "g5-self-review/v3-responsibility-boundary",
@@ -105,7 +105,7 @@ export function aiWorkloadProfile(task: AiRequestTask): AiWorkloadProfile {
   return {
     ...base,
     reasoningEffort,
-    maxOutputTokens: base.maxOutputTokens === 0 ? 0 : boundedNumber(process.env[envKey(task, "MAX_OUTPUT_TOKENS")], base.maxOutputTokens, 800, 12_000),
+    maxOutputTokens: base.maxOutputTokens === 0 ? 0 : boundedNumber(process.env[envKey(task, "MAX_OUTPUT_TOKENS")], base.maxOutputTokens, 800, 20_000),
     evidenceLimit: boundedNumber(process.env[envKey(task, "EVIDENCE_LIMIT")], base.evidenceLimit, 1, 20),
     depth: boundedNumber(process.env[envKey(task, "CONTEXT_DEPTH")], base.depth, 2, 10),
   };
