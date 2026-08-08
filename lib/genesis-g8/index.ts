@@ -45,3 +45,4 @@ export * from "./business-dna-knowledge-matching";
 
 export * from "./knowledge-discovery-merge";
 export * from "./background-refresh";
+export * from "./capacity-budget";

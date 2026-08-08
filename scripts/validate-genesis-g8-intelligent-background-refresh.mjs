@@ -33,7 +33,7 @@ const checks = [
   ['refresh objective demands only current evidence', migration.includes('do not repeat unrelated known facts')],
   ['background queue has no tenant workflow identity', migration.includes("'{}'::jsonb,'COMPLETED','REPAIR_QUEUED'")],
   ['endpoint protected with CRON_SECRET', route.includes('process.env.CRON_SECRET') && route.includes('Bearer ${secret}')],
-  ['endpoint invokes scheduler only', route.includes('runGenesisG8IntelligentBackgroundRefresh')],
+  ['endpoint is capacity-governed after R17', route.includes('runGenesisG8CapacityBudgetCycle') && !route.includes('runGenesisG8IntelligentBackgroundRefresh')],
   ['endpoint has bounded max duration', route.includes('maxDuration = 60')],
   ['R16 exported from public G8 index', index.includes('export * from "./background-refresh"')],
   ['docs state live customer priority', docs.includes('Live customer-scoped repair work always outranks background refresh')],
