@@ -8,6 +8,7 @@ import { CompanyDiscoveryGatewaySchema, canonicaliseCompanyDiscoveryOutput } fro
 import { compactCompanyDiscoveryInput, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 import type { CompanySearchPlan } from "./search-plan";
+import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 
@@ -107,12 +108,13 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
   const compactInput = compactCompanyDiscoveryInput(input);
   const fingerprint = stableFingerprint({ prompt: "company-discovery/v4-responsibility-boundary", model, compactInput });
   const reservation = await reserveAiRequest({ organisationId: input.organisationId, campaignId: input.campaignId, schedulerRunId: input.schedulerRunId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${fingerprint}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_COMPANY_DISCOVERY_ESTIMATED_COST_USD ?? "0.25") });
+  const requestTimeoutMs = aiRequestTimeoutMs("COMPANY_DISCOVERY");
   let response: Response;
   try {
     response = await fetch(ENDPOINT, {
     method: "POST",
     cache: "no-store",
-    signal: AbortSignal.timeout(220_000),
+    signal: AbortSignal.timeout(requestTimeoutMs),
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
@@ -163,8 +165,9 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
     }),
     });
   } catch (error) {
-    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, errorCode: "NETWORK", errorMessage: error instanceof Error ? error.message : "OpenAI request failed" }).catch(()=>undefined);
-    throw error;
+    const transport = classifyOpenAITransportError(error, "COMPANY_DISCOVERY", requestTimeoutMs);
+    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, errorCode: transport.code, errorMessage: transport.error.message }).catch(()=>undefined);
+    throw transport.error;
   }
 
   const json: unknown = await response.json().catch(() => null);

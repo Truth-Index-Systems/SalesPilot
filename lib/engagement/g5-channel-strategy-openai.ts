@@ -1,4 +1,5 @@
 import "server-only";
+import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
@@ -88,6 +89,7 @@ export async function generateG5ChannelStrategy(input: {
   const sourceFingerprint = stableFingerprint(compactInput);
   const requestFingerprint = stableFingerprint({ prompt: "g5-channel-strategy/v3-responsibility-boundary", model, sourceFingerprint });
   const startedAt = Date.now();
+  const requestTimeoutMs = aiRequestTimeoutMs("G5_CHANNEL_STRATEGY");
 
   const reservation = await reserveAiRequest({
     organisationId: input.organisationId,
@@ -105,7 +107,7 @@ export async function generateG5ChannelStrategy(input: {
     response = await fetch(ENDPOINT, {
       method: "POST",
       cache: "no-store",
-      signal: AbortSignal.timeout(120_000),
+      signal: AbortSignal.timeout(requestTimeoutMs),
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
@@ -137,11 +139,12 @@ export async function generateG5ChannelStrategy(input: {
       }),
     });
   } catch (error) {
+    const transport = classifyOpenAITransportError(error, "G5_CHANNEL_STRATEGY", requestTimeoutMs);
     await completeAiRequest({
       ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now() - startedAt,
-      errorCode: "NETWORK", errorMessage: error instanceof Error ? error.message : "OpenAI request failed",
+      errorCode: transport.code, errorMessage: transport.error.message,
     }).catch(() => undefined);
-    throw error;
+    throw transport.error;
   }
 
   const json: unknown = await response.json().catch(() => null);

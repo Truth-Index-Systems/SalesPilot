@@ -35,6 +35,7 @@ export function classifyPipelineError(error: unknown): ClassifiedPipelineError {
 
   if (upper.includes("TIMEOUT") || upper.includes("ABORT")) return { code: "TIMEOUT", message, retryable: true };
   if (upper.includes("429") || upper.includes("RATE_LIMIT")) return { code: "RATE_LIMIT", message, retryable: true };
+  if (/\b(408|425|500|502|503|504|529)\b/.test(upper) || upper.includes("SERVICE_UNAVAILABLE") || upper.includes("BAD_GATEWAY") || upper.includes("GATEWAY_TIMEOUT")) return { code: "NETWORK", message, retryable: true };
   if (upper.includes("NETWORK") || upper.includes("FETCH FAILED") || upper.includes("ECONN")) return { code: "NETWORK", message, retryable: true };
   if (upper.includes("JSON") && (upper.includes("PARSE") || upper.includes("SYNTAX"))) return { code: "JSON_PARSE", message, retryable: true };
   if (upper.includes("INVALID_AI") || upper.includes("SCHEMA") || upper.includes("STRUCTURED_OUTPUT") || upper.includes("INCOMPLETE_RESPONSE") || upper.includes("DISCOVERY_INCOMPLETE")) return { code: "INVALID_AI_OUTPUT", message, retryable: true };

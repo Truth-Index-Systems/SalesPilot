@@ -1,4 +1,5 @@
 import "server-only";
+import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { ContactDiscoveryResultSchema } from "./schemas";
@@ -56,9 +57,11 @@ export async function researchRouteIntelligence(input:{organisationId:string;cam
   const compactInput=compactContactDiscoveryInput(input);
   const fingerprint=stableFingerprint({prompt:"contact-discovery/v5-responsibility-boundary",model,compactInput});
   const startedAt=Date.now();
+  const routeTask = Number(input.routeExpansionPass ?? 0) === 0 ? "ROUTE_INTELLIGENCE_FIRST_PASS" as const : "ROUTE_INTELLIGENCE_EXPANSION" as const;
+  const requestTimeoutMs = aiRequestTimeoutMs(routeTask);
   const reservation=await reserveAiRequest({organisationId:input.organisationId,campaignId:input.campaignId,schedulerRunId:input.schedulerRunId,jobType:"CONTACT_DISCOVERY",jobId:input.jobId,requestScope:`contact-discovery:${fingerprint}`,model,estimatedCostUsd:Number(process.env.SALESPILOT_ROUTE_INTELLIGENCE_ESTIMATED_COST_USD??(Number(input.routeExpansionPass??0)===0?"0.55":"0.30"))});
   let response:Response;
-  try{response=await fetch(ENDPOINT,{method:"POST",cache:"no-store",signal:AbortSignal.timeout(Number(input.routeExpansionPass??0)===0?240_000:180_000),headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({
+  try{response=await fetch(ENDPOINT,{method:"POST",cache:"no-store",signal:AbortSignal.timeout(requestTimeoutMs),headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({
     model,
     instructions:[
       "ROLE: VP Account Mapping & Buying Committees, operating with the judgement of a senior enterprise account strategist.",
@@ -95,7 +98,7 @@ export async function researchRouteIntelligence(input:{organisationId:string;cam
     input:JSON.stringify(compactInput),tools:[{type:"web_search_preview",search_context_size:input.routeExpansionPass===0?"medium":"low"}],
     reasoning:{effort:"high"},
     text:{format:{type:"json_schema",name:"salespilot_contact_discovery_v3",strict:true,schema}},max_output_tokens:Number(input.routeExpansionPass??0)===0?9000:6500,store:false
-  })});}catch(error){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:"NETWORK",errorMessage:error instanceof Error?error.message:"OpenAI request failed"}).catch(()=>undefined);throw error;}
+  })});}catch(error){const transport=classifyOpenAITransportError(error,routeTask,requestTimeoutMs);await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:transport.code,errorMessage:transport.error.message}).catch(()=>undefined);throw transport.error;}
   const json:unknown=await response.json().catch(()=>null);
   if(!response.ok){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null,errorCode:`HTTP_${response.status}`,errorMessage:JSON.stringify((json as any)?.error??null)}).catch(()=>undefined);throw new Error(`OPENAI_CONTACT_DISCOVERY_FAILED:${response.status}:${JSON.stringify((json as any)?.error??null)}`);}
   let parsed:ReturnType<typeof ContactDiscoveryResultSchema.parse>;

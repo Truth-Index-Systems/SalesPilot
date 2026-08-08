@@ -6,8 +6,9 @@ import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { normaliseBusinessAnalysis } from "@/lib/intelligence/fit-score";
-import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
+import { StructuredAiOutputError, parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 import { BusinessDiscoveryGatewaySchema, canonicaliseBusinessDiscoveryOutput } from "@/lib/intelligence/business-structured-output";
+import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 
@@ -94,15 +95,14 @@ QUALITY RULES:
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 150_000);
+      const requestTimeoutMs = aiRequestTimeoutMs("BUSINESS_ANALYSIS");
       const response = await fetch(ENDPOINT, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
         body: JSON.stringify(body),
         cache: "no-store",
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timeout));
+        signal: AbortSignal.timeout(requestTimeoutMs),
+      });
       const json = await response.json().catch(() => null);
       if (!response.ok) {
         const message = json && typeof json === "object" && "error" in json ? JSON.stringify((json as { error: unknown }).error) : `HTTP ${response.status}`;
@@ -113,11 +113,15 @@ QUALITY RULES:
       await completeAiRequest({ ledgerId: reservation.ledgerId, ok: true, usage: responseUsage(json), durationMs: Date.now()-startedAt, responseId: typeof (json as any)?.id === "string" ? (json as any).id : null });
       return result;
     } catch (error) {
-      const safe = safeStructuredAiError(error);
-      // Never allow a raw JSON parser exception to escape this boundary.
-      lastError = safe.code === "INVALID_STRUCTURED_OUTPUT" || safe.code === "INVALID_JSON" || safe.code === "INVALID_SCHEMA" || safe.code === "REPAIR_FAILED" || safe.code === "EMPTY"
-        ? new Error(`STRUCTURED_AI_OUTPUT_${safe.code}:${safe.message}`)
-        : error instanceof Error ? error : new Error(safe.message);
+      // Structured-output failures remain schema failures; transport/HTTP failures
+      // are normalised separately so timeout recovery is visible and actionable.
+      if (error instanceof StructuredAiOutputError) {
+        const safe = safeStructuredAiError(error);
+        lastError = new Error(`STRUCTURED_AI_OUTPUT_${safe.code}:${safe.message}`);
+      } else {
+        const timeoutMs = aiRequestTimeoutMs("BUSINESS_ANALYSIS");
+        lastError = classifyOpenAITransportError(error, "BUSINESS_ANALYSIS", timeoutMs).error;
+      }
     }
   }
   await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, errorCode: "ANALYSIS_FAILED", errorMessage: lastError?.message ?? "Business analysis failed" }).catch(()=>undefined);

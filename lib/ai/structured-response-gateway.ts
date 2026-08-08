@@ -1,4 +1,5 @@
 import "server-only";
+import { aiRequestTimeoutMs } from "@/lib/ai/request-policy";
 import type { ZodTypeAny, output as ZodOutput } from "zod";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
@@ -77,7 +78,7 @@ async function requestRepair<S extends ZodTypeAny>(params: {
   const response = await fetch(ENDPOINT, {
     method: "POST",
     cache: "no-store",
-    signal: AbortSignal.timeout(params.timeoutMs ?? 60_000),
+    signal: AbortSignal.timeout(params.timeoutMs ?? aiRequestTimeoutMs("STRUCTURED_OUTPUT_REPAIR")),
     headers: { Authorization: `Bearer ${params.apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: params.model,

@@ -1,4 +1,5 @@
 import "server-only";
+import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
@@ -23,10 +24,11 @@ export async function reviewG5Outreach(input:{organisationId:string;campaignId:s
   const sourceFingerprint=stableFingerprint(compactInput);
   const requestFingerprint=stableFingerprint({prompt:"g5-self-review/v3-responsibility-boundary",model,sourceFingerprint,rewriteCount:input.rewriteCount});
   const startedAt=Date.now();
+  const requestTimeoutMs = aiRequestTimeoutMs("G5_SELF_REVIEW");
   const reservation=await reserveAiRequest({organisationId:input.organisationId,campaignId:input.campaignId,schedulerRunId:input.schedulerRunId,jobType:"OUTREACH",jobId:input.strategyId,requestScope:`g5-self-review:${requestFingerprint}`,model,estimatedCostUsd:Number(process.env.SALESPILOT_ENGAGEMENT_SELF_REVIEW_ESTIMATED_COST_USD??"0.04")});
   let response:Response;
   try {
-    response=await fetch(ENDPOINT,{method:"POST",cache:"no-store",signal:AbortSignal.timeout(120_000),headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model,instructions:[
+    response=await fetch(ENDPOINT,{method:"POST",cache:"no-store",signal:AbortSignal.timeout(requestTimeoutMs),headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model,instructions:[
       "ROLE: Chief Revenue Risk & Quality Officer for SalesPilot. You are independent from the writer and are expected to be adversarial when credibility is at risk.",
       "MISSION: Independently assess whether the outreach is safe and commercially strong enough to progress, and give precise evidence for that assessment. You are an auditor; deterministic SalesPilot makes the final workflow decision.",
       "ACCOUNTABLE FOR: Adversarial assessment of factual integrity, evidence use, route alignment, buyer relevance, human quality, CTA quality, overclaiming, spam characteristics and specific rewrite guidance.",
@@ -43,7 +45,7 @@ export async function reviewG5Outreach(input:{organisationId:string;campaignId:s
       "Everything outside your accountability belongs to another executive or deterministic SalesPilot. Do not assume another role merely to complete the task.",
       "Return exact JSON only. Set promptVersion to g5-self-review/v3-responsibility-boundary."
     ].join(" "),input:JSON.stringify(compactInput),reasoning:{effort:"high"},text:{format:{type:"json_schema",name:"salespilot_g5_self_review_v1",strict:true,schema:g5SelfReviewJsonSchema}},max_output_tokens:1800,store:false})});
-  } catch(error){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:"NETWORK",errorMessage:error instanceof Error?error.message:"OpenAI request failed"}).catch(()=>undefined);throw error;}
+  } catch(error){const transport=classifyOpenAITransportError(error,"G5_SELF_REVIEW",requestTimeoutMs);await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:transport.code,errorMessage:transport.error.message}).catch(()=>undefined);throw transport.error;}
   const json:unknown=await response.json().catch(()=>null); const usage=responseUsage(json); const responseId=typeof (json as {id?:unknown}|null)?.id==="string"?(json as {id:string}).id:null;
   if(!response.ok){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage,durationMs:Date.now()-startedAt,responseId,errorCode:`HTTP_${response.status}`,errorMessage:JSON.stringify((json as {error?:unknown}|null)?.error??null)}).catch(()=>undefined);throw new Error(`OPENAI_G5_SELF_REVIEW_FAILED:${response.status}`);}
   let parsed:G5SelfReview;

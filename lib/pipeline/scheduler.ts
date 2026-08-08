@@ -144,8 +144,11 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       }
     }
 
-    // Never chain a second heavyweight worker in the same invocation. A route
-    // cycle and a company-discovery cycle each get a fresh serverless budget.
+    // Never chain a second heavyweight AI worker in the same invocation. A G4
+    // Route Intelligence or Company Discovery attempt owns the heavyweight slot
+    // even when the external request times out. This preserves wall-clock headroom
+    // for outcome persistence, retry scheduling and lease release.
+    const g4HeavyweightAttempted = company !== null || contact !== null;
     // Cheap deterministic assembly may continue when the safety reserve permits.
     const opportunity = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await syncOpportunityFoundations(runId) : null;
     const opportunityScoring = opportunity && hasSchedulerBudget(schedulerStartedAt, 8_000)
@@ -163,10 +166,10 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     // WAITING opportunities; when there is no reasoning job, R3 may enrich an
     // existing STRATEGY_READY record with its fenced channel decision. This avoids
     // chaining two 120-second AI envelopes inside one serverless invocation.
-    const commercialReasoning = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
+    const commercialReasoning = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
       ? await runNextG5CommercialReasoning(runId)
       : null;
-    const channelStrategy = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
+    const channelStrategy = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
       && (!commercialReasoning || !commercialReasoning.processed)
       ? await runNextG5ChannelStrategy(runId)
       : null;
@@ -179,7 +182,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       : null;
     // R4 may run only when neither earlier G5 AI worker consumed this scheduler cycle.
     // Its SQL claim now additionally requires the persisted R5 safety manifest.
-    const outreachGeneration = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
+    const outreachGeneration = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
       && (!commercialReasoning || !commercialReasoning.processed)
       && (!channelStrategy || !channelStrategy.processed)
       ? await runNextG5OutreachGeneration(runId)
@@ -187,7 +190,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     // R6 is the final heavyweight G5 worker in this controlled release. It may only
     // run when R2/R3/R4 did not consume the AI slot. PASS advances to approval;
     // REWRITE returns only the draft to R4; BLOCK terminates the G5 strategy.
-    const engagementSelfReview: G5SelfReviewWorkerResult | null = hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
+    const engagementSelfReview: G5SelfReviewWorkerResult | null = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
       && (!commercialReasoning || !commercialReasoning.processed)
       && (!channelStrategy || !channelStrategy.processed)
       && (!outreachGeneration || !outreachGeneration.processed)
