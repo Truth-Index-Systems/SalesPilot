@@ -131,7 +131,8 @@
     "marketroute:g511341-check": "node scripts/validate-marketroute-g511341-v1-launch-hotfix.mjs",
     "genesis:g81-truth-kernel-check": "node scripts/validate-genesis-g8-truth-kernel.mjs",
     "genesis:g81-contracts-check": "npm run genesis:g81-truth-kernel-check && node scripts/validate-genesis-g8-intelligence-contracts.mjs",
-    "genesis:g81-persistence-check": "npm run genesis:g81-contracts-check && node scripts/validate-genesis-g8-persistence-provenance.mjs"
+    "genesis:g81-persistence-check": "npm run genesis:g81-contracts-check && node scripts/validate-genesis-g8-persistence-provenance.mjs",
+    "genesis:g81-read-model-check": "npm run genesis:g81-persistence-check && node scripts/validate-genesis-g8-read-model.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

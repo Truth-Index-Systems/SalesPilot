@@ -21,3 +21,5 @@ export type {
   GenesisG8ReviewState,
   GenesisG8TruthSnapshot,
 } from "./persistence/types";
+export * from "./read-model";
+export * from "./knowledge-gaps";
