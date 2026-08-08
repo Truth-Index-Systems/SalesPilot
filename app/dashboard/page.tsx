@@ -17,6 +17,7 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
   const data=await getFounderDashboard(range);
   const maxDaily=Math.max(...data.daily.map(d=>d.cost),0.000001);
   const maxStage=Math.max(...data.stages.map(d=>d.cost),0.000001);
+  const g8=data.g8CommandCentre;
   return <main className="founder-dashboard-shell">
     <header className="founder-topbar">
       <div className="founder-wordmark light"><span>SP</span><div><strong>MarketRoute</strong><small>Founder Operations</small></div></div>
@@ -27,6 +28,56 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
         <div><span className="founder-kicker">Production command centre</span><h1>Founder Dashboard</h1><p>AI economics, autonomous pipeline health and operational learning across MarketRoute.</p></div>
         <nav className="founder-range" aria-label="Dashboard period"><a className={range===7?"active":""} href="/dashboard?range=7">7 days</a><a className={range===14?"active":""} href="/dashboard?range=14">14 days</a><a className={range===30?"active":""} href="/dashboard?range=30">30 days</a></nav>
       </section>
+
+      {g8?<>
+      <section className="founder-panel founder-intelligence-hero">
+        <div className="founder-panel-head"><div><span>Genesis G8 Intelligence</span><h2>Intelligence command centre</h2></div><b className={`founder-capacity-badge mode-${g8.capacity.mode.toLowerCase()}`}>{g8.capacity.mode.replaceAll("_"," ")}</b></div>
+        <div className="founder-intelligence-metrics">
+          <div><span>Overall Truth Index</span><strong>{g8.overall.averageTruthIndex.toFixed(1)}</strong><small>{number(g8.overall.activeEntities)} active intelligence entities</small></div>
+          <div><span>Confidence</span><strong>{g8.overall.averageConfidence.toFixed(1)}%</strong><small>reliability of known intelligence</small></div>
+          <div><span>Coverage</span><strong>{g8.overall.averageCoverage.toFixed(1)}%</strong><small>completeness across active knowledge</small></div>
+          <div><span>Knowledge hit rate</span><strong>{g8.retrieval.knowledgeHitRate.toFixed(1)}%</strong><small>{number(g8.retrieval.instantUsable)} instantly usable candidates</small></div>
+          <div><span>Truth gain today</span><strong>+{g8.capacity.snapshot.truthGainToday.toFixed(2)}</strong><small>{g8.capacity.snapshot.truthGainPerRepairCall.toFixed(3)} per repair call</small></div>
+        </div>
+        <div className="founder-intelligence-strip">
+          <span>Evidence <b>{number(g8.evidence.totalEvidence)}</b></span>
+          <span>Knowledge <b>{g8.evidence.knowledgePercent.toFixed(0)}%</b></span>
+          <span>Discovery <b>{g8.evidence.discoveryPercent.toFixed(0)}%</b></span>
+          <span>Reused by campaigns <b>{number(g8.reuse.links)}</b></span>
+          <span>Open reviews <b>{g8.reviews.openReviews}</b></span>
+          <span>Blocking repairs <b>{g8.repairs.blocking}</b></span>
+        </div>
+      </section>
+
+      <section className="founder-grid founder-grid-main founder-intelligence-grid">
+        <article className="founder-panel">
+          <div className="founder-panel-head"><div><span>Truth health</span><h2>Intelligence by entity</h2></div><strong>{g8.overall.averageTruthIndex.toFixed(1)}</strong></div>
+          <div className="founder-truth-health-list">{g8.entityTypes.length?g8.entityTypes.map(item=><div key={item.entityType}><div><strong>{item.entityType.replaceAll("_"," ")}</strong><small>{number(item.count)} entities · {item.reviewRequired} review required</small></div><div className="founder-truth-meter"><i style={{width:`${Math.max(2,item.truthIndex)}%`}}/></div><b>{item.truthIndex.toFixed(1)}</b></div>):<div className="founder-empty">Genesis has not accumulated entity Truth snapshots yet.</div>}</div>
+        </article>
+        <article className="founder-panel founder-capacity-panel">
+          <div className="founder-panel-head"><div><span>Capacity governor</span><h2>Intelligence budget</h2></div><b className={`founder-capacity-badge mode-${g8.capacity.mode.toLowerCase()}`}>{g8.capacity.mode.replaceAll("_"," ")}</b></div>
+          <div className="founder-capacity-meter"><i style={{width:`${Math.min(100,g8.capacity.capacityUsedRatio*100)}%`}}/></div>
+          <div className="founder-capacity-stats"><div><span>Used</span><strong>{(g8.capacity.capacityUsedRatio*100).toFixed(0)}%</strong></div><div><span>Background budget</span><strong>{money(g8.capacity.backgroundBudgetUsd)}</strong></div><div><span>Remaining</span><strong>{money(g8.capacity.backgroundRemainingUsd)}</strong></div><div><span>Repairs available</span><strong>{g8.capacity.maximumBackgroundRepairs}</strong></div></div>
+          <p className="founder-method-note">{g8.capacity.reasons.join(" ")}</p>
+        </article>
+      </section>
+
+      <section className="founder-grid founder-grid-equal founder-intelligence-grid">
+        <article className="founder-panel">
+          <div className="founder-panel-head"><div><span>Founder attention</span><h2>Where your judgement matters</h2></div><strong>{g8.attention.length}</strong></div>
+          <div className="founder-attention-list">{g8.attention.length?g8.attention.map((item,index)=><div key={`${item.kind}-${item.entityId}`}><b>{String(index+1).padStart(2,"0")}</b><div><strong>{item.label}</strong><small>{item.kind.replaceAll("_"," ")} · {item.detail}</small></div><span>{item.truthIndex.toFixed(1)} TI</span></div>):<div className="founder-empty">No high-value Genesis decisions currently need attention.</div>}</div>
+        </article>
+        <article className="founder-panel">
+          <div className="founder-panel-head"><div><span>Dual-channel operations</span><h2>Knowledge + Discovery</h2></div></div>
+          <div className="founder-channel-grid"><div><span>Knowledge evidence</span><strong>{number(g8.evidence.knowledgeEvidence)}</strong><small>{g8.evidence.knowledgePercent.toFixed(1)}% of evidence graph</small></div><div><span>Discovery evidence</span><strong>{number(g8.evidence.discoveryEvidence)}</strong><small>{g8.evidence.discoveryPercent.toFixed(1)}% of evidence graph</small></div><div><span>Retrievals</span><strong>{number(g8.retrieval.retrievals)}</strong><small>{g8.retrieval.averageLatencyMs.toFixed(0)}ms average</small></div><div><span>Knowledge reuse</span><strong>{number(g8.reuse.entities)}</strong><small>entities reused across {g8.reuse.campaigns} campaigns</small></div><div><span>Customer repairs</span><strong>{g8.repairs.customerPending}</strong><small>always outrank background work</small></div><div><span>Background repairs</span><strong>{g8.repairs.backgroundPending}</strong><small>{g8.refresh.queuedPeriod} refreshes scheduled in period</small></div></div>
+        </article>
+      </section>
+
+      <section className="founder-panel founder-industry-panel">
+        <div className="founder-panel-head"><div><span>Market intelligence</span><h2>Industry Truth Index</h2></div><strong>{g8.industries.length}</strong></div>
+        {g8.industries.length?<div className="founder-industry-grid">{g8.industries.slice(0,12).map(industry=><article key={industry.id}><div><strong>{industry.name}</strong>{industry.reviewRequired?<span>Review</span>:null}</div><b>{industry.truthIndex.toFixed(1)}</b><small>Confidence {industry.confidence.toFixed(0)}% · Coverage {industry.coverage.toFixed(0)}%</small><div className="founder-truth-meter"><i style={{width:`${Math.max(2,industry.truthIndex)}%`}}/></div></article>)}</div>:<div className="founder-empty">Industry-level intelligence will appear here as Genesis begins building the market universe. Company, contact and route intelligence is already tracked above.</div>}
+      </section>
+      </>:null}
 
       <section className="founder-metric-grid">
         <article><span>Spend today</span><strong>{money(data.totals.todayCost)}</strong><small>{data.totals.todayRequests} production requests</small></article>

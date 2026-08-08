@@ -1,5 +1,6 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
+import { getGenesisG8FounderCommandCentre } from "@/lib/genesis-g8/founder-command-centre";
 
 type UsageRow={id:string;organisation_id:string;campaign_id:string|null;job_type:string;job_id:string|null;status:string;model:string;estimated_cost_usd:number;actual_cost_usd:number;input_tokens:number|null;output_tokens:number|null;web_search_calls:number;duration_ms:number|null;error_code:string|null;created_at:string;completed_at:string|null};
 type Campaign={id:string;organisation_id:string;name:string;status:string;created_at:string};
@@ -18,6 +19,7 @@ const effectiveCost=(row:UsageRow)=>Number(row.status==="SUCCEEDED"?row.actual_c
 const dayKey=(value:string)=>value.slice(0,10);
 
 export async function getFounderDashboard(rangeDays=7){
+  const g8CommandCentrePromise=getGenesisG8FounderCommandCentre(rangeDays).catch(error=>{console.warn("Genesis G8 founder command centre unavailable",error instanceof Error?error.message:"unknown");return null;});
   const since=new Date(Date.now()-Math.max(1,rangeDays)*86400000).toISOString();
   const [usage,campaigns,organisations,commercial,drafts,reviews,timeline,companies,contacts,opportunities,engagements,queue,learning,outcomes,g8Reviews,g8Entities,g8ReviewReceipts]=await Promise.all([
     databaseRequest<UsageRow[]>(`ai_usage_ledger?select=id,organisation_id,campaign_id,job_type,job_id,status,model,estimated_cost_usd,actual_cost_usd,input_tokens,output_tokens,web_search_calls,duration_ms,error_code,created_at,completed_at&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=5000`),
@@ -38,6 +40,7 @@ export async function getFounderDashboard(rangeDays=7){
     databaseRequest<G8EntityRow[]>(`genesis_g8_intelligence_entities?select=id,display_name,canonical_key,review_state,status&limit=10000`),
     databaseRequest<G8ReviewReceiptRow[]>(`genesis_g8_human_review_receipts?select=id,action,reviewed_at&reviewed_at=gte.${encodeURIComponent(since)}&order=reviewed_at.desc&limit=5000`),
   ]);
+  const g8CommandCentre=await g8CommandCentrePromise;
   const campaignMap=new Map(campaigns.map(r=>[r.id,r]));
   const orgMap=new Map(organisations.map(r=>[r.id,r.name]));
   const promptMap=new Map<string,string>();
@@ -132,7 +135,7 @@ export async function getFounderDashboard(rangeDays=7){
     pipeline:{workspaces:organisations.length,campaigns:campaigns.filter(r=>r.status!=="ARCHIVED").length,companies:companies.length,approvedCompanies:companies.filter(r=>r.review_status==="APPROVED").length,contacts:contacts.length,approvedContacts:contacts.filter(r=>r.review_status==="APPROVED").length,opportunities:opportunities.length,approvedOpportunities:opportunities.filter(r=>r.status==="APPROVED"||r.status==="ENGAGED").length,engagements:engagements.length,queued:queue.filter(r=>r.status==="READY"||r.status==="QUEUED").length,learning:learning.length},
     stages,campaignCosts,prompts,models,daily,optimisation,
     economics:{completedOpportunities:completedOpportunities.length,reviewReadyEngagements:reviewReadyEngagements.length,completedJourneys,costPerOpportunity,costPerReviewReady,costPerCompletedJourney,opportunitiesPerDollar,reviewReadyPerDollar,completedJourneysPerDollar,projectedOpportunitiesForFive:opportunitiesPerDollar*5,projectedReviewReadyForFive:reviewReadyPerDollar*5,projectedCompletedJourneysForFive:completedJourneysPerDollar*5,attributedJourneyCost},
-    campaignEconomics,channelLearning,outcomeTotals,g8ReviewQueue,g8ReviewSummary,releaseGate,releaseReady:releaseGate.every(item=>item.passed),
+    campaignEconomics,channelLearning,outcomeTotals,g8ReviewQueue,g8ReviewSummary,g8CommandCentre,releaseGate,releaseReady:releaseGate.every(item=>item.passed),
     highest:[...rows].sort((a,b)=>b.cost-a.cost).slice(0,12),
     timeline:timeline.map(row=>({...row,campaignName:campaignMap.get(row.campaign_id)?.name??"Unknown campaign",organisationName:orgMap.get(row.organisation_id)??"Unknown workspace"}))
   };
