@@ -1,0 +1,23 @@
+import fs from 'node:fs';
+const root=new URL('../',import.meta.url);
+const read=(p)=>fs.readFileSync(new URL(p,root),'utf8');
+const sql=read('supabase/migrations/0108_marketroute_g51134_authority_polish_freeze.sql');
+const service=read('features/discovery/company-discovery.service.ts');
+const r3=read('supabase/migrations/0107_marketroute_g51133_progressive_commercial_intelligence.sql');
+const fence=read('supabase/migrations/0072_genesis_g4710_full_pipeline_legacy_leak_hardening.sql');
+const checks=[];const add=(ok,msg)=>checks.push([Boolean(ok),msg]);
+add(sql.includes('verification_first_started_at')&&sql.includes('verification_completed_at'),'candidate verification timing is retained');
+add(sql.includes("verification_attempt_count>=3")&&sql.includes("candidate_status='HELD'"),'expired over-budget verification leases become terminal');
+add(sql.includes('verification_attempt_count<3'),'candidate claims cannot exceed the evidence retry ceiling');
+add(sql.includes('company_discovery_archetype_verification_state_owned'),'archetype state inspection repairs stale terminal leases');
+add(sql.includes('COMPANY_DISCOVERY_CANDIDATE_OWNERSHIP_LOST'),'candidate terminal writes remain worker-token fenced');
+add(service.includes('`archetype-candidates:${searchPass}:${archetypeIndex}`'),'candidate-found timeline is idempotent per work unit');
+add(service.includes('`archetype-complete:${searchPass}:${archetypeIndex}`'),'archetype-complete timeline is idempotent');
+add(service.includes('`ai-background:${error.responseId}`'),'background continuation timeline is idempotent per provider response');
+add(service.includes('save_company_discovery_batch_owned')&&service.includes('set_company_commercial_priority_owned'),'R3 canonical save then priority annotation remains active');
+add(r3.includes("commercial_priority_tier='A'")===false,'R3 lower commercial tiers remain eligible');
+add(r3.includes('revoke execute on function public.claim_contact_discovery')&&fence.includes('claim_contact_discovery_owned'),'legacy contact-discovery entry point remains non-executable while owned runtime wrapper exists');
+const failed=checks.filter(([ok])=>!ok);
+for(const [ok,msg] of checks) console.log(`${ok?'✓':'✗'} ${msg}`);
+if(failed.length){console.error(`\n${failed.length} G5.1.13.4 checks failed`);process.exit(1)}
+console.log('\nMarketRoute G5.1.13.4 Authority & Polish Freeze validation passed');

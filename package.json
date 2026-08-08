@@ -125,7 +125,9 @@
     "marketroute:g519-check": "node scripts/validate-marketroute-g519-business-analysis-hardening.mjs",
     "marketroute:g5111-check": "node scripts/validate-marketroute-g5111-company-discovery-authority.mjs",
     "marketroute:g51131-check": "node scripts/validate-marketroute-g51131-incremental-company-discovery-release1.mjs",
-    "marketroute:g51132-check": "node scripts/validate-marketroute-g51132-parallel-evidence-engine.mjs"
+    "marketroute:g51132-check": "node scripts/validate-marketroute-g51132-parallel-evidence-engine.mjs",
+    "marketroute:g51133-check": "node scripts/validate-marketroute-g51133-progressive-commercial-intelligence.mjs",
+    "marketroute:g51134-check": "node scripts/validate-marketroute-g51134-authority-polish-freeze.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

@@ -1,0 +1,24 @@
+import fs from 'node:fs';
+const read=(p)=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
+const service=read('features/discovery/company-discovery.service.ts');
+const scorer=read('lib/discovery/commercial-priority.ts');
+const sql=read('supabase/migrations/0107_marketroute_g51133_progressive_commercial_intelligence.sql');
+const checks=[]; const add=(ok,msg)=>checks.push([Boolean(ok),msg]);
+add(scorer.includes('scoreCommercialPriority'),'deterministic commercial-priority scorer exists');
+add(scorer.includes('commercialFit * 0.28')&&scorer.includes('evidenceQuality * 0.08'),'priority combines commercial fit and evidence quality');
+add(scorer.includes('uncertaintyPenalty')&&scorer.includes('riskPenalty'),'priority penalises uncertainty/risk deterministically');
+add(service.includes('scoreCommercialPriority(company)'),'verified companies are scored after evidence verification');
+add(service.includes('set_company_commercial_priority_owned'),'priority persistence is ownership fenced');
+add(service.indexOf('save_company_discovery_batch_owned') < service.indexOf('set_company_commercial_priority_owned'),'canonical save precedes priority annotation');
+add(sql.includes('commercial_priority_score')&&sql.includes('commercial_priority_tier'),'company priority fields are persisted');
+add(sql.includes("commercial_priority_tier in ('A','B','C')"),'priority tier contract is constrained');
+add(sql.includes('set_company_commercial_priority_owned'),'priority update RPC exists');
+add(sql.includes('assert_company_discovery_owner'),'priority RPC preserves discovery ownership fencing');
+add((sql.match(/coalesce\(c\.commercial_priority_score,0\).*desc/g)||[]).length>=2,'claim and planner both prioritise strongest pass-0 companies');
+add(sql.includes('coalesce(s.route_expansion_pass,0)>0'),'existing depth-first route authority remains present');
+add(!sql.includes("commercial_priority_tier='A'"),'lower tiers are not excluded from route research');
+add(sql.includes('Legacy priority derived from discovery confidence'),'existing verified companies receive compatibility priority');
+const failed=checks.filter(([ok])=>!ok);
+for(const [ok,msg] of checks) console.log(`${ok?'✓':'✗'} ${msg}`);
+if(failed.length){console.error(`\n${failed.length} G5.1.13.3 checks failed`);process.exit(1)}
+console.log('\nMarketRoute G5.1.13.3 Progressive Commercial Intelligence validation passed');

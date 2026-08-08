@@ -11,6 +11,7 @@ import { safePipelineFailureReason } from "@/lib/pipeline/safe-error";
 import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
 import { aiGovernanceBlockReason, aiParallelCapacityReason } from "@/lib/ai/governance";
 import { isOpenAIBackgroundPending } from "@/lib/ai/background-response";
+import { scoreCommercialPriority } from "@/lib/discovery/commercial-priority";
 
 function safeWorkerError(error: unknown): string {
   return safePipelineFailureReason(error, "Company Discovery encountered a technical interruption and will retry safely.");
@@ -319,7 +320,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     failurePhase = "VERIFYING";
     const verificationProgress = 44 + Math.round(((archetypeIndex + 1) / archetypeTotal) * 26);
     await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"VERIFYING",p_progress:Math.min(70,verificationProgress),p_candidates:cumulative.candidatesReturned + result.companies.length})});
-    await activity(job.session_id,context.schedulerRunId,"ARCHETYPE_CANDIDATES_FOUND",result.companies.length>0?`${result.companies.length} candidates found for ${archetype.name}`:`No supported candidates found for ${archetype.name}`,result.companies.length>0?"MarketRoute is independently checking each candidate against official-site evidence.":"This archetype completed without supported candidates. The remaining market plan will continue without weakening the evidence standard.",{candidateCount:result.companies.length,archetypeIndex,archetypeTotal,archetypeName:archetype.name});
+    await activityOnce(job.session_id,context.schedulerRunId,`archetype-candidates:${searchPass}:${archetypeIndex}`,"ARCHETYPE_CANDIDATES_FOUND",result.companies.length>0?`${result.companies.length} candidates found for ${archetype.name}`:`No supported candidates found for ${archetype.name}`,result.companies.length>0?"MarketRoute is independently checking each candidate against official-site evidence.":"This archetype completed without supported candidates. The remaining market plan will continue without weakening the evidence standard.",{candidateCount:result.companies.length,archetypeIndex,archetypeTotal,archetypeName:archetype.name});
 
     // G5.1.13.2: evidence checks are independent, ownership-fenced work units.
     // A slow or transiently failing company cannot serially block the rest of the batch.
@@ -342,8 +343,17 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
         }
         const company=verification.company;
         await databaseRequest<number>("rpc/save_company_discovery_batch_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_companies:[company]})});
+        const commercialPriority=scoreCommercialPriority(company);
+        await databaseRequest("rpc/set_company_commercial_priority_owned",{method:"POST",body:JSON.stringify({
+          p_session_id:job.session_id,
+          p_scheduler_run_id:context.schedulerRunId,
+          p_website_url:company.websiteUrl,
+          p_priority_score:commercialPriority.score,
+          p_priority_tier:commercialPriority.tier,
+          p_priority_reasons:commercialPriority.reasons,
+        })});
         await databaseRequest("rpc/complete_company_discovery_candidate_verification_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_candidate_id:claim.candidate_id,p_worker_token:claim.worker_token,p_status:"VERIFIED",p_diagnostics:verification.diagnostics})});
-        await activityOnce(job.session_id,context.schedulerRunId,`candidate-verified:${searchPass}:${archetypeIndex}:${claim.candidate_id}`,"COMPANY_SAVED",`${company.name} verified and added`,`${company.matchLabel} · ${company.confidence}/100 confidence · ${company.evidenceQuality}/100 evidence quality`,{companyName:company.name,confidence:company.confidence,evidenceQuality:company.evidenceQuality,archetypeName:archetype.name});
+        await activityOnce(job.session_id,context.schedulerRunId,`candidate-verified:${searchPass}:${archetypeIndex}:${claim.candidate_id}`,"COMPANY_SAVED",`${company.name} verified and added`,`${company.matchLabel} · ${company.confidence}/100 confidence · ${company.evidenceQuality}/100 evidence quality · priority ${commercialPriority.tier}`,{companyName:company.name,confidence:company.confidence,evidenceQuality:company.evidenceQuality,commercialPriorityScore:commercialPriority.score,commercialPriorityTier:commercialPriority.tier,archetypeName:archetype.name});
       } catch (error) {
         const message=error instanceof Error?error.message:"Evidence verification interrupted";
         const nextStatus=await databaseRequest<string>("rpc/release_company_discovery_candidate_verification_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_candidate_id:claim.candidate_id,p_worker_token:claim.worker_token,p_error_message:message,p_max_attempts:3})}).catch(()=>"DISCOVERED");
@@ -389,7 +399,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     for (const reason of Object.keys(heldReasons) as CompanyVerificationReason[]) cumulative.heldReasons[reason] += heldReasons[reason];
 
     const isLastArchetype = archetypeIndex + 1 >= archetypeTotal;
-    await activity(job.session_id,context.schedulerRunId,"ARCHETYPE_RESEARCH_COMPLETE",`${archetype.name} research complete`,`${verified} of ${result.companies.length} candidates passed the independent evidence gate.`,{archetypeIndex,archetypeTotal,archetypeName:archetype.name,verified,saved,nextArchetype:isLastArchetype?null:searchPlan.companyArchetypes[archetypeIndex+1]?.name});
+    await activityOnce(job.session_id,context.schedulerRunId,`archetype-complete:${searchPass}:${archetypeIndex}`,"ARCHETYPE_RESEARCH_COMPLETE",`${archetype.name} research complete`,`${verified} of ${result.companies.length} candidates passed the independent evidence gate.`,{archetypeIndex,archetypeTotal,archetypeName:archetype.name,verified,saved,nextArchetype:isLastArchetype?null:searchPlan.companyArchetypes[archetypeIndex+1]?.name});
     await databaseRequest("rpc/complete_company_discovery_archetype_owned",{
       method:"POST",
       body:JSON.stringify({
@@ -435,7 +445,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
   } catch (error) {
     if (isOpenAIBackgroundPending(error)) {
       await databaseRequest("rpc/defer_company_discovery_background_owned", { method:"POST", body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId}) }).catch(()=>undefined);
-      await activity(job.session_id,context.schedulerRunId,"AI_BACKGROUND_CONTINUING","Market research is still running","MarketRoute has safely released this scheduler cycle while GPT-5 continues the same bounded research unit. The completed response will be collected on a later cycle without starting the work again.",{failurePhase,responseId:error.responseId,status:error.status}).catch(()=>undefined);
+      await activityOnce(job.session_id,context.schedulerRunId,`ai-background:${error.responseId}`,"AI_BACKGROUND_CONTINUING","Market research is still running","MarketRoute has safely released this scheduler cycle while GPT-5 continues the same bounded research unit. The completed response will be collected on a later cycle without starting the work again.",{failurePhase,responseId:error.responseId,status:error.status}).catch(()=>undefined);
       return { worker:"COMPANY_DISCOVERY",processed:false,outcome:"DEFERRED",sessionId:job.session_id };
     }
     const capacityReason = aiParallelCapacityReason(error);
