@@ -305,6 +305,23 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
           setError(job.error ?? { code: "ANALYSIS_FAILED", title: "MarketRoute couldn't complete the analysis", message: "The saved analysis ended before completion.", hint: "Check the website and try again." });
           return;
         }
+        if (job.status === "QUEUED") {
+          // Background OpenAI work deliberately returns the persisted owner job
+          // to QUEUED while the dedicated collector obtains the provider result.
+          // Once nextRetryAt is due we must wake the SAME job again so it can
+          // consume the cached completion. Without this hand-off the browser can
+          // poll a perfectly healthy queued analysis forever.
+          setError(null);
+          const retryAt = job.nextRetryAt ? new Date(job.nextRetryAt).getTime() : Date.now();
+          const waitMs = Math.max(1_000, Math.min(5_000, retryAt - Date.now()));
+          await new Promise(resolve => window.setTimeout(resolve, waitMs));
+          if (!job.nextRetryAt || new Date(job.nextRetryAt).getTime() <= Date.now()) {
+            void runAnalysisJob(jobId, accessToken).catch(reason => console.warn("Business analysis queued resume dispatch failed", reason));
+          }
+          job = await fetchAnalysisJob(jobId, accessToken);
+          setAnalysisJob(job);
+          continue;
+        }
         if (job.status === "FAILED_RETRYABLE") {
           // Retryable infrastructure/structured-output interruptions are an
           // implementation detail. Keep the analysis experience alive and

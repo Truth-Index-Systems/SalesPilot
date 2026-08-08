@@ -116,7 +116,8 @@
     "speed:r3-check": "node scripts/validate-speed-r3-controlled-parallelism.mjs",
     "speed:r4-check": "node scripts/validate-speed-r4-workload-optimisation.mjs",
     "speed:r5-check": "node scripts/validate-speed-r5-latency-observatory.mjs",
-    "marketroute:g511-check": "node scripts/validate-marketroute-g511-anonymous-allowance.mjs"
+    "marketroute:g511-check": "node scripts/validate-marketroute-g511-anonymous-allowance.mjs",
+    "marketroute:g513-check": "node scripts/validate-marketroute-g513-analysis-resume.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
