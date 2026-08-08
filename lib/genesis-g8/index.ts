@@ -24,3 +24,5 @@ export type {
 export * from "./read-model";
 export * from "./knowledge-gaps";
 export * from "./eligibility";
+export * from "./gap-repair";
+export * from "./planning";

@@ -1,0 +1,25 @@
+import fs from "node:fs";
+const checks=[]; const add=(ok,label)=>checks.push({ok:Boolean(ok),label});
+const required=["lib/genesis-g8/gap-repair.ts","lib/genesis-g8/planning.ts"];
+for(const f of required) add(fs.existsSync(f),`${f} exists`);
+const repair=fs.readFileSync(required[0],"utf8");
+const planning=fs.readFileSync(required[1],"utf8");
+const root=fs.readFileSync("lib/genesis-g8/index.ts","utf8");
+for(const mode of ["DISCOVER_MISSING_CLAIM","ADD_CORROBORATING_EVIDENCE","REFRESH_STALE_EVIDENCE","RESOLVE_LOW_CONFIDENCE","RESOLVE_CONTRADICTION"]) add(repair.includes(`\"${mode}\"`),`repair mode ${mode} exists`);
+for(const action of ["USE_KNOWLEDGE","USE_KNOWLEDGE_AND_REPAIR","REFRESH_BEFORE_USE","ROUTE_TO_HUMAN_REVIEW","RUN_FULL_DISCOVERY"]) add(planning.includes(`\"${action}\"`),`plan action ${action} exists`);
+add(repair.includes("additionalEvidenceNeeded"),"repair contracts expose exact evidence deficit");
+add(repair.includes("without assuming which source is correct"),"contradiction repair does not pre-judge the winning source");
+add(repair.includes('gap.reason === "CONTRADICTED"') && repair.includes('"HUMAN_REVIEW"'),"material contradiction repair can route to human review");
+add(planning.includes('case "READY"') && planning.includes('mayUseKnowledgeImmediately: true'),"READY uses knowledge immediately");
+add(planning.includes('case "READY_WITH_GAPS"') && planning.includes('secondaryChannel: repairs.length ? "DISCOVERY_INTELLIGENCE"'),"READY_WITH_GAPS uses knowledge while Discovery repairs exact gaps");
+add(planning.includes('case "REFRESH_REQUIRED"') && planning.includes('action: "REFRESH_BEFORE_USE"'),"refresh-required knowledge is blocked until targeted refresh");
+add(planning.includes('case "HUMAN_REVIEW_REQUIRED"') && planning.includes('primaryChannel: "HUMAN_REVIEW"'),"human-review-required intelligence routes to founder review");
+add(planning.includes('case "NOT_USABLE"') && planning.includes('action: "RUN_FULL_DISCOVERY"'),"not-usable knowledge falls back to full Discovery");
+add(planning.includes('strategy === "DISCOVERY_ONLY"'),"explicit Discovery-only strategy is preserved");
+add(planning.includes('strategy === "KNOWLEDGE_ONLY"'),"explicit Knowledge-only strategy is preserved");
+add(!repair.match(/openai|fetch\(|databaseRequest|supabase/i) && !planning.match(/openai|fetch\(|databaseRequest|supabase/i),"R6 planner and repair contracts have no AI/network/database dependency");
+add(root.includes('export * from "./gap-repair"') && root.includes('export * from "./planning"'),"R6 public contracts exported from G8 root");
+const productionRoots=["lib/discovery","lib/contacts","lib/opportunities","lib/pipeline","lib/autonomy"];
+const files=[]; for(const rootPath of productionRoots){ if(!fs.existsSync(rootPath)) continue; const stack=[rootPath]; while(stack.length){ const current=stack.pop(); for(const entry of fs.readdirSync(current,{withFileTypes:true})){ const next=`${current}/${entry.name}`; if(entry.isDirectory()) stack.push(next); else if(/\.(ts|tsx|js|mjs)$/.test(entry.name)) files.push(next); }}}
+add(!files.some(file=>fs.readFileSync(file,"utf8").includes("genesis-g8")),"R6 remains isolated from frozen live production paths");
+const failed=checks.filter(c=>!c.ok); for(const c of checks) console.log(`${c.ok?"PASS":"FAIL"} ${c.label}`); if(failed.length) process.exit(1); console.log(`\nGenesis G8.1 Dual-Channel Planning & Gap-Repair validation passed (${checks.length}/${checks.length}).`);
