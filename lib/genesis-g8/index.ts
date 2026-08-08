@@ -40,3 +40,5 @@ export * from "./discovery-acquisition-worker";
 
 export * from "./knowledge-matching";
 export * from "./knowledge-candidate-retrieval";
+
+export * from "./business-dna-knowledge-matching";

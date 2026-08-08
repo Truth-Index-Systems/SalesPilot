@@ -18,7 +18,9 @@ export type BusinessAnalysisStage =
 export type BusinessAnalysisJob = {
   id:string; organisation_id:string|null; requested_by:string|null; website_input:string; canonical_url:string|null; status:JobStatus; stage:BusinessAnalysisStage; progress:number;
   attempt_count:number; next_retry_at:string|null; last_error_code:string|null; last_error_message:string|null;
-  pages_read:number; core_analysis_json:unknown|null; analysis_json:unknown|null; worker_token?:string|null; created_at:string; updated_at:string;
+  pages_read:number; core_analysis_json:unknown|null; analysis_json:unknown|null; worker_token?:string|null;
+  genesis_g8_match_status?:"NOT_STARTED"|"RUNNING"|"COMPLETED"|"SKIPPED"|"FAILED"; genesis_g8_match_version?:string|null; genesis_g8_match_json?:unknown|null; genesis_g8_match_error?:string|null; genesis_g8_match_started_at?:string|null; genesis_g8_match_completed_at?:string|null;
+  created_at:string; updated_at:string;
 };
 
 export function hashAnalysisToken(token:string){return createHash("sha256").update(token).digest("hex");}
@@ -54,6 +56,26 @@ export async function getBusinessAnalysisJob(id:string,token:string){
   return rows[0]??null;
 }
 
+export type BusinessAnalysisG8MatchState = {
+  genesis_g8_match_status:"NOT_STARTED"|"RUNNING"|"COMPLETED"|"SKIPPED"|"FAILED";
+  genesis_g8_match_version:string|null;
+  genesis_g8_match_json:unknown|null;
+  genesis_g8_match_error:string|null;
+  genesis_g8_match_started_at:string|null;
+  genesis_g8_match_completed_at:string|null;
+};
+
+export async function getBusinessAnalysisG8Match(id:string,token:string):Promise<BusinessAnalysisG8MatchState|null>{
+  try {
+    const rows=await databaseRequest<BusinessAnalysisG8MatchState[]>(`business_analysis_jobs?id=eq.${encodeURIComponent(id)}&access_token_hash=eq.${hashAnalysisToken(token)}&select=genesis_g8_match_status,genesis_g8_match_version,genesis_g8_match_json,genesis_g8_match_error,genesis_g8_match_started_at,genesis_g8_match_completed_at&limit=1`);
+    return rows[0]??null;
+  } catch {
+    // R14 is an acceleration layer. Deploying application code before migration
+    // 0116 must not make the durable Business DNA status endpoint unavailable.
+    return null;
+  }
+}
+
 export async function claimBusinessAnalysisJob(id:string,token:string){
   const rows=await databaseRequest<BusinessAnalysisJob[]|BusinessAnalysisJob|null>("rpc/claim_business_analysis_job",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_lease_seconds:290})});
   const claimed=Array.isArray(rows)?rows[0]??null:rows;
@@ -68,6 +90,23 @@ export async function updateBusinessAnalysisProgress(id:string,token:string,work
 }
 export async function persistBusinessAnalysisCore(id:string,token:string,workerToken:string,canonicalUrl:string,pagesRead:number,core:unknown){
   await databaseRequest("rpc/persist_business_analysis_core_owned",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_worker_token:workerToken,p_canonical_url:stripPostgresNul(canonicalUrl),p_pages_read:pagesRead,p_core:sanitisePostgresJson(core)})});
+}
+
+
+export async function startBusinessAnalysisG8Match(id:string,token:string,workerToken:string,version:string){
+  await databaseRequest("rpc/start_business_analysis_g8_match_owned",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_worker_token:workerToken,p_version:version})});
+}
+
+export async function completeBusinessAnalysisG8Match(id:string,token:string,workerToken:string,version:string,match:unknown){
+  await databaseRequest("rpc/complete_business_analysis_g8_match_owned",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_worker_token:workerToken,p_version:version,p_match:sanitisePostgresJson(match)})});
+}
+
+export async function failBusinessAnalysisG8Match(id:string,token:string,workerToken:string,version:string,error:string){
+  await databaseRequest("rpc/fail_business_analysis_g8_match_owned",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_worker_token:workerToken,p_version:version,p_error:stripPostgresNul(error).slice(0,500)})});
+}
+
+export async function skipBusinessAnalysisG8Match(id:string,token:string,workerToken:string,version:string){
+  await databaseRequest("rpc/skip_business_analysis_g8_match_owned",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_worker_token:workerToken,p_version:version})});
 }
 
 export async function completeBusinessAnalysisJob(id:string,token:string,workerToken:string,canonicalUrl:string,pagesRead:number,analysis:unknown,durationMs:number){

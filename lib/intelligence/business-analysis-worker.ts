@@ -2,10 +2,11 @@ import "server-only";
 import { analyseBusinessCore, analyseBusinessGrowth } from "@/lib/intelligence/openai";
 import { assembleBusinessAnalysis, CoreBusinessDnaEnvelopeSchema } from "@/lib/intelligence/business-analysis-decomposition";
 import { readWebsite, WebsiteReadError } from "@/lib/intelligence/website-reader";
-import { claimBusinessAnalysisJob, completeBusinessAnalysisJob, deferBusinessAnalysisBackground, failBusinessAnalysisJob, persistBusinessAnalysisCore, updateBusinessAnalysisProgress } from "@/lib/intelligence/business-analysis-jobs";
+import { claimBusinessAnalysisJob, completeBusinessAnalysisG8Match, completeBusinessAnalysisJob, deferBusinessAnalysisBackground, failBusinessAnalysisG8Match, failBusinessAnalysisJob, persistBusinessAnalysisCore, startBusinessAnalysisG8Match, updateBusinessAnalysisProgress } from "@/lib/intelligence/business-analysis-jobs";
 import { StructuredAiOutputError } from "@/lib/ai/structured-response-gateway";
 import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
 import { isOpenAIBackgroundPending } from "@/lib/ai/background-response";
+import { GENESIS_G8_BUSINESS_DNA_MATCHING_VERSION, isGenesisG8BusinessDnaKnowledgeMatchingEnabled, matchBusinessDnaAgainstGenesisG8, withGenesisG8BusinessDnaMatchBudget } from "@/lib/genesis-g8/business-dna-knowledge-matching";
 
 function classify(error:unknown){
   if(error instanceof WebsiteReadError){
@@ -58,6 +59,29 @@ export async function runBusinessAnalysisJob(id:string,token:string){
     const growth=await analyseBusinessGrowth({organisationId:job.organisation_id,publicAnalysis:job.requested_by===null,jobId:job.id,website:finalUrl,core:finalCore});
     await updateBusinessAnalysisProgress(id,token,workerToken,"PREPARING_RECOMMENDATIONS",92,finalUrl,pagesRead);
     const analysis=assembleBusinessAnalysis(finalCore,growth);
+
+    // R14 activation boundary: ask accumulated Knowledge Intelligence before the
+    // analysis is exposed, but never make first-time Business DNA depend on it.
+    // A completed match is durable and reused across worker retries. The bounded
+    // DB-only lookup is fail-open: legacy Discovery remains the universal path.
+    if (isGenesisG8BusinessDnaKnowledgeMatchingEnabled() && job.genesis_g8_match_status !== "COMPLETED") {
+      try {
+        await startBusinessAnalysisG8Match(id,token,workerToken,GENESIS_G8_BUSINESS_DNA_MATCHING_VERSION);
+        const match=await withGenesisG8BusinessDnaMatchBudget(matchBusinessDnaAgainstGenesisG8(analysis.payload));
+        await completeBusinessAnalysisG8Match(id,token,workerToken,GENESIS_G8_BUSINESS_DNA_MATCHING_VERSION,match);
+      } catch (matchError) {
+        if (isPipelineOwnershipLost(matchError)) throw matchError;
+        console.warn("Genesis G8 Business DNA knowledge match unavailable; continuing with Discovery Intelligence",{jobId:id,error:matchError instanceof Error?matchError.message.slice(0,300):"unknown"});
+        try {
+          await failBusinessAnalysisG8Match(id,token,workerToken,GENESIS_G8_BUSINESS_DNA_MATCHING_VERSION,matchError instanceof Error?matchError.message:"G8_MATCH_FAILED");
+        } catch (recordError) {
+          if (isPipelineOwnershipLost(recordError)) throw recordError;
+          // Migration/configuration absence must never block the legacy path.
+          console.warn("Genesis G8 match failure state could not be persisted",{jobId:id});
+        }
+      }
+    }
+
     await completeBusinessAnalysisJob(id,token,workerToken,finalUrl,pagesRead,analysis,Date.now()-started);
     return {claimed:true as const,completed:true as const};
   }catch(error){

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getBusinessAnalysisJob } from "@/lib/intelligence/business-analysis-jobs";
+import { getBusinessAnalysisG8Match, getBusinessAnalysisJob } from "@/lib/intelligence/business-analysis-jobs";
 import { normaliseBusinessAnalysis } from "@/lib/intelligence/fit-score";
 
 export const runtime = "nodejs";
@@ -8,12 +8,14 @@ export const dynamic = "force-dynamic";
 
 const Schema = z.object({ jobId: z.string().uuid(), accessToken: z.string().min(20).max(256) });
 
-function publicJob(job: NonNullable<Awaited<ReturnType<typeof getBusinessAnalysisJob>>>) {
+function publicJob(job: NonNullable<Awaited<ReturnType<typeof getBusinessAnalysisJob>>>, g8Match: Awaited<ReturnType<typeof getBusinessAnalysisG8Match>>) {
   return {
     id: job.id, website: job.website_input, canonicalUrl: job.canonical_url, status: job.status,
     stage: job.stage, progress: job.progress, attemptCount: job.attempt_count, nextRetryAt: job.next_retry_at,
     error: job.last_error_code ? safePublicError(job.last_error_code, job.status, job.last_error_message) : null,
     pagesRead: job.pages_read, analysis: job.analysis_json ? normaliseBusinessAnalysis(job.analysis_json as any) : null,
+    knowledgeMatchStatus: g8Match?.genesis_g8_match_status ?? "NOT_STARTED",
+    knowledgeMatch: g8Match?.genesis_g8_match_status === "COMPLETED" ? g8Match.genesis_g8_match_json : null,
     updatedAt: job.updated_at,
   };
 }
@@ -35,7 +37,8 @@ export async function POST(request: Request) {
     const input = Schema.parse(await request.json());
     const job = await getBusinessAnalysisJob(input.jobId, input.accessToken);
     if (!job) return NextResponse.json({ ok:false, error:{ code:"JOB_NOT_FOUND", title:"Analysis job not found", message:"This saved analysis could not be found.", hint:"Start a new analysis." } }, { status:404, headers:{"Cache-Control":"no-store","Referrer-Policy":"no-referrer"} });
-    return NextResponse.json({ ok:true, job:publicJob(job) }, { headers:{"Cache-Control":"no-store","Referrer-Policy":"no-referrer"} });
+    const g8Match = await getBusinessAnalysisG8Match(input.jobId, input.accessToken);
+    return NextResponse.json({ ok:true, job:publicJob(job, g8Match) }, { headers:{"Cache-Control":"no-store","Referrer-Policy":"no-referrer"} });
   } catch (error) {
     console.error("Business analysis status failed", error);
     return NextResponse.json({ ok:false, error:{ code:"INVALID_JOB", title:"Analysis could not be loaded", message:"The saved analysis reference is invalid.", hint:"Start a new analysis." } }, { status:400, headers:{"Cache-Control":"no-store","Referrer-Policy":"no-referrer"} });
