@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { databaseRequest } from "@/lib/database/postgrest";
 
-export type AiJobType = "BUSINESS_ANALYSIS"|"COMPANY_DISCOVERY"|"CONTACT_DISCOVERY"|"OUTREACH"|"COMMERCIAL_REASONING"|"REPLY_INTELLIGENCE";
+export type AiJobType = "BUSINESS_ANALYSIS"|"COMPANY_DISCOVERY"|"CONTACT_DISCOVERY"|"OUTREACH"|"COMMERCIAL_REASONING"|"REPLY_INTELLIGENCE"|"GENESIS_G8_REPAIR";
 export type AiGovernanceContext = {
   organisationId:string|null;
   campaignId?:string|null;

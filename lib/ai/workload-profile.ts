@@ -84,6 +84,14 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
     promptVersion: "deterministic-only",
     cacheKey: "salespilot:structured-output:deterministic",
   },
+  GENESIS_G8_REPAIR: {
+    reasoningEffort: "low",
+    maxOutputTokens: 4_000,
+    evidenceLimit: 5,
+    depth: 4,
+    promptVersion: "genesis-g8-repair/v1",
+    cacheKey: "marketroute:genesis-g8:repair:v1",
+  },
 };
 
 function envKey(task: AiRequestTask, suffix: string) {

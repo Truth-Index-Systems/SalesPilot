@@ -29,3 +29,5 @@ export * from "./planning";
 
 export * from "./orchestration-boundary";
 export * from "./production-dispatch";
+export * from "./discovery-repair-openai";
+export * from "./discovery-repair-worker";

@@ -136,7 +136,8 @@
     "genesis:g81-eligibility-check": "npm run genesis:g81-read-model-check && node scripts/validate-genesis-g8-eligibility.mjs",
     "genesis:g81-planning-check": "npm run genesis:g81-eligibility-check && node scripts/validate-genesis-g8-dual-channel-planning.mjs",
     "genesis:g81-orchestration-check": "npm run genesis:g81-planning-check && node scripts/validate-genesis-g8-orchestration-boundary.mjs",
-    "genesis:g81-production-dispatch-check": "npm run genesis:g81-orchestration-check && node scripts/validate-genesis-g8-production-dispatch.mjs"
+    "genesis:g81-production-dispatch-check": "npm run genesis:g81-orchestration-check && node scripts/validate-genesis-g8-production-dispatch.mjs",
+    "genesis:g81-r9-check": "node scripts/validate-genesis-g8-discovery-repair-worker.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
