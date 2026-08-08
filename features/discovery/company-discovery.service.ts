@@ -26,6 +26,14 @@ async function activity(sessionId:string,schedulerRunId:string,type:string,title
   }
 }
 
+async function activityOnce(sessionId:string,schedulerRunId:string,dedupeKey:string,type:string,title:string,description?:string,metadata:Record<string,unknown>={}) {
+  try {
+    await databaseRequest("rpc/record_discovery_activity_once_owned", {method:"POST",body:JSON.stringify({p_session_id:sessionId,p_scheduler_run_id:schedulerRunId,p_dedupe_key:dedupeKey,p_activity_type:type,p_title:title,p_description:description??null,p_metadata:metadata})});
+  } catch (error) {
+    console.error("Discovery once-activity write failed", { sessionId, type, dedupeKey, error });
+  }
+}
+
 type DiscoveryCumulative = {
   candidatesReturned: number;
   candidatesVerified: number;
@@ -221,7 +229,7 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     const researchProgress = 40 + Math.round((archetypeIndex / archetypeTotal) * 30);
     failurePhase = "SEARCHING";
     await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"SEARCHING",p_progress:researchProgress})});
-    await activity(job.session_id,context.schedulerRunId,"ARCHETYPE_RESEARCH_STARTED",`Researching target account archetype ${archetypeIndex + 1} of ${archetypeTotal}`,`${archetype.name}: ${archetype.operatingReality}`,{archetypeIndex,archetypeTotal,archetypeName:archetype.name,targetCandidateLimit,searchPass,searchStrategy});
+    await activityOnce(job.session_id,context.schedulerRunId,`archetype-start:${searchPass}:${archetypeIndex}`,"ARCHETYPE_RESEARCH_STARTED",`Researching target account archetype ${archetypeIndex + 1} of ${archetypeTotal}`,`${archetype.name}: ${archetype.operatingReality}`,{archetypeIndex,archetypeTotal,archetypeName:archetype.name,targetCandidateLimit,searchPass,searchStrategy});
 
     const existingCompanies = await databaseRequest<Array<{ company_name: string; canonical_domain: string }>>(
       `companies?organisation_id=eq.${job.organisation_id}&campaign_id=eq.${job.campaign_id}&select=company_name,canonical_domain&limit=1000`

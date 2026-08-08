@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+const service=fs.readFileSync('features/discovery/company-discovery.service.ts','utf8');
+const openai=fs.readFileSync('lib/discovery/openai.ts','utf8');
+const sql=fs.readFileSync('supabase/migrations/0104_marketroute_g5111_company_discovery_work_unit_authority.sql','utf8');
+const checks=[]; const add=(ok,label)=>checks.push([!!ok,label]);
+add(openai.includes('isOpenAIBackgroundTerminal'),'company discovery recognises immutable terminal background checkpoints');
+add(openai.includes('baseRequestScope')&&openai.includes(':retry:'),'terminal checkpoints derive a fresh deterministic provider identity');
+add(openai.includes('OPENAI_BACKGROUND_${error.status.toUpperCase()}'),'terminal provider attempts close their governance ledger');
+add(openai.includes('terminalGeneration < 4'),'terminal retry traversal is bounded');
+add(service.includes('record_discovery_activity_once_owned'),'archetype start timeline is idempotent across background resumes');
+add(service.includes('archetype-start:${searchPass}:${archetypeIndex}'),'activity identity is scoped to pass and archetype');
+add(sql.includes('COMPANY_DISCOVERY_ARCHETYPE_RESULT_NOT_PERSISTED'),'cursor cannot advance before durable result persistence');
+add(sql.includes('COMPANY_DISCOVERY_ARCHETYPE_TOTAL_MISMATCH'),'cursor completion is fenced to persisted plan cardinality');
+add(sql.includes("metadata_json->>'dedupeKey'=p_dedupe_key"),'timeline dedupe is database enforced');
+const failed=checks.filter(([ok])=>!ok); for(const [ok,label] of checks) console.log(`${ok?'PASS':'FAIL'} ${label}`); if(failed.length) process.exit(1);
+console.log('MarketRoute G5.1.11 Company Discovery work-unit authority validation passed');

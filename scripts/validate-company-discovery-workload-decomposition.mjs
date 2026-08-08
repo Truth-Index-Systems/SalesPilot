@@ -33,7 +33,7 @@ add(openai.includes('company-discovery/v5-bounded-archetype'),'bounded archetype
 add(openai.includes('maxItems: boundedLimit'),'structured output candidate count is bounded');
 add(openai.includes('minItems: 0'),'zero-result archetype is permitted rather than fabricating candidates');
 add(openai.includes('Complete only this unit of work'),'model cannot broaden into unscheduled archetypes');
-add(openai.includes('max_output_tokens: 5_500'),'bounded unit reduces output envelope');
+add(openai.includes('max_output_tokens: profile.maxOutputTokens'),'bounded unit uses the central workload-profile output envelope');
 add(openai.includes('safeWholePassEstimate / Math.max(1, input.archetypeTotal ?? 1)'),'AI governance estimate is divided across bounded units');
 add(service.includes('p_stage:"VERIFYING"'),'bounded unit exposes verification stage to UI');
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
+import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending, isOpenAIBackgroundTerminal } from "@/lib/ai/background-response";
 
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
@@ -119,14 +119,23 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
   const jsonSchema = companyDiscoveryJsonSchemaFor(targetCandidateLimit);
   const compactInput = compactCompanyDiscoveryInput(input, { evidenceLimit: profile.evidenceLimit, depth: profile.depth });
   const fingerprint = stableFingerprint({ prompt: profile.promptVersion, cacheKey: aiPromptCacheKey("COMPANY_DISCOVERY"), model, compactInput, targetCandidateLimit, archetypeIndex: input.archetypeIndex ?? 0 });
+  const baseRequestScope = `company-discovery:${fingerprint}`;
   const wholePassEstimate = Number(process.env.SALESPILOT_COMPANY_DISCOVERY_ESTIMATED_COST_USD ?? "0.25");
   const safeWholePassEstimate = Number.isFinite(wholePassEstimate) && wholePassEstimate > 0 ? wholePassEstimate : 0.25;
   const estimatedCostUsd = Math.max(0.01, safeWholePassEstimate / Math.max(1, input.archetypeTotal ?? 1));
-  const reservation = await reserveAiRequest({ organisationId: input.organisationId, campaignId: input.campaignId, schedulerRunId: input.schedulerRunId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${fingerprint}`, model, estimatedCostUsd });
   const requestTimeoutMs = aiRequestTimeoutMs("COMPANY_DISCOVERY");
-  let response: Response;
-  try {
-    response = await fetchResumableOpenAIResponse({ apiKey, task: "COMPANY_DISCOVERY", organisationId: input.organisationId, campaignId: input.campaignId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${fingerprint}`, model, ledgerId: reservation.ledgerId }, {
+  let requestScope = baseRequestScope;
+  let lastTerminalError: Error | null = null;
+
+  // G5.1.11 authority rule: terminal provider checkpoints are immutable evidence,
+  // not retryable work. Traverse a bounded deterministic retry chain so the same
+  // archetype can receive a fresh provider request without ever advancing the
+  // persisted archetype cursor until a valid result has been saved.
+  for (let terminalGeneration = 0; terminalGeneration < 4; terminalGeneration += 1) {
+    const reservation = await reserveAiRequest({ organisationId: input.organisationId, campaignId: input.campaignId, schedulerRunId: input.schedulerRunId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope, model, estimatedCostUsd });
+    let response: Response;
+    try {
+      response = await fetchResumableOpenAIResponse({ apiKey, task: "COMPANY_DISCOVERY", organisationId: input.organisationId, campaignId: input.campaignId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope, model, ledgerId: reservation.ledgerId }, {
     method: "POST",
     cache: "no-store",
     signal: AbortSignal.timeout(requestTimeoutMs),
@@ -178,28 +187,35 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
       max_output_tokens: profile.maxOutputTokens,
       store: false,
     }),
-    });
-  } catch (error) {
-    if (isOpenAIBackgroundPending(error)) throw error;
-    const transport = classifyOpenAITransportError(error, "COMPANY_DISCOVERY", requestTimeoutMs);
-    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, errorCode: transport.code, errorMessage: transport.error.message }).catch(()=>undefined);
-    throw transport.error;
-  }
+      });
+    } catch (error) {
+      if (isOpenAIBackgroundPending(error)) throw error;
+      if (isOpenAIBackgroundTerminal(error)) {
+        const reason = error.providerReason ?? `Provider response ended ${error.status}`;
+        await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, responseId: error.responseId, errorCode: `OPENAI_BACKGROUND_${error.status.toUpperCase()}`, errorMessage: reason }).catch(()=>undefined);
+        lastTerminalError = new Error(`OPENAI_DISCOVERY_BACKGROUND_TERMINAL:${error.status}:${reason}`);
+        requestScope = `${baseRequestScope}:retry:${stableFingerprint({ previousScope: requestScope, responseId: error.responseId })}`;
+        continue;
+      }
+      const transport = classifyOpenAITransportError(error, "COMPANY_DISCOVERY", requestTimeoutMs);
+      await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, errorCode: transport.code, errorMessage: transport.error.message }).catch(()=>undefined);
+      throw transport.error;
+    }
 
-  const json: unknown = await response.json().catch(() => null);
-  if (!response.ok) {
-    const errorResponse = json as { error?: unknown } | null;
-    await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), webSearchCalls: 1, durationMs: Date.now()-startedAt, responseId: typeof (json as any)?.id === "string" ? (json as any).id : null, errorCode: `HTTP_${response.status}`, errorMessage: JSON.stringify(errorResponse?.error ?? null) }).catch(()=>undefined);
-    throw new Error(`OPENAI_DISCOVERY_FAILED:${response.status}:${JSON.stringify(errorResponse?.error ?? null)}`);
-  }
-  const responseId = typeof (json as any)?.id === "string" ? (json as any).id : null;
-  const responseStatus = typeof (json as any)?.status === "string" ? (json as any).status : null;
-  const incompleteReason = typeof (json as any)?.incomplete_details?.reason === "string"
+    const json: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+      const errorResponse = json as { error?: unknown } | null;
+      await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), webSearchCalls: 1, durationMs: Date.now()-startedAt, responseId: typeof (json as any)?.id === "string" ? (json as any).id : null, errorCode: `HTTP_${response.status}`, errorMessage: JSON.stringify(errorResponse?.error ?? null) }).catch(()=>undefined);
+      throw new Error(`OPENAI_DISCOVERY_FAILED:${response.status}:${JSON.stringify(errorResponse?.error ?? null)}`);
+    }
+    const responseId = typeof (json as any)?.id === "string" ? (json as any).id : null;
+    const responseStatus = typeof (json as any)?.status === "string" ? (json as any).status : null;
+    const incompleteReason = typeof (json as any)?.incomplete_details?.reason === "string"
     ? (json as any).incomplete_details.reason
     : null;
 
-  if (responseStatus === "incomplete") {
-    await completeAiRequest({
+    if (responseStatus === "incomplete") {
+      await completeAiRequest({
       ledgerId: reservation.ledgerId,
       ok: false,
       usage: responseUsage(json),
@@ -209,27 +225,35 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
       errorCode: "INCOMPLETE_RESPONSE",
       errorMessage: incompleteReason ?? "OpenAI returned an incomplete company-discovery response",
     }).catch(()=>undefined);
-    throw new Error(`OPENAI_DISCOVERY_INCOMPLETE:${incompleteReason ?? "UNKNOWN"}`);
-  }
+      if (responseId) {
+        lastTerminalError = new Error(`OPENAI_DISCOVERY_INCOMPLETE:${incompleteReason ?? "UNKNOWN"}`);
+        requestScope = `${baseRequestScope}:retry:${stableFingerprint({ previousScope: requestScope, responseId })}`;
+        continue;
+      }
+      throw new Error(`OPENAI_DISCOVERY_INCOMPLETE:${incompleteReason ?? "UNKNOWN"}`);
+    }
 
-  let parsed: ReturnType<typeof CompanyDiscoveryResultSchema.parse>;
-  try {
+    let parsed: ReturnType<typeof CompanyDiscoveryResultSchema.parse>;
+    try {
     const gateway = await parseStructuredAiResponse({ response: json, schema: CompanyDiscoveryGatewaySchema, jsonSchema: jsonSchema, schemaName: "salespilot_company_discovery_v2", apiKey, model });
     parsed = canonicaliseCompanyDiscoveryOutput(gateway.value);
   } catch (error) {
-    await discardOpenAIBackgroundResponse({ organisationId: input.organisationId, campaignId: input.campaignId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${fingerprint}` }).catch(()=>undefined);
+      await discardOpenAIBackgroundResponse({ organisationId: input.organisationId, campaignId: input.campaignId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope }).catch(()=>undefined);
     const safe = safeStructuredAiError(error);
     await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), webSearchCalls: 1, durationMs: Date.now()-startedAt, responseId, errorCode: safe.code, errorMessage: safe.message }).catch(()=>undefined);
     throw new Error(`DISCOVERY_RESPONSE_${safe.code}`);
   }
 
-  await completeAiRequest({
-    ledgerId: reservation.ledgerId,
-    ok: true,
-    usage: responseUsage(json),
-    webSearchCalls: 1,
-    durationMs: Date.now()-startedAt,
-    responseId,
-  });
-  return normaliseDiscoveryResult(parsed, { customerWebsite: input.customerWebsite });
+    await completeAiRequest({
+      ledgerId: reservation.ledgerId,
+      ok: true,
+      usage: responseUsage(json),
+      webSearchCalls: 1,
+      durationMs: Date.now()-startedAt,
+      responseId,
+    });
+    return normaliseDiscoveryResult(parsed, { customerWebsite: input.customerWebsite });
+  }
+
+  throw lastTerminalError ?? new Error("OPENAI_DISCOVERY_TERMINAL_RETRY_LIMIT");
 }

@@ -122,7 +122,8 @@
     "marketroute:g515-check": "node scripts/validate-marketroute-g515-anonymous-governance-identity.mjs",
     "marketroute:g516-check": "node scripts/validate-marketroute-g516-business-analysis-decomposition.mjs",
     "marketroute:g518-check": "node scripts/validate-marketroute-g518-business-analysis-stage-contract.mjs",
-    "marketroute:g519-check": "node scripts/validate-marketroute-g519-business-analysis-hardening.mjs"
+    "marketroute:g519-check": "node scripts/validate-marketroute-g519-business-analysis-hardening.mjs",
+    "marketroute:g5111-check": "node scripts/validate-marketroute-g5111-company-discovery-authority.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
