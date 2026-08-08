@@ -2,13 +2,26 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createBusinessAnalysisJob, getBusinessAnalysisJob } from "@/lib/intelligence/business-analysis-jobs";
 import { normaliseBusinessAnalysis } from "@/lib/intelligence/fit-score";
-import { consumeRequestLimit } from "@/lib/security/request-guard";
+import { consumeAnonymousAnalysisAllowance, readAnonymousAnalysisAllowance, resolveAnonymousVisitor } from "@/lib/security/request-guard";
 import { getCurrentUser } from "@/lib/auth/current-user";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const StartSchema = z.object({ website: z.string().trim().min(3).max(500) });
+
+function attachAnonymousVisitorCookie(response: NextResponse, visitor: ReturnType<typeof resolveAnonymousVisitor>) {
+  if (visitor.cookieValue) {
+    response.cookies.set(visitor.cookieName, visitor.cookieValue, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: visitor.cookieMaxAge,
+    });
+  }
+  return response;
+}
 
 function publicJob(job: Awaited<ReturnType<typeof getBusinessAnalysisJob>>) {
   if (!job) return null;
@@ -62,23 +75,50 @@ function publicJob(job: Awaited<ReturnType<typeof getBusinessAnalysisJob>>) {
   };
 }
 
+export async function GET(request: Request) {
+  try {
+    const user = await getCurrentUser();
+    if (user) return NextResponse.json({ ok: true, authenticated: true, allowance: null }, { headers: { "Cache-Control": "no-store" } });
+
+    const visitor = resolveAnonymousVisitor(request);
+    const allowance = await readAnonymousAnalysisAllowance(visitor);
+    return attachAnonymousVisitorCookie(
+      NextResponse.json({ ok: true, authenticated: false, allowance }, { headers: { "Cache-Control": "no-store" } }),
+      visitor,
+    );
+  } catch (error) {
+    console.error("Anonymous analysis allowance lookup failed", error);
+    return NextResponse.json({ ok: false, error: { code: "ALLOWANCE_UNAVAILABLE", title: "Allowance could not be loaded", message: "MarketRoute could not load the complimentary analysis allowance.", hint: "You can still sign in to continue." } }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+}
+
 export async function POST(request: Request) {
+  let visitor: ReturnType<typeof resolveAnonymousVisitor> | null = null;
   try {
     const input = StartSchema.parse(await request.json());
     const user = await getCurrentUser();
+    let allowance = null;
+
     if (!user) {
-      const allowed = await consumeRequestLimit(request, "PUBLIC_BUSINESS_ANALYSIS", 5, 24 * 60 * 60);
-      if (!allowed) {
-        return NextResponse.json({ ok: false, error: { code: "ANALYSIS_LIMIT_REACHED", title: "Analysis limit reached", message: "This connection has reached the public analysis limit for today.", hint: "Sign in to continue working in your MarketRoute workspace." } }, { status: 429 });
+      visitor = resolveAnonymousVisitor(request);
+      const consumed = await consumeAnonymousAnalysisAllowance(request, visitor);
+      allowance = consumed.allowance;
+      if (!consumed.allowed) {
+        return attachAnonymousVisitorCookie(
+          NextResponse.json({ ok: false, allowance, error: { code: "ANALYSIS_LIMIT_REACHED", title: "Your complimentary analyses are complete", message: `You have used your ${allowance.limit} complimentary website analyses.`, hint: "Create an account or sign in to continue with MarketRoute." } }, { status: 429 }),
+          visitor,
+        );
       }
     }
+
     const created = await createBusinessAnalysisJob(input.website);
-    return NextResponse.json({ ok: true, job: publicJob(created.job), accessToken: created.accessToken }, { status: 202, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+    const response = NextResponse.json({ ok: true, job: publicJob(created.job), accessToken: created.accessToken, allowance }, { status: 202, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+    return visitor ? attachAnonymousVisitorCookie(response, visitor) : response;
   } catch (error) {
     console.error("Business analysis job creation failed", error);
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ ok: false, error: { code: "INVALID_REQUEST", title: "Check the website address", message: "Please enter a valid company website.", hint: "Enter an address such as yourcompany.com." } }, { status: 400 });
-    }
-    return NextResponse.json({ ok: false, error: { code: "SERVICE_UNAVAILABLE", title: "Analysis could not be started", message: "MarketRoute could not save the analysis job.", hint: "Please try again in a moment." } }, { status: 503 });
+    const response = error instanceof z.ZodError
+      ? NextResponse.json({ ok: false, error: { code: "INVALID_REQUEST", title: "Check the website address", message: "Please enter a valid company website.", hint: "Enter an address such as yourcompany.com." } }, { status: 400 })
+      : NextResponse.json({ ok: false, error: { code: "SERVICE_UNAVAILABLE", title: "Analysis could not be started", message: "MarketRoute could not save the analysis job.", hint: "Please try again in a moment." } }, { status: 503 });
+    return visitor ? attachAnonymousVisitorCookie(response, visitor) : response;
   }
 }

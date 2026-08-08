@@ -37,9 +37,11 @@ type AnalysisJob = {
   analysis: AiEnvelope<BusinessDnaPayload> | null;
 };
 
+type AnonymousAllowance = { limit: number; used: number; remaining: number };
+
 type AnalysisJobResponse =
-  | { ok: true; job: AnalysisJob; accessToken?: string }
-  | { ok: false; error: DiscoveryError };
+  | { ok: true; job: AnalysisJob; accessToken?: string; allowance?: AnonymousAllowance | null }
+  | { ok: false; error: DiscoveryError; allowance?: AnonymousAllowance | null };
 
 type SavedAnalysisJob = { jobId: string; accessToken: string; savedAt: number };
 
@@ -127,7 +129,7 @@ function readCampaignDraft(): CampaignDraft | null {
   }
 }
 
-export function CampaignWizard() {
+export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: boolean }) {
   const router = useRouter();
 
   const [step, setStep] = useState(0);
@@ -143,6 +145,19 @@ export function CampaignWizard() {
   const [analysisJob, setAnalysisJob] = useState<AnalysisJob | null>(null);
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState<LaunchError | null>(null);
+  const [anonymousAllowance, setAnonymousAllowance] = useState<AnonymousAllowance | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated) return;
+    let cancelled = false;
+    fetch("/api/intelligence/business-discovery", { method: "GET", cache: "no-store" })
+      .then(response => response.json())
+      .then(data => {
+        if (!cancelled && data?.ok && data?.allowance) setAnonymousAllowance(data.allowance as AnonymousAllowance);
+      })
+      .catch(reason => console.warn("Anonymous analysis allowance could not be loaded", reason));
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const draft = readCampaignDraft();
@@ -338,6 +353,7 @@ export function CampaignWizard() {
         body: JSON.stringify({ website: normalisedUrl }),
       });
       const data = (await response.json()) as AnalysisJobResponse;
+      if (data.allowance) setAnonymousAllowance(data.allowance);
       if (!data.ok || !data.accessToken) {
         setError(data.ok ? { code: "ANALYSIS_FAILED", title: "Analysis could not start", message: "The saved analysis token was not returned.", hint: "Please try again." } : data.error);
         return;
@@ -477,6 +493,16 @@ export function CampaignWizard() {
               route to potential customers.
             </p>
 
+            {!isAuthenticated && anonymousAllowance && (
+              <div className={`anonymous-analysis-balance ${anonymousAllowance.remaining === 0 ? "is-empty" : ""}`} aria-live="polite">
+                <Sparkles size={16} />
+                <div>
+                  <strong>{anonymousAllowance.remaining > 0 ? `${anonymousAllowance.remaining} complimentary website ${anonymousAllowance.remaining === 1 ? "analysis" : "analyses"} remaining` : "Complimentary analyses complete"}</strong>
+                  <span>{anonymousAllowance.remaining > 0 ? "Explore MarketRoute before creating an account." : "Create an account or sign in to keep building your route to customers."}</span>
+                </div>
+              </div>
+            )}
+
             <div className="field section">
               <label>Company website</label>
 
@@ -522,7 +548,12 @@ export function CampaignWizard() {
                     <span>{error.hint}</span>
                   </div>
 
-                  {error.code.startsWith("AI_") ? (
+                  {error.code === "ANALYSIS_LIMIT_REACHED" ? (
+                    <div className="website-error-actions">
+                      <button className="button primary website-error-action" type="button" onClick={() => router.push(`/sign-up?next=${encodeURIComponent("/campaigns/new")}`)}>Create account</button>
+                      <button className="button secondary website-error-action" type="button" onClick={() => router.push(`/sign-in?next=${encodeURIComponent("/campaigns/new")}`)}>Sign in</button>
+                    </div>
+                  ) : error.code.startsWith("AI_") ? (
                     <button
                       className="button secondary website-error-action"
                       type="button"

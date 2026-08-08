@@ -23,7 +23,13 @@ const workflow = [
   { title: "Outreach prepared", copy: "You get a clear opportunity and a personalised first move to review." },
 ];
 
-const founderMoments = ["Finding your first customers", "Testing a new market", "Building founder-led sales", "Growing without a sales team", "Creating repeatable outbound"];
+const founderMoments = [
+  "Find first customers",
+  "Test a new market",
+  "Build founder-led sales",
+  "Grow before hiring sales",
+  "Make outbound repeatable",
+];
 
 export function PublicLanding() {
   return <div className="public-site">
@@ -84,8 +90,13 @@ export function PublicLanding() {
       </section>
 
       <section className="public-industry-strip" aria-label="Founder use cases">
-        <span>Made for the moments startups need growth</span>
-        <div>{founderMoments.map(moment => <strong key={moment}>{moment}</strong>)}</div>
+        <div className="public-industry-intro">
+          <span>Built for early growth</span>
+          <strong>From first customer to repeatable outbound.</strong>
+        </div>
+        <div className="public-founder-moments">
+          {founderMoments.map(moment => <div className="public-founder-moment" key={moment}><i aria-hidden="true"/><strong>{moment}</strong></div>)}
+        </div>
       </section>
 
       <section className="public-section" id="how-it-works">
