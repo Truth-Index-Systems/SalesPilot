@@ -25,7 +25,8 @@ export type GenesisG8EligibilityReason =
   | "LOW_TRUTH_INDEX"
   | "LOW_CONFIDENCE"
   | "LOW_COVERAGE"
-  | "NONCRITICAL_GAPS";
+  | "NONCRITICAL_GAPS"
+  | "HUMAN_APPROVED_OVERRIDE";
 
 export interface GenesisG8EligibilityPolicy {
   readyTruthIndex: number;
@@ -118,6 +119,13 @@ export function evaluateGenesisG8KnowledgeEligibility(
 
   if (hydrated.entity.reviewState === "HUMAN_REJECTED") {
     return result(hydrated, "NOT_USABLE", "DISCOVERY_ONLY", ["HUMAN_REJECTED"], allGaps, []);
+  }
+
+  // Founder approval is an eligibility override, never a Truth override. The
+  // mathematical score and gaps remain unchanged and can continue to be repaired
+  // in the background, but the approved intelligence may be used operationally.
+  if (hydrated.entity.reviewState === "HUMAN_APPROVED") {
+    return result(hydrated, "READY_WITH_GAPS", "USE_KNOWLEDGE_WITH_GAP_REPAIR", ["HUMAN_APPROVED_OVERRIDE"], [], allGaps);
   }
 
   if (hydrated.entity.reviewState === "NEEDS_REVIEW") {

@@ -31,3 +31,7 @@ export * from "./orchestration-boundary";
 export * from "./production-dispatch";
 export * from "./discovery-repair-openai";
 export * from "./discovery-repair-worker";
+
+export * from "./repair-replanning";
+
+export * from "./founder-review-resolution";

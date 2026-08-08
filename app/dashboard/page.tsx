@@ -37,6 +37,34 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
       </section>
 
 
+      <section className="founder-panel founder-g8-review-panel">
+        <div className="founder-panel-head"><div><span>Genesis G8</span><h2>Human intelligence review</h2></div><strong>{data.g8ReviewSummary.open} open</strong></div>
+        <div className="founder-g8-review-summary">
+          <span>Approved <b>{data.g8ReviewSummary.approved}</b></span>
+          <span>Corrected <b>{data.g8ReviewSummary.corrected}</b></span>
+          <span>More research <b>{data.g8ReviewSummary.moreResearch}</b></span>
+          <span>Rejected <b>{data.g8ReviewSummary.rejected}</b></span>
+        </div>
+        <div className="founder-g8-review-list">
+          {data.g8ReviewQueue.length?data.g8ReviewQueue.map(task=><article key={task.id} className="founder-g8-review-card">
+            <div className="founder-g8-review-copy"><div><span>{task.entity_type.replaceAll("_"," ")}</span><h3>{task.displayName}</h3><small>{task.canonicalKey}</small></div><div className="founder-g8-score"><b>{Number(task.truth_index).toFixed(1)}</b><small>Truth Index</small></div></div>
+            <div className="founder-g8-score-row"><span>Confidence <b>{Number(task.confidence).toFixed(1)}%</b></span><span>Coverage <b>{Number(task.coverage).toFixed(1)}%</b></span></div>
+            <p className="founder-g8-reasons">{task.reasons.length?task.reasons.map(String).join(" · "):"Human judgement requested"}</p>
+            {task.claimKeys.length?<p className="founder-g8-claims">Claims: {task.claimKeys.map(String).join(", ")}</p>:null}
+            <form method="post" action={`/dashboard/genesis-g8/reviews/${task.id}/resolve`} className="founder-g8-review-form">
+              <input type="text" name="note" placeholder="Optional note — required when correcting" />
+              <input type="hidden" name="reasonCode" value="FOUNDER_DASHBOARD" />
+              <div className="founder-g8-review-actions">
+                <button name="action" value="APPROVE" type="submit">Approve</button>
+                <button name="action" value="CORRECT" type="submit">Correct</button>
+                <button name="action" value="MORE_RESEARCH" type="submit">More research</button>
+                <button name="action" value="REJECT" type="submit" className="danger">Reject</button>
+              </div>
+            </form>
+          </article>):<div className="founder-empty">No Genesis G8 decisions currently need human judgement.</div>}
+        </div>
+      </section>
+
       <section className="founder-metric-grid founder-economics-grid">
         <article><span>Cost / opportunity</span><strong>{money(data.economics.costPerOpportunity)}</strong><small>{data.economics.completedOpportunities} approved or engaged</small></article>
         <article><span>Cost / review-ready</span><strong>{money(data.economics.costPerReviewReady)}</strong><small>{data.economics.reviewReadyEngagements} engagements reached review</small></article>

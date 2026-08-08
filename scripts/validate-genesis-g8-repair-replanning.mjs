@@ -1,0 +1,38 @@
+import fs from "node:fs";
+const checks=[]; const add=(ok,label)=>checks.push({ok:Boolean(ok),label});
+const replan=fs.readFileSync("lib/genesis-g8/repair-replanning.ts","utf8");
+const worker=fs.readFileSync("lib/genesis-g8/discovery-repair-worker.ts","utf8");
+const migration=fs.readFileSync("supabase/migrations/0112_genesis_g81_release10_repair_completion_replanning.sql","utf8");
+const route=fs.readFileSync("app/api/autonomy/genesis-g8/replans/run/route.ts","utf8");
+const root=fs.readFileSync("lib/genesis-g8/index.ts","utf8");
+
+add(replan.includes('G8.1-R10-REPLAN-1.0'),"R10 replan worker is versioned");
+add(worker.includes('complete_genesis_g8_repair_and_enqueue_replan'),"R9 completion durably enqueues R10 replanning");
+add(!worker.includes('settleRepair(job, "COMPLETED"'),"R9 completed path no longer risks losing replanning after settlement");
+add(replan.includes('retrieveGenesisG8KnowledgeById'),"R10 rehydrates current persisted Knowledge");
+add(replan.includes('planGenesisG8DualChannelWork'),"R10 reuses deterministic R6 planning");
+add(replan.includes('buildGenesisG8ExecutionEnvelope'),"R10 reuses R7 orchestration boundary");
+add(replan.includes('dispatchGenesisG8ExecutionEnvelope'),"R10 dispatches only through R8 production adapter");
+add(replan.includes('fingerprintGenesisG8ReplanState'),"material Truth/gap state is fingerprinted");
+add(replan.includes('createHash("sha256")'),"state fingerprint is deterministic");
+add(replan.includes('NON_BLOCKING_STALLED'),"non-blocking unchanged gaps stop autonomous spend safely");
+add(replan.includes('BLOCKING_BEFORE_USE') && replan.includes('humanEscalationPlan'),"blocking stalled work escalates to human review");
+add(replan.includes('NO_VERIFIABLE_EVIDENCE_FOUND'),"no-evidence outcome cannot trigger blind repeated research");
+add(replan.includes(':r10:${fingerprint}'),"changed-state repair/review dispatch gets cycle-scoped idempotency");
+add(!replan.includes('researchGenesisG8ClaimRepair') && !replan.includes('web_search_preview'),"R10 never performs research itself");
+add(migration.includes('create table if not exists public.genesis_g8_replan_queue'),"R10 replanning is durable");
+add(migration.includes('create table if not exists public.genesis_g8_replan_cycles'),"R10 records autonomous improvement cycles");
+add(migration.includes('unique(entity_id,state_fingerprint)'),"unchanged state cannot form an infinite loop");
+add(migration.includes('for update skip locked'),"R10 replan claiming is concurrency-safe");
+add(migration.includes('lease_token') && migration.includes('lease_expires_at'),"R10 replans are lease fenced");
+add(migration.includes('source_repair_id uuid not null unique'),"one completed repair creates at most one durable replan job");
+add(migration.includes("p_status not in ('COMPLETED','QUEUED','FAILED')"),"R10 replan lifecycle is bounded");
+add(migration.includes('make_interval'),"R10 retry backoff is bounded");
+add(root.includes('export * from "./repair-replanning"'),"R10 exported from G8 root");
+add(route.includes('runGenesisG8RepairReplanWorker(4)'),"R10 exposes a bounded protected worker endpoint");
+add(route.includes('CRON_SECRET') && route.includes('timingSafeEqual'),"R10 endpoint uses existing cron-secret authentication pattern");
+add(!fs.readFileSync("vercel.json","utf8").includes('/api/autonomy/genesis-g8/replans/run'),"R10 does not silently add scheduled production load");
+
+for(const c of checks) console.log(`${c.ok?'PASS':'FAIL'} ${c.label}`);
+const failed=checks.filter(c=>!c.ok); if(failed.length) process.exit(1);
+console.log(`\nGenesis G8.1 Repair Completion & Replanning validation passed (${checks.length}/${checks.length}).`);

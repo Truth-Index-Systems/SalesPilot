@@ -130,7 +130,15 @@ async function runRepair(job: RepairJob): Promise<GenesisG8RepairWorkerReceipt> 
     }
 
     const hydrated = await hydrateGenesisG8EntityTruth(job.entity_id, { persistIfChanged: true });
-    await settleRepair(job, "COMPLETED", result.evidence.length === 0 ? "NO_VERIFIABLE_EVIDENCE_FOUND" : null);
+    await databaseRequest("rpc/complete_genesis_g8_repair_and_enqueue_replan", {
+      method: "POST",
+      body: JSON.stringify({
+        p_repair_id: job.id,
+        p_lease_token: job.lease_token,
+        p_evidence_found: result.evidence.length > 0,
+        p_requested_by_user_id: null,
+      }),
+    });
     return {
       repairId: job.id,
       entityId: job.entity_id,
