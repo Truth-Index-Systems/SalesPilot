@@ -43,7 +43,7 @@ add(scheduler.includes('acquirePipelineSchedulerLease') && scheduler.includes('p
 add(scheduler.includes('runG5AutopilotApproval') && scheduler.includes('runG5ExecutionCycle'),'approval/execution remain deterministic workers');
 
 add(business.includes('business-discovery/v3-responsibility-boundary') && bizOut.includes('business-discovery/v3-responsibility-boundary'),'business prompt version is canonicalised');
-add(discovery.includes('company-discovery/v4-responsibility-boundary'),'company discovery fingerprint/version updated');
+add(discovery.includes('company-discovery/v5-bounded-archetype'),'company discovery fingerprint/version updated');
 add(contacts.includes('contact-discovery/v5-responsibility-boundary'),'contact/route fingerprint/version updated');
 add(reasoning.includes('g5-commercial-reasoning/v3-responsibility-boundary'),'commercial reasoning prompt updated');
 add(channel.includes('g5-channel-strategy/v3-responsibility-boundary'),'channel prompt updated');

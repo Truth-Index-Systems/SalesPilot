@@ -18,7 +18,9 @@ const scoreSchema = {
   maximum: 100,
 } as const;
 
-const companyDiscoveryJsonSchema = {
+function companyDiscoveryJsonSchemaFor(limit: number) {
+  const boundedLimit = Math.max(1, Math.min(5, Math.floor(limit)));
+  return {
   type: "object",
   additionalProperties: false,
   required: ["schemaVersion", "searchSummary", "companies"],
@@ -27,8 +29,8 @@ const companyDiscoveryJsonSchema = {
     searchSummary: { type: "string" },
     companies: {
       type: "array",
-      minItems: 1,
-      maxItems: 12,
+      minItems: 0,
+      maxItems: boundedLimit,
       items: {
         type: "object",
         additionalProperties: false,
@@ -84,6 +86,7 @@ const companyDiscoveryJsonSchema = {
     },
   },
 } as const;
+}
 
 type DiscoverCompaniesInput = {
   organisationId: string;
@@ -97,6 +100,9 @@ type DiscoverCompaniesInput = {
   searchPass?: number;
   searchStrategy?: string;
   searchPlan: CompanySearchPlan;
+  targetCandidateLimit?: number;
+  archetypeIndex?: number;
+  archetypeTotal?: number;
 };
 
 export async function discoverCompanies(input: DiscoverCompaniesInput) {
@@ -105,9 +111,15 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
 
   const model = resolveOpenAIModel("analysis").model;
   const startedAt = Date.now();
+  const requestedLimit = Number(input.targetCandidateLimit ?? 4);
+  const targetCandidateLimit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(5, Math.floor(requestedLimit))) : 4;
+  const jsonSchema = companyDiscoveryJsonSchemaFor(targetCandidateLimit);
   const compactInput = compactCompanyDiscoveryInput(input);
-  const fingerprint = stableFingerprint({ prompt: "company-discovery/v4-responsibility-boundary", model, compactInput });
-  const reservation = await reserveAiRequest({ organisationId: input.organisationId, campaignId: input.campaignId, schedulerRunId: input.schedulerRunId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${fingerprint}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_COMPANY_DISCOVERY_ESTIMATED_COST_USD ?? "0.25") });
+  const fingerprint = stableFingerprint({ prompt: "company-discovery/v5-bounded-archetype", model, compactInput, targetCandidateLimit, archetypeIndex: input.archetypeIndex ?? 0 });
+  const wholePassEstimate = Number(process.env.SALESPILOT_COMPANY_DISCOVERY_ESTIMATED_COST_USD ?? "0.25");
+  const safeWholePassEstimate = Number.isFinite(wholePassEstimate) && wholePassEstimate > 0 ? wholePassEstimate : 0.25;
+  const estimatedCostUsd = Math.max(0.01, safeWholePassEstimate / Math.max(1, input.archetypeTotal ?? 1));
+  const reservation = await reserveAiRequest({ organisationId: input.organisationId, campaignId: input.campaignId, schedulerRunId: input.schedulerRunId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${fingerprint}`, model, estimatedCostUsd });
   const requestTimeoutMs = aiRequestTimeoutMs("COMPANY_DISCOVERY");
   let response: Response;
   try {
@@ -127,7 +139,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
         "ACCOUNTABLE FOR: Build and qualify the prospect territory under the approved campaign. Treat sales capacity as scarce. Return a company only when you would be willing to allocate a capable account executive's time to it. Balance market coverage, commercial fit, diversity and evidence quality rather than maximising candidate count.",
         "ADVISES BUT DOES NOT DECIDE: You may assess account fit, explain evidence and recommend which discovered companies deserve attention. You do NOT approve/reject companies in workflow state, choose contacts, choose routes/channels, set scheduler priority, decide Opportunity readiness, or create outreach. SalesPilot validates/persists; later executives own account access and engagement.",
         "OUT OF SCOPE / HAND OFF: Your question is 'Is this a commercially attractive account under this campaign?' not 'How do we get in?' Never reject an otherwise strong account merely because an obvious contact or email is unavailable; Account Mapping / Route Intelligence owns reachability. Do not perform buying-committee mapping or invent a route to make an account look actionable.",
-        "SEARCH METHOD: First translate the campaign into observable market signals. Search through several independent lenses where supported: industry, operating model, organisational complexity, geography, trigger conditions and likely buyer environment. Build a broad candidate pool before proving individual candidates.",
+        "SEARCH METHOD: The deterministic market plan has already selected one bounded target-account archetype for this request. Research that archetype deeply enough to identify a small number of genuinely supported accounts. Do not broaden into the other archetypes; SalesPilot schedules those independently.",
         "FALSIFICATION: For every candidate ask what strongest available evidence suggests it may NOT be a good prospect. Reflect that honestly in fit scores, uncertainties and riskFlags. Do not rescue a weak candidate simply because it resembles the requested ICP.",
         "ANTI-ICP: Actively avoid companies that are superficially similar but lack the operating reality, scale, geography, audience or commercial conditions that make the campaign relevant.",
         "Search for companies experiencing the operating reality, not companies selling similarly named products or using the seller's product-category language.",
@@ -136,15 +148,15 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
         "Exclude the customer's own company, directories, agencies listing clients, news aggregators and duplicate domains.",
         "Never return a company present in excludedCompanies. Treat both canonical domain and company name as already researched.",
         "Score industry fit, audience fit, operational fit, geography fit and commercial fit independently. Do not allow one strong dimension to conceal a serious mismatch in another.",
-        "Return 10-12 diverse candidates when genuinely supported so the verifier has breadth, but never manufacture a marginal candidate to hit a number.",
-        "Distribute candidates across multiple supplied archetypes where the market supports it. Do not let one sector, keyword family or company type dominate merely because it is easy to search.",
+        `Return at most ${targetCandidateLimit} candidates for this bounded archetype. Fewer, including zero, is correct when evidence is weak; never manufacture a marginal candidate to hit the limit.`,
+        `This is archetype ${(input.archetypeIndex ?? 0) + 1} of ${Math.max(1, input.archetypeTotal ?? 1)} for the current market-search pass. Complete only this unit of work.`,
         "Evidence priority: operations/locations; careers/role descriptions; annual, sustainability or regulatory reports; procurement/supplier pages; official case studies/news; then homepage. Prefer evidence that reveals how the company actually operates.",
         input.searchPass && input.searchPass > 1
           ? `This is search pass ${input.searchPass}. Earlier search retained too few supported companies. Broaden through ${input.searchStrategy ?? "ALTERNATIVE_LANGUAGE"} while preserving the approved commercial problem, anti-ICP discipline and evidence threshold.`
           : "This is the primary market-mapping pass. Start with the approved audience, buyer language, observable operating conditions and strongest direct commercial fit.",
         "For each company include only the 1-4 strongest official-site evidence items. Keep explanations concise and decision-useful.",
         "Everything outside your accountability belongs to another executive or deterministic SalesPilot. Do not assume another role merely to complete the task.",
-        "Write calm British English. Return exact JSON only. Prompt policy: company-discovery/v4-responsibility-boundary.",
+        "Write calm British English. Return exact JSON only. Prompt policy: company-discovery/v5-bounded-archetype.",
       ].join(" "),
       input: JSON.stringify(compactInput),
       tools: [{ type: "web_search_preview", search_context_size: "medium" }],
@@ -154,13 +166,13 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
           type: "json_schema",
           name: "salespilot_company_discovery_v2",
           strict: true,
-          schema: companyDiscoveryJsonSchema,
+          schema: jsonSchema,
         },
       },
       // GPT-5 reasoning tokens share max_output_tokens with the final JSON.
-      // 9k plus low reasoning effort prevents incomplete structured responses
-      // while the tighter schema keeps actual output materially below this cap.
-      max_output_tokens: 9_000,
+      // Bounded archetype output materially reduces completion size while leaving
+      // enough room for GPT-5 reasoning plus strict JSON.
+      max_output_tokens: 5_500,
       store: false,
     }),
     });
@@ -198,7 +210,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
 
   let parsed: ReturnType<typeof CompanyDiscoveryResultSchema.parse>;
   try {
-    const gateway = await parseStructuredAiResponse({ response: json, schema: CompanyDiscoveryGatewaySchema, jsonSchema: companyDiscoveryJsonSchema, schemaName: "salespilot_company_discovery_v2", apiKey, model });
+    const gateway = await parseStructuredAiResponse({ response: json, schema: CompanyDiscoveryGatewaySchema, jsonSchema: jsonSchema, schemaName: "salespilot_company_discovery_v2", apiKey, model });
     parsed = canonicaliseCompanyDiscoveryOutput(gateway.value);
   } catch (error) {
     const safe = safeStructuredAiError(error);
