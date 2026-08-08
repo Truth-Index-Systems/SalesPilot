@@ -35,7 +35,7 @@ export async function runBusinessAnalysisJob(id:string,token:string){
   try{
     const website=await readWebsite(job.website_input);
     await updateBusinessAnalysisProgress(id,token,workerToken,"ANALYSING_BUSINESS",52,website.canonicalUrl,website.sources.length);
-    const analysis=await analyseBusiness({organisationId:job.organisation_id,jobId:job.id,website:website.canonicalUrl,sources:website.sources});
+    const analysis=await analyseBusiness({organisationId:job.organisation_id,publicAnalysis:job.requested_by===null,jobId:job.id,website:website.canonicalUrl,sources:website.sources});
     await updateBusinessAnalysisProgress(id,token,workerToken,"PREPARING_RECOMMENDATIONS",88,website.canonicalUrl,website.sources.length);
     await completeBusinessAnalysisJob(id,token,workerToken,website.canonicalUrl,website.sources.length,analysis,Date.now()-started);
     return {claimed:true as const,completed:true as const};

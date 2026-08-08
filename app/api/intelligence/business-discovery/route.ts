@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const created = await createBusinessAnalysisJob(input.website);
+    const created = await createBusinessAnalysisJob(input.website, { forceAnonymous: !user });
     const response = NextResponse.json({ ok: true, job: publicJob(created.job), accessToken: created.accessToken, allowance }, { status: 202, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
     return visitor ? attachAnonymousVisitorCookie(response, visitor) : response;
   } catch (error) {

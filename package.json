@@ -118,7 +118,8 @@
     "speed:r5-check": "node scripts/validate-speed-r5-latency-observatory.mjs",
     "marketroute:g511-check": "node scripts/validate-marketroute-g511-anonymous-allowance.mjs",
     "marketroute:g513-check": "node scripts/validate-marketroute-g513-analysis-resume.mjs",
-    "marketroute:g514-check": "node scripts/validate-marketroute-g514-public-analysis-governance.mjs"
+    "marketroute:g514-check": "node scripts/validate-marketroute-g514-public-analysis-governance.mjs",
+    "marketroute:g515-check": "node scripts/validate-marketroute-g515-anonymous-governance-identity.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

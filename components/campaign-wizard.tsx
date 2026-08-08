@@ -178,19 +178,21 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
   }, []);
 
   useEffect(() => {
+    if (!analysisJob) return;
     const stageMap: Record<string, number> = {
       QUEUED: 0,
       READING_WEBSITE: 1,
       ANALYSING_BUSINESS: 3,
       PREPARING_RECOMMENDATIONS: 6,
       COMPLETE: 6,
-      FAILED: Math.max(0, analysisStage),
     };
-    if (analysisJob) {
-      setAnalysisStage(stageMap[analysisJob.stage] ?? 0);
-      setAnalysisComplete(analysisJob.status === "COMPLETED");
-    }
-  }, [analysisJob, analysisStage]);
+    // Never let local UI history imply more progress than the durable job. If a
+    // retryable failure is persisted, derive the checklist from its saved
+    // percentage instead of keeping a stale previous stage beside a 0% badge.
+    const failedStage = analysisJob.progress >= 88 ? 6 : analysisJob.progress >= 52 ? 3 : analysisJob.progress >= 8 ? 1 : 0;
+    setAnalysisStage(analysisJob.stage === "FAILED" ? failedStage : (stageMap[analysisJob.stage] ?? failedStage));
+    setAnalysisComplete(analysisJob.status === "COMPLETED");
+  }, [analysisJob]);
 
   useEffect(() => {
     if (result) return;

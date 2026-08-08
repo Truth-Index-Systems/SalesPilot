@@ -22,7 +22,7 @@ function getConfig() {
   return { apiKey, model: resolved.model, modelSource: resolved.source };
 }
 
-export async function analyseBusiness(params: { organisationId:string|null; jobId:string; website: string; sources: WebsiteSource[] }): Promise<AiEnvelope<BusinessDnaPayload>> {
+export async function analyseBusiness(params: { organisationId:string|null; publicAnalysis?:boolean; jobId:string; website: string; sources: WebsiteSource[] }): Promise<AiEnvelope<BusinessDnaPayload>> {
   const { apiKey, model } = getConfig();
   const profile = aiWorkloadProfile("BUSINESS_ANALYSIS");
   const compactSources = params.sources.slice(0, 8).map(source => ({...source, text: source.text.slice(0, 4500)}));
@@ -94,7 +94,7 @@ QUALITY RULES:
   };
 
   const fingerprint = stableFingerprint({prompt:profile.promptVersion,cacheKey:aiPromptCacheKey("BUSINESS_ANALYSIS"),model,website:params.website,sources:compactSources});
-  const reservation = await reserveAiRequest({ organisationId: params.organisationId, jobType: "BUSINESS_ANALYSIS", jobId: params.jobId, requestScope: `business-analysis:${fingerprint}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_BUSINESS_ANALYSIS_ESTIMATED_COST_USD ?? "0.10") });
+  const reservation = await reserveAiRequest({ organisationId: params.organisationId, jobType: "BUSINESS_ANALYSIS", jobId: params.jobId, requestScope: `business-analysis:${fingerprint}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_BUSINESS_ANALYSIS_ESTIMATED_COST_USD ?? "0.10"), publicAnalysis: params.publicAnalysis === true });
   const startedAt = Date.now();
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 2; attempt += 1) {

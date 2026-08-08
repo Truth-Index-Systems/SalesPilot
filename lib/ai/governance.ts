@@ -12,6 +12,8 @@ export type AiGovernanceContext = {
   requestScope:string;
   model:string;
   estimatedCostUsd:number;
+  /** Explicit public-product lane. Do not infer this solely from organisationId. */
+  publicAnalysis?:boolean;
 };
 
 type Reservation={allowed:boolean;ledger_id:string|null;reason_code:string|null;requests_today:number;cost_today:number;request_limit:number;cost_limit:number};
@@ -50,7 +52,7 @@ export async function reserveAiRequest(context:AiGovernanceContext){
   const existing=await databaseRequest<Array<{id:string;status:string}>>(`ai_usage_ledger?request_key=eq.${encodeURIComponent(key)}&status=in.(RESERVED,SUCCEEDED)&select=id,status&limit=1`).catch(()=>[]);
   if(existing[0]?.id)return {ledgerId:existing[0].id};
   if(!platformEnabled())throw new Error("AI_GOVERNANCE_BLOCKED:PLATFORM_DISABLED");
-  const publicAnalysis = context.organisationId === null && context.jobType === "BUSINESS_ANALYSIS" && !context.campaignId;
+  const publicAnalysis = context.publicAnalysis === true || (context.organisationId === null && context.jobType === "BUSINESS_ANALYSIS" && !context.campaignId);
   const endpoint = publicAnalysis ? "rpc/reserve_public_business_analysis_ai_request" : "rpc/reserve_ai_request";
   const body = publicAnalysis
     ? {
