@@ -44,3 +44,4 @@ export * from "./knowledge-candidate-retrieval";
 export * from "./business-dna-knowledge-matching";
 
 export * from "./knowledge-discovery-merge";
+export * from "./background-refresh";
