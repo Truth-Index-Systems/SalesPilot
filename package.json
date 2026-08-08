@@ -139,7 +139,9 @@
     "genesis:g81-production-dispatch-check": "npm run genesis:g81-orchestration-check && node scripts/validate-genesis-g8-production-dispatch.mjs",
     "genesis:g81-r9-check": "node scripts/validate-genesis-g8-discovery-repair-worker.mjs",
     "genesis:g81-r10-check": "node scripts/validate-genesis-g8-repair-replanning.mjs",
-    "genesis:g81-r11-check": "node scripts/validate-genesis-g8-founder-review-resolution.mjs"
+    "genesis:g81-r11-check": "node scripts/validate-genesis-g8-founder-review-resolution.mjs",
+    "genesis:g81-r12-check": "node scripts/validate-genesis-g8-existing-discovery-acquisition.mjs",
+    "genesis:g81-r13-check": "node scripts/validate-genesis-g8-knowledge-retrieval-matching.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

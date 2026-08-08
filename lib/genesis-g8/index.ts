@@ -37,3 +37,6 @@ export * from "./repair-replanning";
 export * from "./founder-review-resolution";
 
 export * from "./discovery-acquisition-worker";
+
+export * from "./knowledge-matching";
+export * from "./knowledge-candidate-retrieval";
