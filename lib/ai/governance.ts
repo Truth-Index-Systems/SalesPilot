@@ -37,10 +37,16 @@ export function isAiGovernanceDeferred(error: unknown): boolean {
 }
 
 export async function reserveAiRequest(context:AiGovernanceContext){
+  const key=requestKey(context);
+  // A previously submitted background response is already committed provider work.
+  // Resume/polling must remain possible even if the workspace reaches its allowance
+  // or the platform gate is subsequently paused; no new model request is created.
+  const existing=await databaseRequest<Array<{id:string;status:string}>>(`ai_usage_ledger?request_key=eq.${encodeURIComponent(key)}&status=in.(RESERVED,SUCCEEDED)&select=id,status&limit=1`).catch(()=>[]);
+  if(existing[0]?.id)return {ledgerId:existing[0].id};
   if(!platformEnabled())throw new Error("AI_GOVERNANCE_BLOCKED:PLATFORM_DISABLED");
   const result=await databaseRequest<Reservation[]|Reservation>("rpc/reserve_ai_request",{method:"POST",body:JSON.stringify({
     p_organisation_id:context.organisationId,p_campaign_id:context.campaignId??null,p_scheduler_run_id:context.schedulerRunId??null,
-    p_job_type:context.jobType,p_job_id:context.jobId??null,p_request_key:requestKey(context),p_model:context.model,p_estimated_cost_usd:Math.max(0,context.estimatedCostUsd),
+    p_job_type:context.jobType,p_job_id:context.jobId??null,p_request_key:key,p_model:context.model,p_estimated_cost_usd:Math.max(0,context.estimatedCostUsd),
   })});
   const reservation=Array.isArray(result)?result[0]:result;
   if(!reservation?.allowed||!reservation.ledger_id)throw new Error(`AI_GOVERNANCE_BLOCKED:${reservation?.reason_code??"UNKNOWN"}`);

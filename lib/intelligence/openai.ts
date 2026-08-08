@@ -1,3 +1,4 @@
+import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { type AiEnvelope } from "@/lib/ai/contracts";
 import { type BusinessDnaPayload } from "@/lib/ai/schemas/business-dna";
 import { businessDiscoveryJsonSchema } from "@/lib/intelligence/business-discovery-schema";
@@ -96,7 +97,7 @@ QUALITY RULES:
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       const requestTimeoutMs = aiRequestTimeoutMs("BUSINESS_ANALYSIS");
-      const response = await fetch(ENDPOINT, {
+      const response = await fetchResumableOpenAIResponse({ apiKey, task: "BUSINESS_ANALYSIS", organisationId: params.organisationId, jobType: "BUSINESS_ANALYSIS", jobId: params.jobId, requestScope: `business-analysis:${fingerprint}`, model, ledgerId: reservation.ledgerId }, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
         body: JSON.stringify(body),
@@ -113,9 +114,11 @@ QUALITY RULES:
       await completeAiRequest({ ledgerId: reservation.ledgerId, ok: true, usage: responseUsage(json), durationMs: Date.now()-startedAt, responseId: typeof (json as any)?.id === "string" ? (json as any).id : null });
       return result;
     } catch (error) {
+      if (isOpenAIBackgroundPending(error)) throw error;
       // Structured-output failures remain schema failures; transport/HTTP failures
       // are normalised separately so timeout recovery is visible and actionable.
       if (error instanceof StructuredAiOutputError) {
+        await discardOpenAIBackgroundResponse({ organisationId: params.organisationId, jobType: "BUSINESS_ANALYSIS", jobId: params.jobId, requestScope: `business-analysis:${fingerprint}` }).catch(()=>undefined);
         const safe = safeStructuredAiError(error);
         lastError = new Error(`STRUCTURED_AI_OUTPUT_${safe.code}:${safe.message}`);
       } else {

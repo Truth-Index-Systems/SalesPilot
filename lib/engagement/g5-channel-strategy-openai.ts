@@ -1,4 +1,5 @@
 import "server-only";
+import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
@@ -104,7 +105,7 @@ export async function generateG5ChannelStrategy(input: {
 
   let response: Response;
   try {
-    response = await fetch(ENDPOINT, {
+    response = await fetchResumableOpenAIResponse({ apiKey, task: "G5_CHANNEL_STRATEGY", organisationId: input.organisationId, campaignId: input.campaignId, jobType: "COMMERCIAL_REASONING", jobId: input.strategyId, requestScope: `g5-channel-strategy:${requestFingerprint}`, model, ledgerId: reservation.ledgerId }, {
       method: "POST",
       cache: "no-store",
       signal: AbortSignal.timeout(requestTimeoutMs),
@@ -139,6 +140,7 @@ export async function generateG5ChannelStrategy(input: {
       }),
     });
   } catch (error) {
+    if (isOpenAIBackgroundPending(error)) throw error;
     const transport = classifyOpenAITransportError(error, "G5_CHANNEL_STRATEGY", requestTimeoutMs);
     await completeAiRequest({
       ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now() - startedAt,
@@ -169,6 +171,7 @@ export async function generateG5ChannelStrategy(input: {
     })).value;
     validateAgainstImmutableRoutes(parsed, input.sourceSnapshot);
   } catch (error) {
+    await discardOpenAIBackgroundResponse({ organisationId: input.organisationId, campaignId: input.campaignId, jobType: "COMMERCIAL_REASONING", jobId: input.strategyId, requestScope: `g5-channel-strategy:${requestFingerprint}` }).catch(()=>undefined);
     const safe = safeStructuredAiError(error);
     await completeAiRequest({
       ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), durationMs: Date.now() - startedAt,

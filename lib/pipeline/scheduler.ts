@@ -169,8 +169,9 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     const commercialReasoning = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
       ? await runNextG5CommercialReasoning(runId)
       : null;
+    const commercialReasoningDidNotClaim = !commercialReasoning || commercialReasoning.outcome === "NO_JOB";
     const channelStrategy = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
-      && (!commercialReasoning || !commercialReasoning.processed)
+      && commercialReasoningDidNotClaim
       ? await runNextG5ChannelStrategy(runId)
       : null;
     // G5 R5 is deterministic and state-preserving. It converts R2 safe evidence,
@@ -182,18 +183,20 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       : null;
     // R4 may run only when neither earlier G5 AI worker consumed this scheduler cycle.
     // Its SQL claim now additionally requires the persisted R5 safety manifest.
+    const channelStrategyDidNotClaim = !channelStrategy || channelStrategy.outcome === "NO_JOB";
     const outreachGeneration = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
-      && (!commercialReasoning || !commercialReasoning.processed)
-      && (!channelStrategy || !channelStrategy.processed)
+      && commercialReasoningDidNotClaim
+      && channelStrategyDidNotClaim
       ? await runNextG5OutreachGeneration(runId)
       : null;
     // R6 is the final heavyweight G5 worker in this controlled release. It may only
     // run when R2/R3/R4 did not consume the AI slot. PASS advances to approval;
     // REWRITE returns only the draft to R4; BLOCK terminates the G5 strategy.
+    const outreachGenerationDidNotClaim = !outreachGeneration || outreachGeneration.outcome === "NO_JOB";
     const engagementSelfReview: G5SelfReviewWorkerResult | null = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
-      && (!commercialReasoning || !commercialReasoning.processed)
-      && (!channelStrategy || !channelStrategy.processed)
-      && (!outreachGeneration || !outreachGeneration.processed)
+      && commercialReasoningDidNotClaim
+      && channelStrategyDidNotClaim
+      && outreachGenerationDidNotClaim
       ? await runNextG5SelfReview(runId)
       : null;
     // R7 is deterministic and runs only after R6 has produced READY_FOR_APPROVAL.

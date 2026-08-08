@@ -1,4 +1,5 @@
 import "server-only";
+import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
@@ -134,7 +135,7 @@ export async function generateG5Outreach(input: {
 
   let response: Response;
   try {
-    response = await fetch(ENDPOINT, {
+    response = await fetchResumableOpenAIResponse({ apiKey, task: "G5_OUTREACH_GENERATION", organisationId: input.organisationId, campaignId: input.campaignId, jobType: "OUTREACH", jobId: input.strategyId, requestScope: `g5-outreach-generation:${requestFingerprint}`, model, ledgerId: reservation.ledgerId }, {
       method: "POST",
       cache: "no-store",
       signal: AbortSignal.timeout(requestTimeoutMs),
@@ -173,6 +174,7 @@ export async function generateG5Outreach(input: {
       }),
     });
   } catch (error) {
+    if (isOpenAIBackgroundPending(error)) throw error;
     const transport = classifyOpenAITransportError(error, "G5_OUTREACH_GENERATION", requestTimeoutMs);
     await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now() - startedAt, errorCode: transport.code, errorMessage: transport.error.message }).catch(() => undefined);
     throw transport.error;
@@ -191,6 +193,7 @@ export async function generateG5Outreach(input: {
     parsed = (await parseStructuredAiResponse({ response: json, schema: G5OutreachGenerationSchema, jsonSchema: g5OutreachGenerationJsonSchema, schemaName: "salespilot_g5_outreach_generation_v1", apiKey, model })).value;
     validateAgainstImmutableDecision({ result: parsed, channelStrategy: input.channelStrategy, sourceSnapshot: input.sourceSnapshot, personalisationSafety: input.personalisationSafety });
   } catch (error) {
+    await discardOpenAIBackgroundResponse({ organisationId: input.organisationId, campaignId: input.campaignId, jobType: "OUTREACH", jobId: input.strategyId, requestScope: `g5-outreach-generation:${requestFingerprint}` }).catch(()=>undefined);
     const safe = safeStructuredAiError(error);
     await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage, durationMs: Date.now() - startedAt, responseId, errorCode: safe.code, errorMessage: safe.message }).catch(() => undefined);
     throw error;

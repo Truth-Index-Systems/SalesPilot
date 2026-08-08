@@ -120,7 +120,7 @@ export async function parseStructuredAiResponse<S extends ZodTypeAny>(params: {
       if (!(error instanceof SyntaxError)) parsedJson = true;
     }
   }
-  if (params.allowRepair !== false) {
+  if (params.allowRepair === true) {
     try {
       const value = await requestRepair({
         raw,

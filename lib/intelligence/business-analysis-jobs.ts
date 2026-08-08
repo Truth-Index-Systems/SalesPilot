@@ -54,3 +54,7 @@ export async function completeBusinessAnalysisJob(id:string,token:string,workerT
 export async function failBusinessAnalysisJob(id:string,token:string,workerToken:string,code:string,message:string,retryable:boolean){
   await databaseRequest("rpc/fail_business_analysis_job_owned",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_worker_token:workerToken,p_error_code:code,p_error_message:message,p_retryable:retryable})});
 }
+
+export async function deferBusinessAnalysisBackground(id:string,token:string,workerToken:string){
+  await databaseRequest("rpc/defer_business_analysis_background_owned",{method:"POST",body:JSON.stringify({p_job_id:id,p_access_token_hash:hashAnalysisToken(token),p_worker_token:workerToken})});
+}

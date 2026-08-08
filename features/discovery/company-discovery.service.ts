@@ -10,6 +10,7 @@ import { createResultSummary } from "@/lib/pipeline/result-summary";
 import { safePipelineFailureReason } from "@/lib/pipeline/safe-error";
 import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
 import { aiGovernanceBlockReason } from "@/lib/ai/governance";
+import { isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 
 function safeWorkerError(error: unknown): string {
   return safePipelineFailureReason(error, "Company Discovery encountered a technical interruption and will retry safely.");
@@ -342,6 +343,11 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     }
     return { worker:"COMPANY_DISCOVERY",processed:true,outcome:expansionPending?"CONTINUING":Number(finalSaved)>0?"COMPLETED_WITH_RESULTS":"COMPLETED_NO_RESULTS",sessionId:job.session_id,saved:Number(finalSaved) };
   } catch (error) {
+    if (isOpenAIBackgroundPending(error)) {
+      await databaseRequest("rpc/defer_company_discovery_background_owned", { method:"POST", body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId}) }).catch(()=>undefined);
+      await activity(job.session_id,context.schedulerRunId,"AI_BACKGROUND_CONTINUING","Market research is still running","SalesPilot has safely released this scheduler cycle while GPT-5 continues the same bounded research unit. The completed response will be collected on a later cycle without starting the work again.",{failurePhase,responseId:error.responseId,status:error.status}).catch(()=>undefined);
+      return { worker:"COMPANY_DISCOVERY",processed:false,outcome:"DEFERRED",sessionId:job.session_id };
+    }
     const governanceReason = aiGovernanceBlockReason(error);
     if (governanceReason) {
       await databaseRequest("rpc/defer_company_discovery_governance_owned", { method:"POST", body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_reason_code:governanceReason}) }).catch(()=>undefined);

@@ -1,4 +1,5 @@
 import "server-only";
+import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
@@ -123,7 +124,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
   const requestTimeoutMs = aiRequestTimeoutMs("COMPANY_DISCOVERY");
   let response: Response;
   try {
-    response = await fetch(ENDPOINT, {
+    response = await fetchResumableOpenAIResponse({ apiKey, task: "COMPANY_DISCOVERY", organisationId: input.organisationId, campaignId: input.campaignId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${fingerprint}`, model, ledgerId: reservation.ledgerId }, {
     method: "POST",
     cache: "no-store",
     signal: AbortSignal.timeout(requestTimeoutMs),
@@ -177,6 +178,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
     }),
     });
   } catch (error) {
+    if (isOpenAIBackgroundPending(error)) throw error;
     const transport = classifyOpenAITransportError(error, "COMPANY_DISCOVERY", requestTimeoutMs);
     await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now()-startedAt, errorCode: transport.code, errorMessage: transport.error.message }).catch(()=>undefined);
     throw transport.error;
@@ -213,6 +215,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
     const gateway = await parseStructuredAiResponse({ response: json, schema: CompanyDiscoveryGatewaySchema, jsonSchema: jsonSchema, schemaName: "salespilot_company_discovery_v2", apiKey, model });
     parsed = canonicaliseCompanyDiscoveryOutput(gateway.value);
   } catch (error) {
+    await discardOpenAIBackgroundResponse({ organisationId: input.organisationId, campaignId: input.campaignId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${fingerprint}` }).catch(()=>undefined);
     const safe = safeStructuredAiError(error);
     await completeAiRequest({ ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), webSearchCalls: 1, durationMs: Date.now()-startedAt, responseId, errorCode: safe.code, errorMessage: safe.message }).catch(()=>undefined);
     throw new Error(`DISCOVERY_RESPONSE_${safe.code}`);

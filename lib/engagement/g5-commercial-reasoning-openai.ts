@@ -1,4 +1,5 @@
 import "server-only";
+import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
@@ -42,7 +43,7 @@ export async function generateG5CommercialReasoning(input: {
 
   let response: Response;
   try {
-    response = await fetch(ENDPOINT, {
+    response = await fetchResumableOpenAIResponse({ apiKey, task: "G5_COMMERCIAL_REASONING", organisationId: input.organisationId, campaignId: input.campaignId, jobType: "COMMERCIAL_REASONING", jobId: input.strategyId, requestScope: `g5-commercial-reasoning:${requestFingerprint}`, model, ledgerId: reservation.ledgerId }, {
       method: "POST",
       cache: "no-store",
       signal: AbortSignal.timeout(requestTimeoutMs),
@@ -76,6 +77,7 @@ export async function generateG5CommercialReasoning(input: {
       }),
     });
   } catch (error) {
+    if (isOpenAIBackgroundPending(error)) throw error;
     const transport = classifyOpenAITransportError(error, "G5_COMMERCIAL_REASONING", requestTimeoutMs);
     await completeAiRequest({
       ledgerId: reservation.ledgerId, ok: false, durationMs: Date.now() - startedAt,
@@ -105,6 +107,7 @@ export async function generateG5CommercialReasoning(input: {
       model,
     })).value;
   } catch (error) {
+    await discardOpenAIBackgroundResponse({ organisationId: input.organisationId, campaignId: input.campaignId, jobType: "COMMERCIAL_REASONING", jobId: input.strategyId, requestScope: `g5-commercial-reasoning:${requestFingerprint}` }).catch(()=>undefined);
     const safe = safeStructuredAiError(error);
     await completeAiRequest({
       ledgerId: reservation.ledgerId, ok: false, usage: responseUsage(json), durationMs: Date.now() - startedAt,

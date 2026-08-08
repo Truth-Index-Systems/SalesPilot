@@ -1,9 +1,10 @@
 import "server-only";
 import { analyseBusiness } from "@/lib/intelligence/openai";
 import { readWebsite, WebsiteReadError } from "@/lib/intelligence/website-reader";
-import { claimBusinessAnalysisJob, completeBusinessAnalysisJob, failBusinessAnalysisJob, updateBusinessAnalysisProgress } from "@/lib/intelligence/business-analysis-jobs";
+import { claimBusinessAnalysisJob, completeBusinessAnalysisJob, deferBusinessAnalysisBackground, failBusinessAnalysisJob, updateBusinessAnalysisProgress } from "@/lib/intelligence/business-analysis-jobs";
 import { StructuredAiOutputError } from "@/lib/ai/structured-response-gateway";
 import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
+import { isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 
 function classify(error:unknown){
   if(error instanceof WebsiteReadError){
@@ -39,6 +40,10 @@ export async function runBusinessAnalysisJob(id:string,token:string){
     await completeBusinessAnalysisJob(id,token,workerToken,website.canonicalUrl,website.sources.length,analysis,Date.now()-started);
     return {claimed:true as const,completed:true as const};
   }catch(error){
+    if(isOpenAIBackgroundPending(error)){
+      await deferBusinessAnalysisBackground(id,token,workerToken).catch(()=>undefined);
+      return {claimed:true as const,completed:false as const,pending:true as const};
+    }
     if(isPipelineOwnershipLost(error)){
       console.info("Business analysis worker superseded; stale result discarded",{jobId:id});
       return {claimed:false as const,superseded:true as const};
