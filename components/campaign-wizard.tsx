@@ -35,6 +35,8 @@ type AnalysisJob = {
   error: DiscoveryError | null;
   pagesRead: number;
   analysis: AiEnvelope<BusinessDnaPayload> | null;
+  knowledgeMatchStatus?: string;
+  knowledgeMatch?: unknown | null;
 };
 
 type AnonymousAllowance = { limit: number; used: number; remaining: number };
@@ -86,6 +88,7 @@ type CampaignDraft = {
   selectedProposalId: string;
   websiteUrl: string;
   pagesRead: number;
+  knowledgeMatch?: unknown | null;
 };
 
 function readCampaignDraft(): CampaignDraft | null {
@@ -119,6 +122,7 @@ function readCampaignDraft(): CampaignDraft | null {
       selectedProposalId: parsed.selectedProposalId,
       websiteUrl: parsed.websiteUrl ?? parsed.result.payload.company.website,
       pagesRead: typeof parsed.pagesRead === "number" ? parsed.pagesRead : 0,
+      knowledgeMatch: parsed.knowledgeMatch ?? null,
     };
   } catch {
     localStorage.removeItem(CAMPAIGN_DRAFT_KEY);
@@ -141,6 +145,7 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [error, setError] = useState<DiscoveryError | null>(null);
   const [analysisJob, setAnalysisJob] = useState<AnalysisJob | null>(null);
+  const [knowledgeMatch, setKnowledgeMatch] = useState<unknown | null>(null);
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState<LaunchError | null>(null);
   const [anonymousAllowance, setAnonymousAllowance] = useState<AnonymousAllowance | null>(null);
@@ -169,6 +174,7 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
     setSelected(proposalIndex >= 0 ? proposalIndex : 0);
     setUrl(draft.websiteUrl);
     setPagesRead(draft.pagesRead);
+    setKnowledgeMatch(draft.knowledgeMatch ?? null);
     setStep(draft.step);
 
     localStorage.setItem(CAMPAIGN_DRAFT_KEY, JSON.stringify(draft));
@@ -225,6 +231,7 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
       selectedProposalId: result.payload.campaigns[selected].id,
       websiteUrl: url,
       pagesRead,
+      knowledgeMatch,
     };
 
     localStorage.setItem(CAMPAIGN_DRAFT_KEY, JSON.stringify(draft));
@@ -296,6 +303,7 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
           if (!job.analysis || !job.canonicalUrl) throw new Error("Completed analysis did not contain a result.");
           setAnalysisComplete(true);
           setResult(job.analysis);
+          setKnowledgeMatch(job.knowledgeMatchStatus === "COMPLETED" ? (job.knowledgeMatch ?? null) : null);
           setPagesRead(job.pagesRead);
           setUrl(job.canonicalUrl);
           setSelected(0);
@@ -362,6 +370,7 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
     setLoading(true);
     setAnalysisComplete(false);
     setAnalysisJob(null);
+    setKnowledgeMatch(null);
     setError(null);
     setUrl(normalisedUrl);
 
@@ -424,6 +433,7 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
         selectedProposalId: chosen.id,
         websiteUrl: url,
         pagesRead,
+        knowledgeMatch,
       } satisfies CampaignDraft),
     );
 
@@ -438,6 +448,7 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
           selectedProposalId: chosen.id,
           websiteUrl: url,
           idempotencyKey,
+          knowledgeMatch,
         }),
       });
 

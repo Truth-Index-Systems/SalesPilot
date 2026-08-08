@@ -142,7 +142,8 @@
     "genesis:g81-r11-check": "node scripts/validate-genesis-g8-founder-review-resolution.mjs",
     "genesis:g81-r12-check": "node scripts/validate-genesis-g8-existing-discovery-acquisition.mjs",
     "genesis:g81-r13-check": "node scripts/validate-genesis-g8-knowledge-retrieval-matching.mjs",
-    "genesis:g81-r14-check": "node scripts/validate-genesis-g8-business-dna-knowledge-matching.mjs"
+    "genesis:g81-r14-check": "node scripts/validate-genesis-g8-business-dna-knowledge-matching.mjs",
+    "genesis:g81-r15-check": "node scripts/validate-genesis-g8-knowledge-discovery-merge.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

@@ -10,6 +10,7 @@ export const LaunchCampaignRequestSchema = z.object({
   selectedProposalId: z.string().min(1),
   websiteUrl: z.string().url(),
   idempotencyKey: z.string().min(12).max(200),
+  knowledgeMatch: z.unknown().optional(),
 });
 
 export const CampaignSummarySchema = z.object({

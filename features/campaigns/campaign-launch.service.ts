@@ -2,6 +2,7 @@ import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { CampaignSummarySchema, type CampaignSummary, type LaunchCampaignRequest } from "@/lib/campaigns/schemas";
 import type { OrganisationContext } from "@/lib/auth/organisation-context";
+import { mergeGenesisG8KnowledgeIntoCampaign, sanitiseGenesisG8LaunchKnowledgeMatch } from "@/lib/genesis-g8/knowledge-discovery-merge";
 
 export async function launchCampaignService(input: LaunchCampaignRequest, context: OrganisationContext): Promise<CampaignSummary> {
   const rows = await databaseRequest<Record<string, unknown>[]>("rpc/launch_campaign", {
@@ -16,6 +17,9 @@ export async function launchCampaignService(input: LaunchCampaignRequest, contex
     }),
   });
   const row = rows[0];
+  if (row?.id) {
+    await mergeGenesisG8KnowledgeIntoCampaign({ campaignId: String(row.id), context, knowledgeMatch: sanitiseGenesisG8LaunchKnowledgeMatch(input.knowledgeMatch) });
+  }
   return CampaignSummarySchema.parse({
     id: row.id, name: row.name, objective: row.objective, status: row.status,
     automationMode: row.automation_mode, fitScore: row.fit_score, audience: row.audience,
