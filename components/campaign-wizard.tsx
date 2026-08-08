@@ -597,7 +597,7 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
                     <div className="eyebrow" style={{ color: "#d8f6ff" }}>
                       Understanding your business
                     </div>
-                    <h2>{analysisComplete ? "Business understood" : analysisJob?.status === "QUEUED" ? "Analysis queued" : analysisJob?.status === "FAILED_RETRYABLE" ? "Analysis retry scheduled" : "MarketRoute is learning your business"}</h2>
+                    <h2>{analysisComplete ? "Business understood" : "MarketRoute is learning your business"}</h2>
                   </div>
                   <span className="analysis-percent">
                     {analysisJob?.progress ?? 0}%
