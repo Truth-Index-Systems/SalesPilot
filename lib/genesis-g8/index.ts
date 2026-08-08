@@ -1,3 +1,4 @@
+export * from "./contracts";
 export * from "./truth";
 export {
   GENESIS_G8_DEFAULT_CHANNEL_STRATEGY,
