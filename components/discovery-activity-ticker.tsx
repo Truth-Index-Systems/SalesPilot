@@ -5,10 +5,10 @@ import { CheckCircle2 } from "@/components/icons";
 import { isJobActive, isJobRetryScheduled, isJobRunning, jobStateLabel, resolvePersistedJobState } from "@/lib/pipeline/presentation";
 
 type Activity={id:string;title:string;description?:string|null;occurred_at:string};
-type Candidate={id:string;company_name:string;industry?:string|null;country?:string|null;candidate_status:"DISCOVERED"|"VERIFIED"|"HELD";confidence?:number|null};
+type Candidate={id:string;company_name:string;industry?:string|null;country?:string|null;candidate_status:"DISCOVERED"|"VERIFYING"|"VERIFIED"|"HELD";confidence?:number|null};
 type Discovery={status:string;job_state?:string|null;stage:string;progress:number;recommendations_saved:number;next_retry_at?:string|null;next_attempt_at?:string|null;attempt_count?:number|null;last_error_code?:string|null;updated_at?:string|null};
 
-function snapshot(discovery:Discovery|null,activities:Activity[],companyCount:number,candidateCount=0,verifiedCandidateCount=0,recentCandidates:Candidate[]=[]){
+function snapshot(discovery:Discovery|null,activities:Activity[],companyCount:number,candidateCount=0,verifiedCandidateCount=0,verifyingCandidateCount=0,recentCandidates:Candidate[]=[]){
  return JSON.stringify({
   status:discovery?.status??null,
   jobState:discovery?.job_state??null,
@@ -23,6 +23,7 @@ function snapshot(discovery:Discovery|null,activities:Activity[],companyCount:nu
   companyCount,
   candidateCount,
   verifiedCandidateCount,
+  verifyingCandidateCount,
   candidates:recentCandidates.slice(0,6).map(item=>[item.id,item.company_name,item.candidate_status]),
   activities:activities.slice(0,8).map(item=>[item.id,item.title,item.occurred_at]),
  });
@@ -35,8 +36,9 @@ export function DiscoveryActivityTicker({campaignId,initialDiscovery,initialActi
  const [companyCount,setCompanyCount]=useState(initialCompanyCount);
  const [candidateCount,setCandidateCount]=useState(0);
  const [verifiedCandidateCount,setVerifiedCandidateCount]=useState(0);
+ const [verifyingCandidateCount,setVerifyingCandidateCount]=useState(0);
  const [recentCandidates,setRecentCandidates]=useState<Candidate[]>([]);
- const latestSnapshot=useRef(snapshot(initialDiscovery,initialActivities,initialCompanyCount,0,0,[]));
+ const latestSnapshot=useRef(snapshot(initialDiscovery,initialActivities,initialCompanyCount,0,0,0,[]));
  const active=isJobActive(discovery);
  const retryScheduled=isJobRetryScheduled(discovery);
  const running=isJobRunning(discovery);
@@ -60,10 +62,11 @@ export function DiscoveryActivityTicker({campaignId,initialDiscovery,initialActi
     const nextCompanyCount=data.companyCount??0;
     const nextCandidateCount=data.candidateCount??0;
     const nextVerifiedCandidateCount=data.verifiedCandidateCount??0;
+    const nextVerifyingCandidateCount=data.verifyingCandidateCount??0;
     const nextRecentCandidates=data.recentCandidates??[];
-    const nextSnapshot=snapshot(nextDiscovery,nextActivities,nextCompanyCount,nextCandidateCount,nextVerifiedCandidateCount,nextRecentCandidates);
+    const nextSnapshot=snapshot(nextDiscovery,nextActivities,nextCompanyCount,nextCandidateCount,nextVerifiedCandidateCount,nextVerifyingCandidateCount,nextRecentCandidates);
     setDiscovery(nextDiscovery);setActivities(nextActivities);setCompanyCount(nextCompanyCount);
-    setCandidateCount(nextCandidateCount);setVerifiedCandidateCount(nextVerifiedCandidateCount);setRecentCandidates(nextRecentCandidates);
+    setCandidateCount(nextCandidateCount);setVerifiedCandidateCount(nextVerifiedCandidateCount);setVerifyingCandidateCount(nextVerifyingCandidateCount);setRecentCandidates(nextRecentCandidates);
     const changed=nextSnapshot!==latestSnapshot.current;
     latestSnapshot.current=nextSnapshot;
     const nextState=resolvePersistedJobState(nextDiscovery);
@@ -87,7 +90,7 @@ export function DiscoveryActivityTicker({campaignId,initialDiscovery,initialActi
  if(!visible.length)return null;
  return <div className="discovery-live-feed" aria-live="polite">
   <div className="discovery-live-head"><span className={running?"live-dot active":"live-dot"}/><strong>{running?"MarketRoute is working":jobStateLabel(discovery,{queued:"Company discovery queued",complete:"MarketRoute activity",noResults:"Research completed with no new matches"})}</strong><small>{candidateCount>0?`${candidateCount} found · ${companyCount} verified`:`${companyCount} compan${companyCount===1?"y":"ies"} saved`}</small></div>
-  {candidateCount>0&&<div className="discovery-candidate-strip"><div><strong>{candidateCount} potential match{candidateCount===1?"":"es"} discovered</strong><span>{verifiedCandidateCount} verified so far · official evidence checks are continuing</span></div><div className="discovery-candidate-chips">{recentCandidates.filter(item=>item.candidate_status!=="HELD").slice(0,4).map(item=><span className={`discovery-candidate-chip ${item.candidate_status.toLowerCase()}`} key={item.id}>{item.company_name}<small>{item.candidate_status==="VERIFIED"?"Verified":"Checking"}</small></span>)}</div></div>}
+  {candidateCount>0&&<div className="discovery-candidate-strip"><div><strong>{candidateCount} potential match{candidateCount===1?"":"es"} discovered</strong><span>{verifiedCandidateCount} verified so far · {verifyingCandidateCount>0?`${verifyingCandidateCount} checking in parallel`:"official evidence checks are continuing"}</span></div><div className="discovery-candidate-chips">{recentCandidates.filter(item=>item.candidate_status!=="HELD").slice(0,4).map(item=><span className={`discovery-candidate-chip ${item.candidate_status.toLowerCase()}`} key={item.id}>{item.company_name}<small>{item.candidate_status==="VERIFIED"?"Verified":"Checking"}</small></span>)}</div></div>}
   <div className="discovery-live-items">{visible.map(item=><div className="discovery-live-item" key={item.id}><CheckCircle2 size={16}/><div><strong>{item.title}</strong>{item.description&&<span>{item.description}</span>}</div><time title={new Date(item.occurred_at).toLocaleString()} dateTime={item.occurred_at}>{relative(item.occurred_at)}</time></div>)}</div>
  </div>;
 }

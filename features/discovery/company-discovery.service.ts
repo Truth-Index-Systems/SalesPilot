@@ -58,6 +58,7 @@ function emptyCumulative(): DiscoveryCumulative {
       NO_OFFICIAL_EVIDENCE: 0,
       EVIDENCE_TOO_WEAK: 0,
       CONFIDENCE_TOO_LOW: 0,
+      VERIFICATION_TECHNICAL_FAILURE: 0,
     },
   };
 }
@@ -88,8 +89,26 @@ function cumulativeFrom(value: unknown): DiscoveryCumulative {
       NO_OFFICIAL_EVIDENCE: Math.max(0, Number(reasons.NO_OFFICIAL_EVIDENCE ?? 0) || 0),
       EVIDENCE_TOO_WEAK: Math.max(0, Number(reasons.EVIDENCE_TOO_WEAK ?? 0) || 0),
       CONFIDENCE_TOO_LOW: Math.max(0, Number(reasons.CONFIDENCE_TOO_LOW ?? 0) || 0),
+      VERIFICATION_TECHNICAL_FAILURE: Math.max(0, Number(reasons.VERIFICATION_TECHNICAL_FAILURE ?? 0) || 0),
     },
   };
+}
+
+function evidenceConcurrencyFromEnv(): number {
+  const parsed = Number(process.env.MARKETROUTE_COMPANY_EVIDENCE_CONCURRENCY ?? process.env.SALESPILOT_COMPANY_EVIDENCE_CONCURRENCY ?? "3");
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(5, Math.floor(parsed))) : 3;
+}
+
+async function runBounded<T>(items: T[], concurrency: number, worker: (item: T, index: number) => Promise<void>): Promise<void> {
+  let cursor = 0;
+  const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      await worker(items[index], index);
+    }
+  });
+  await Promise.all(runners);
 }
 
 export async function runNextCompanyDiscovery(context: WorkerExecutionContext): Promise<WorkerExecutionResult> {
@@ -302,39 +321,68 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     await databaseRequest("rpc/update_company_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"VERIFYING",p_progress:Math.min(70,verificationProgress),p_candidates:cumulative.candidatesReturned + result.companies.length})});
     await activity(job.session_id,context.schedulerRunId,"ARCHETYPE_CANDIDATES_FOUND",result.companies.length>0?`${result.companies.length} candidates found for ${archetype.name}`:`No supported candidates found for ${archetype.name}`,result.companies.length>0?"MarketRoute is independently checking each candidate against official-site evidence.":"This archetype completed without supported candidates. The remaining market plan will continue without weakening the evidence standard.",{candidateCount:result.companies.length,archetypeIndex,archetypeTotal,archetypeName:archetype.name});
 
-    let saved=0;
-    let verified=0;
+    // G5.1.13.2: evidence checks are independent, ownership-fenced work units.
+    // A slow or transiently failing company cannot serially block the rest of the batch.
+    const evidenceConcurrency = evidenceConcurrencyFromEnv();
+    await activityOnce(job.session_id,context.schedulerRunId,`evidence-parallel:${searchPass}:${archetypeIndex}`,"EVIDENCE_PARALLEL_STARTED",`Checking ${result.companies.length} companies in parallel`,`${evidenceConcurrency} evidence workers are independently validating official company sources.`,{searchPass,archetypeIndex,archetypeTotal,evidenceConcurrency,candidateCount:result.companies.length});
+
+    await runBounded(result.companies,evidenceConcurrency,async (candidate) => {
+      const claims=await databaseRequest<Array<{candidate_id:string;worker_token:string;attempt_count:number;candidate_status:string}>>("rpc/claim_company_discovery_candidate_verification_owned",{
+        method:"POST",
+        body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_search_pass:searchPass,p_archetype_index:archetypeIndex,p_website_url:candidate.websiteUrl,p_lease_seconds:90}),
+      });
+      const claim=claims[0];
+      if (!claim) return; // already terminal, or another valid owner still holds the unit
+      try {
+        const verification=await verifyDiscoveredCompanyDetailed(candidate);
+        if (!verification.accepted) {
+          await databaseRequest("rpc/complete_company_discovery_candidate_verification_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_candidate_id:claim.candidate_id,p_worker_token:claim.worker_token,p_status:"HELD",p_hold_reason:verification.reason,p_diagnostics:verification.diagnostics})});
+          await activityOnce(job.session_id,context.schedulerRunId,`candidate-held:${searchPass}:${archetypeIndex}:${claim.candidate_id}`,"CANDIDATE_HELD",`${candidate.name} held back`,"The available official-site evidence was not strong enough to recommend this company.",{companyName:candidate.name,reason:verification.reason,diagnostics:verification.diagnostics,archetypeName:archetype.name});
+          return;
+        }
+        const company=verification.company;
+        await databaseRequest<number>("rpc/save_company_discovery_batch_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_companies:[company]})});
+        await databaseRequest("rpc/complete_company_discovery_candidate_verification_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_candidate_id:claim.candidate_id,p_worker_token:claim.worker_token,p_status:"VERIFIED",p_diagnostics:verification.diagnostics})});
+        await activityOnce(job.session_id,context.schedulerRunId,`candidate-verified:${searchPass}:${archetypeIndex}:${claim.candidate_id}`,"COMPANY_SAVED",`${company.name} verified and added`,`${company.matchLabel} · ${company.confidence}/100 confidence · ${company.evidenceQuality}/100 evidence quality`,{companyName:company.name,confidence:company.confidence,evidenceQuality:company.evidenceQuality,archetypeName:archetype.name});
+      } catch (error) {
+        const message=error instanceof Error?error.message:"Evidence verification interrupted";
+        const nextStatus=await databaseRequest<string>("rpc/release_company_discovery_candidate_verification_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_candidate_id:claim.candidate_id,p_worker_token:claim.worker_token,p_error_message:message,p_max_attempts:3})}).catch(()=>"DISCOVERED");
+        if (nextStatus==="HELD") {
+          await activityOnce(job.session_id,context.schedulerRunId,`candidate-technical-hold:${searchPass}:${archetypeIndex}:${claim.candidate_id}`,"CANDIDATE_HELD",`${candidate.name} held back`,"MarketRoute could not establish stable official-site evidence after several independent attempts, so the company was not recommended.",{companyName:candidate.name,reason:"VERIFICATION_TECHNICAL_FAILURE",archetypeName:archetype.name});
+        }
+      }
+    });
+
+    const candidateRows=await databaseRequest<Array<{candidate_status:string;hold_reason:string|null;verification_diagnostics_json:Record<string,unknown>|null}>>(`company_discovery_candidates?discovery_session_id=eq.${job.session_id}&search_pass=eq.${searchPass}&archetype_index=eq.${archetypeIndex}&select=candidate_status,hold_reason,verification_diagnostics_json&limit=1000`);
+    const stateRows=await databaseRequest<Array<{total:number;discovered:number;verifying:number;verified:number;held:number}>>("rpc/company_discovery_archetype_verification_state_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_search_pass:searchPass,p_archetype_index:archetypeIndex})});
+    const state=stateRows[0] ?? {total:candidateRows.length,discovered:0,verifying:0,verified:0,held:0};
+    if (Number(state.discovered)>0 || Number(state.verifying)>0) {
+      await databaseRequest("rpc/defer_company_discovery_evidence_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId})});
+      await activityOnce(job.session_id,context.schedulerRunId,`evidence-resume:${searchPass}:${archetypeIndex}`,"EVIDENCE_PARALLEL_CONTINUING","Evidence checks are continuing",`${Number(state.verified)+Number(state.held)} of ${Number(state.total)} candidates have reached a final evidence decision. Remaining candidates will resume independently.`,{searchPass,archetypeIndex,archetypeTotal,...state,evidenceConcurrency});
+      return { worker:"COMPANY_DISCOVERY",processed:true,outcome:"CONTINUING",sessionId:job.session_id,saved:cumulative.savedThisPass };
+    }
+
+    let saved=Number(state.verified);
+    let verified=Number(state.verified);
     const heldReasons: Record<CompanyVerificationReason, number> = {
-      INVALID_DOMAIN: 0,
-      HOMEPAGE_UNREACHABLE: 0,
-      NO_OFFICIAL_EVIDENCE: 0,
-      EVIDENCE_TOO_WEAK: 0,
-      CONFIDENCE_TOO_LOW: 0,
+      INVALID_DOMAIN:0,HOMEPAGE_UNREACHABLE:0,NO_OFFICIAL_EVIDENCE:0,EVIDENCE_TOO_WEAK:0,CONFIDENCE_TOO_LOW:0,VERIFICATION_TECHNICAL_FAILURE:0,
     };
     let reachableOfficialEvidence=0;
     let excerptMatches=0;
-    for (let index=0; index<result.companies.length; index++) {
-      const candidate=result.companies[index];
-      const verification=await verifyDiscoveredCompanyDetailed(candidate);
-      reachableOfficialEvidence += verification.diagnostics.officialEvidenceReachable;
-      excerptMatches += verification.diagnostics.excerptMatches;
-      if (!verification.accepted) {
-        heldReasons[verification.reason] += 1;
-        await databaseRequest("rpc/mark_company_discovery_candidate_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_search_pass:searchPass,p_website_url:candidate.websiteUrl,p_status:"HELD",p_hold_reason:verification.reason})}).catch(()=>undefined);
-        await activity(job.session_id,context.schedulerRunId,"CANDIDATE_HELD",`${candidate.name} held back`,"The available official-site evidence was not strong enough to recommend this company.",{companyName:candidate.name,reason:verification.reason,diagnostics:verification.diagnostics,archetypeName:archetype.name});
-        continue;
+    for (const row of candidateRows) {
+      const diagnostics=row.verification_diagnostics_json ?? {};
+      reachableOfficialEvidence += Math.max(0,Number(diagnostics.officialEvidenceReachable ?? 0)||0);
+      excerptMatches += Math.max(0,Number(diagnostics.excerptMatches ?? 0)||0);
+      if (row.candidate_status==="HELD") {
+        const reason=(row.hold_reason ?? "VERIFICATION_TECHNICAL_FAILURE") as CompanyVerificationReason;
+        if (reason in heldReasons) heldReasons[reason]+=1;
+        else heldReasons.VERIFICATION_TECHNICAL_FAILURE+=1;
       }
-      const company=verification.company;
-      verified+=1;
-      const count=await databaseRequest<number>("rpc/save_company_discovery_batch_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_companies:[company]})});
-      saved+=Number(count);
-      await databaseRequest("rpc/mark_company_discovery_candidate_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_search_pass:searchPass,p_website_url:candidate.websiteUrl,p_status:"VERIFIED"})}).catch(()=>undefined);
-      await activity(job.session_id,context.schedulerRunId,"COMPANY_SAVED",`${company.name} verified and added`,`${company.matchLabel} · ${company.confidence}/100 confidence · ${company.evidenceQuality}/100 evidence quality`,{companyName:company.name,confidence:company.confidence,evidenceQuality:company.evidenceQuality,savedCount:saved,archetypeName:archetype.name});
     }
 
-    cumulative.candidatesReturned += result.companies.length;
+    cumulative.candidatesReturned += candidateRows.length;
     cumulative.candidatesVerified += verified;
-    cumulative.candidatesHeld += result.companies.length-verified;
+    cumulative.candidatesHeld += Number(state.held);
     cumulative.reachableOfficialEvidence += reachableOfficialEvidence;
     cumulative.excerptMatches += excerptMatches;
     cumulative.savedThisPass += saved;

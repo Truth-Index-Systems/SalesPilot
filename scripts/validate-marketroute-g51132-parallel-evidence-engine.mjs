@@ -1,0 +1,28 @@
+import fs from 'node:fs';
+const read=(p)=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
+const service=read('features/discovery/company-discovery.service.ts');
+const sql=read('supabase/migrations/0106_marketroute_g51132_parallel_evidence_engine.sql');
+const ticker=read('components/discovery-activity-ticker.tsx');
+const status=read('app/api/campaigns/[id]/discovery/status/route.ts');
+const checks=[];
+const add=(ok,msg)=>checks.push([Boolean(ok),msg]);
+add(sql.includes("candidate_status in ('DISCOVERED','VERIFYING','VERIFIED','HELD')"),'candidate lifecycle includes VERIFYING');
+add(sql.includes('verification_worker_token')&&sql.includes('verification_lease_expires_at'),'candidate verification has worker fencing and lease');
+add(sql.includes('claim_company_discovery_candidate_verification_owned'),'candidate verification claim RPC exists');
+add(sql.includes('complete_company_discovery_candidate_verification_owned'),'candidate terminal completion is ownership fenced');
+add(sql.includes('release_company_discovery_candidate_verification_owned'),'candidate retry/release is ownership fenced');
+add(sql.includes('company_discovery_archetype_verification_state_owned'),'archetype terminal-state guard exists');
+add(sql.includes('defer_company_discovery_evidence_owned'),'evidence retry releases session without consuming archetype attempt');
+add(service.includes('evidenceConcurrencyFromEnv'),'bounded evidence concurrency is configurable');
+add(service.includes('runBounded(result.companies,evidenceConcurrency'),'candidate evidence checks execute in bounded parallel');
+add(service.includes('claim_company_discovery_candidate_verification_owned'),'service claims each candidate independently');
+add(service.includes('complete_company_discovery_candidate_verification_owned'),'service fences terminal candidate transitions');
+add(service.includes('release_company_discovery_candidate_verification_owned'),'service safely retries individual candidate failures');
+add(service.includes('if (Number(state.discovered)>0 || Number(state.verifying)>0)'),'archetype cannot advance while evidence units are non-terminal');
+add(service.indexOf('company_discovery_archetype_verification_state_owned') < service.indexOf('complete_company_discovery_archetype_owned'),'candidate terminal guard precedes archetype cursor advance');
+add(status.includes('verifyingCandidateCount'),'status API exposes active evidence workers');
+add(ticker.includes('checking in parallel'),'UI explains parallel evidence activity');
+const failed=checks.filter(([ok])=>!ok);
+for(const [ok,msg] of checks) console.log(`${ok?'✓':'✗'} ${msg}`);
+if(failed.length){console.error(`\n${failed.length} G5.1.13.2 checks failed`);process.exit(1)}
+console.log('\nMarketRoute G5.1.13.2 Parallel Evidence Engine validation passed');

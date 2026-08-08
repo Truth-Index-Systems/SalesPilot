@@ -23,6 +23,7 @@ export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){
    companyCount:companies.length,
    candidateCount:candidates.length,
    verifiedCandidateCount:candidates.filter(row=>row.candidate_status==="VERIFIED").length,
+   verifyingCandidateCount:candidates.filter(row=>row.candidate_status==="VERIFYING").length,
    recentCandidates,
   },{headers:{"Cache-Control":"no-store"}});
  }catch(error){console.error("Discovery status unavailable",error);return NextResponse.json({ok:false},{status:500});}

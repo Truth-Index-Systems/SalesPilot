@@ -12,7 +12,8 @@ export type CompanyVerificationReason =
   | "HOMEPAGE_UNREACHABLE"
   | "NO_OFFICIAL_EVIDENCE"
   | "EVIDENCE_TOO_WEAK"
-  | "CONFIDENCE_TOO_LOW";
+  | "CONFIDENCE_TOO_LOW"
+  | "VERIFICATION_TECHNICAL_FAILURE";
 
 export type CompanyVerificationResult =
   | { accepted: true; company: VerifiedDiscoveredCompany; diagnostics: CompanyVerificationDiagnostics }

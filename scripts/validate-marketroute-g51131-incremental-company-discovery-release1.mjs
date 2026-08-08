@@ -17,7 +17,7 @@ add(service.includes('p_stage:"SEARCH_PLAN_RUNNING"'),'worker exposes search pla
 add(service.includes('p_stage:"BREADTH_DISCOVERY"'),'worker enters breadth discovery before evidence verification');
 add(service.includes('persist_company_discovery_candidate_batch_owned'),'raw breadth results are persisted before evidence verification');
 add(service.indexOf('persist_company_discovery_candidate_batch_owned') < service.indexOf('verifyDiscoveredCompanyDetailed(candidate)'),'candidate staging precedes evidence gate');
-add(service.includes('mark_company_discovery_candidate_owned'),'candidate status follows verification outcome');
+add(service.includes('mark_company_discovery_candidate_owned')||service.includes('complete_company_discovery_candidate_verification_owned'),'candidate status follows verification outcome');
 add(service.includes('save_company_discovery_batch_owned'),'canonical verified-company persistence remains unchanged');
 add(status.includes('company_discovery_candidates'),'status API exposes staged discovery');
 add(ticker.includes('potential match'),'founder UI surfaces candidates before verification');
