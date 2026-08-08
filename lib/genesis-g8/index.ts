@@ -26,3 +26,5 @@ export * from "./knowledge-gaps";
 export * from "./eligibility";
 export * from "./gap-repair";
 export * from "./planning";
+
+export * from "./orchestration-boundary";
