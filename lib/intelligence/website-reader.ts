@@ -19,7 +19,10 @@ export class WebsiteReadError extends Error {
   }
 }
 
-const MAX_PAGES = 5;
+const MAX_PAGES = 4;
+const DNS_TIMEOUT_MS = 3000;
+const FETCH_TIMEOUT_MS = 8000;
+const SECONDARY_PAGE_BUDGET_MS = 6000;
 const MAX_CHARS_PER_PAGE = 12000;
 const MAX_REDIRECTS = 5;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
@@ -96,7 +99,10 @@ async function assertPublicHost(url: URL) {
   }
 
   try {
-    const records = await dns.lookup(hostname, { all: true });
+    const records = await Promise.race([
+      dns.lookup(hostname, { all: true }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new WebsiteReadError("WEBSITE_TIMEOUT", "DNS lookup took too long.")), DNS_TIMEOUT_MS)),
+    ]);
     if (!records.length) throw new WebsiteReadError("WEBSITE_NOT_FOUND", "The website could not be found.");
     if (records.some(record => isPrivateIp(record.address))) {
       throw new WebsiteReadError("UNSAFE_ADDRESS", "The website resolves to a private network address.");
@@ -183,7 +189,7 @@ async function fetchHtml(initialUrl: URL) {
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     await assertPublicHost(url);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
     try {
       const response = await fetch(url, {
@@ -239,27 +245,49 @@ async function fetchHtml(initialUrl: URL) {
   throw new WebsiteReadError("WEBSITE_UNAVAILABLE", "The website could not be reached.");
 }
 
-export async function readWebsite(input: string): Promise<{ canonicalUrl: string; sources: WebsiteSource[] }> {
+export async function readWebsite(
+  input: string,
+  options?: { onHomepageReady?: (homepage: WebsiteSource) => Promise<void> | void },
+): Promise<{ canonicalUrl: string; sources: WebsiteSource[] }> {
   const requestedHomepage = normalizeWebsiteUrl(input);
   const homepageResult = await fetchHtml(requestedHomepage);
   const homepage = homepageResult.finalUrl;
   const homepageHtml = homepageResult.html;
-  const urls = [homepage.toString(), ...discoverLinks(homepageHtml, homepage)];
+  const homepageSource: WebsiteSource = {
+    url: homepage.toString(),
+    title: extractTitle(homepageHtml),
+    text: extractText(homepageHtml),
+  };
 
-  const pages = await Promise.allSettled(urls.map(async value => {
-    const url = new URL(value);
-    const result = value === homepage.toString() ? homepageResult : await fetchHtml(url);
-    return { url: result.finalUrl.toString(), title: extractTitle(result.html), text: extractText(result.html) };
-  }));
-
-  const sources = pages
-    .filter((item): item is PromiseFulfilledResult<WebsiteSource> => item.status === "fulfilled")
-    .map(item => item.value)
-    .filter(item => item.text.length > 100);
-
-  if (!sources.length) {
+  if (homepageSource.text.length <= 100) {
     throw new WebsiteReadError("INSUFFICIENT_CONTENT", "MarketRoute could not read enough useful content from this website.");
   }
+
+  await options?.onHomepageReady?.(homepageSource);
+
+  const secondaryUrls = discoverLinks(homepageHtml, homepage);
+  const secondaryTasks = secondaryUrls.map(async value => {
+    const result = await fetchHtml(new URL(value));
+    return { url: result.finalUrl.toString(), title: extractTitle(result.html), text: extractText(result.html) } satisfies WebsiteSource;
+  });
+
+  let secondary: PromiseSettledResult<WebsiteSource>[] = [];
+  if (secondaryTasks.length) {
+    secondary = await Promise.race([
+      Promise.allSettled(secondaryTasks),
+      new Promise<PromiseSettledResult<WebsiteSource>[]>(resolve =>
+        setTimeout(() => resolve([]), SECONDARY_PAGE_BUDGET_MS),
+      ),
+    ]);
+  }
+
+  const sources = [
+    homepageSource,
+    ...secondary
+      .filter((item): item is PromiseFulfilledResult<WebsiteSource> => item.status === "fulfilled")
+      .map(item => item.value)
+      .filter(item => item.text.length > 100),
+  ];
 
   return { canonicalUrl: homepage.toString(), sources };
 }

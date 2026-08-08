@@ -38,7 +38,13 @@ export async function runBusinessAnalysisJob(id:string,token:string){
     let pagesRead=job.pages_read??0;
 
     if(!core){
-      const website=await readWebsite(job.website_input);
+      const website=await readWebsite(job.website_input,{
+        onHomepageReady: async homepage => {
+          canonicalUrl=homepage.url;
+          pagesRead=1;
+          await updateBusinessAnalysisProgress(id,token,workerToken,"WEBSITE_CONNECTED",14,homepage.url,1);
+        },
+      });
       canonicalUrl=website.canonicalUrl;pagesRead=website.sources.length;
       await updateBusinessAnalysisProgress(id,token,workerToken,"BUILDING_BUSINESS_DNA",20,canonicalUrl,pagesRead);
       core=await analyseBusinessCore({organisationId:job.organisation_id,publicAnalysis:job.requested_by===null,jobId:job.id,website:canonicalUrl,sources:website.sources});

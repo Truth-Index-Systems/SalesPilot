@@ -180,6 +180,7 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
     const stageMap: Record<string, number> = {
       QUEUED: 0,
       READING_WEBSITE: 0,
+      WEBSITE_CONNECTED: 1,
       BUILDING_BUSINESS_DNA: 2,
       BUSINESS_DNA_READY: 3,
       GROWTH_STRATEGY_RUNNING: 3,
