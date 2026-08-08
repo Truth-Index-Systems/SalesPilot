@@ -110,7 +110,12 @@
     "executive-prompts:check": "node scripts/validate-executive-prompt-architecture.mjs",
     "responsibility-boundaries:check": "node scripts/validate-responsibility-boundaries.mjs",
     "company-discovery:workload-decomposition-check": "node scripts/validate-company-discovery-workload-decomposition.mjs",
-    "all-ai:background-resumability-check": "node scripts/validate-all-ai-background-resumability.mjs"
+    "all-ai:background-resumability-check": "node scripts/validate-all-ai-background-resumability.mjs",
+    "speed:r1-check": "node scripts/validate-speed-r1-timeout-elimination.mjs",
+    "speed:r2-check": "node scripts/validate-speed-r2-event-driven-completion.mjs",
+    "speed:r3-check": "node scripts/validate-speed-r3-controlled-parallelism.mjs",
+    "speed:r4-check": "node scripts/validate-speed-r4-workload-optimisation.mjs",
+    "speed:r5-check": "node scripts/validate-speed-r5-latency-observatory.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

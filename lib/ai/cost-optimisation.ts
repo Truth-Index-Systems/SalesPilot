@@ -8,7 +8,7 @@ const META_KEYS = new Set([
 
 const TEXT_LIMITS: Record<string, number> = {
   summary: 700, description: 700, text: 900, content: 900, excerpt: 420, claim: 320,
-  reasoning: 650, why: 420, reason: 420, operational_pain: 500, buying_reason: 500,
+  reasoning: 520, reasoningSummary: 700, why: 360, whyNow: 420, reason: 360, operational_pain: 420, buying_reason: 420,
 };
 
 function truncate(value: string, key = ""): string {
@@ -40,7 +40,7 @@ export function compactForAi(value: unknown, options: { evidenceLimit?: number; 
   if (typeof value === "string") return truncate(value);
   if (typeof value === "number" || typeof value === "boolean") return value;
   if (Array.isArray(value)) {
-    return value.slice(0, 12).map((item) => compactForAi(item, { evidenceLimit, depth: depth - 1 }));
+    return value.slice(0, 10).map((item) => compactForAi(item, { evidenceLimit, depth: depth - 1 }));
   }
   if (typeof value !== "object") return String(value);
   const source = value as Record<string, unknown>;
@@ -68,7 +68,7 @@ export function stableFingerprint(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(stable(value))).digest("hex");
 }
 
-export function compactCompanyDiscoveryInput(input: { campaign: Record<string, unknown>; business: Record<string, unknown>; customerWebsite?: string | null; excludedCompanies?: Array<{name:string;domain:string}>; searchPass?: number; searchStrategy?: string; searchPlan?: unknown }) {
+export function compactCompanyDiscoveryInput(input: { campaign: Record<string, unknown>; business: Record<string, unknown>; customerWebsite?: string | null; excludedCompanies?: Array<{name:string;domain:string}>; searchPass?: number; searchStrategy?: string; searchPlan?: unknown }, options: { evidenceLimit?: number; depth?: number } = {}) {
   return compactForAi({
     campaign: input.campaign,
     business: input.business,
@@ -77,10 +77,82 @@ export function compactCompanyDiscoveryInput(input: { campaign: Record<string, u
     searchPass: input.searchPass ?? 1,
     searchStrategy: input.searchStrategy ?? "PRIMARY",
     searchPlan: input.searchPlan ?? null,
-  }, { evidenceLimit: 6, depth: 5 });
+  }, { evidenceLimit: options.evidenceLimit ?? 6, depth: options.depth ?? 5 });
 }
 
-export function compactContactDiscoveryInput(input: { company: Record<string, unknown>; campaign: Record<string, unknown>; business: Record<string, unknown>; routeExpansionPass?: number }) {
+export function compactContactDiscoveryInput(input: { company: Record<string, unknown>; campaign: Record<string, unknown>; business: Record<string, unknown>; routeExpansionPass?: number; passInstruction?: string }, options: { evidenceLimit?: number; depth?: number } = {}) {
   const firstPass = Number(input.routeExpansionPass ?? 0) === 0;
-  return compactForAi({ company: input.company, campaign: input.campaign, business: input.business, routeExpansionPass: input.routeExpansionPass ?? 0 }, { evidenceLimit: firstPass ? 12 : 8, depth: 6 });
+  return compactForAi({ company: input.company, campaign: input.campaign, business: input.business, routeExpansionPass: input.routeExpansionPass ?? 0, passInstruction: input.passInstruction ?? null }, { evidenceLimit: options.evidenceLimit ?? (firstPass ? 12 : 8), depth: options.depth ?? 6 });
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function routeList(sourceSnapshot: Record<string, unknown>): unknown[] {
+  const opportunity = record(sourceSnapshot.opportunity);
+  return Array.isArray(opportunity?.commercial_routes) ? opportunity.commercial_routes : [];
+}
+
+function selectedRouteId(channelStrategy: Record<string, unknown>): string | null {
+  const primary = record(channelStrategy.primary);
+  return typeof primary?.routeId === "string" ? primary.routeId : null;
+}
+
+function selectedRoute(sourceSnapshot: Record<string, unknown>, channelStrategy: Record<string, unknown>): unknown | null {
+  const id = selectedRouteId(channelStrategy);
+  if (!id) return null;
+  return routeList(sourceSnapshot).find((value) => record(value)?.id === id) ?? null;
+}
+
+export function compactG5ChannelBrief(input: {
+  commercialReasoning: Record<string, unknown>;
+  sourceSnapshot: Record<string, unknown>;
+}, options: { evidenceLimit: number; depth: number }) {
+  const opportunity = record(input.sourceSnapshot.opportunity);
+  return compactForAi({
+    commercialReasoning: input.commercialReasoning,
+    immutableG4: {
+      opportunity: {
+        id: opportunity?.id ?? opportunity?.opportunity_id ?? null,
+        companyId: opportunity?.company_id ?? opportunity?.companyId ?? null,
+        companyName: opportunity?.company_name ?? opportunity?.companyName ?? null,
+        commercial_routes: routeList(input.sourceSnapshot),
+      },
+    },
+  }, options);
+}
+
+export function compactG5OutreachBrief(input: {
+  commercialReasoning: Record<string, unknown>;
+  channelStrategy: Record<string, unknown>;
+  sourceSnapshot: Record<string, unknown>;
+  personalisationSafety: Record<string, unknown>;
+  rewriteInstruction?: Record<string, unknown> | null;
+}, options: { evidenceLimit: number; depth: number }) {
+  return compactForAi({
+    commercialReasoning: input.commercialReasoning,
+    channelStrategy: input.channelStrategy,
+    selectedRoute: selectedRoute(input.sourceSnapshot, input.channelStrategy),
+    personalisationSafety: input.personalisationSafety,
+    rewriteInstruction: input.rewriteInstruction ?? null,
+  }, options);
+}
+
+export function compactG5SelfReviewBrief(input: {
+  commercialReasoning: Record<string, unknown>;
+  channelStrategy: Record<string, unknown>;
+  immutableG4: Record<string, unknown>;
+  personalisationSafety: Record<string, unknown>;
+  outreach: Record<string, unknown>;
+  rewriteCount: number;
+}, options: { evidenceLimit: number; depth: number }) {
+  return compactForAi({
+    commercialReasoning: input.commercialReasoning,
+    channelStrategy: input.channelStrategy,
+    selectedRoute: selectedRoute(input.immutableG4, input.channelStrategy),
+    personalisationSafety: input.personalisationSafety,
+    outreach: input.outreach,
+    rewriteCount: input.rewriteCount,
+  }, options);
 }

@@ -1,7 +1,7 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
-import { aiGovernanceBlockReason } from "@/lib/ai/governance";
+import { aiGovernanceBlockReason, aiParallelCapacityReason } from "@/lib/ai/governance";
 import { isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { generateG5ChannelStrategy } from "./g5-channel-strategy-openai";
 
@@ -67,6 +67,11 @@ export async function runNextG5ChannelStrategy(schedulerRunId: string): Promise<
     return { processed: true, outcome: "COMPLETED", strategyId: claim.strategy_id, opportunityId: claim.opportunity_id };
   } catch (error) {
     if (isOpenAIBackgroundPending(error)) {
+      await databaseRequest("rpc/defer_g5_engagement_background_owned", { method: "POST", body: JSON.stringify({ p_strategy_id: claim.strategy_id, p_scheduler_run_id: schedulerRunId, p_lease_token: claim.lease_token, p_active_state: "STRATEGY_READY", p_resume_state: "STRATEGY_READY" }) }).catch(() => undefined);
+      return { processed: false, outcome: "DEFERRED", strategyId: claim.strategy_id, opportunityId: claim.opportunity_id };
+    }
+    const capacityReason = aiParallelCapacityReason(error);
+    if (capacityReason) {
       await databaseRequest("rpc/defer_g5_engagement_background_owned", { method: "POST", body: JSON.stringify({ p_strategy_id: claim.strategy_id, p_scheduler_run_id: schedulerRunId, p_lease_token: claim.lease_token, p_active_state: "STRATEGY_READY", p_resume_state: "STRATEGY_READY" }) }).catch(() => undefined);
       return { processed: false, outcome: "DEFERRED", strategyId: claim.strategy_id, opportunityId: claim.opportunity_id };
     }

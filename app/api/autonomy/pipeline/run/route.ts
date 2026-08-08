@@ -26,12 +26,12 @@ async function run(request: Request) {
   const contactFailed = Array.isArray(scheduler.contact)
     ? scheduler.contact.some(result => result.ok === false)
     : scheduler.contact?.ok === false;
-  const engagementWorkerFailed = [
-    scheduler.commercialReasoning,
-    scheduler.outreachGeneration,
-    scheduler.engagementSelfReview,
-  ].some(result => result?.outcome === "FAILED_RETRYABLE");
-  const workerFailed = scheduler.company?.ok === false || contactFailed || engagementWorkerFailed;
+  const engagementWorkerFailed = scheduler.parallelExecution.g5.some(lane => {
+    const result = lane.result as { outcome?: string } | null;
+    return result?.outcome === "FAILED_RETRYABLE";
+  });
+  const g4WorkerFailed = scheduler.parallelExecution.g4.results.some(result => result.ok === false);
+  const workerFailed = g4WorkerFailed || contactFailed || engagementWorkerFailed;
   return NextResponse.json(
     { ok: !workerFailed, skipped: false, scheduler },
     { status: workerFailed ? 207 : 200 },

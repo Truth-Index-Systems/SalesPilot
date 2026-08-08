@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const read=(p)=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const checks=[]; const check=(name,ok)=>{checks.push([name,!!ok]); console.log(`${ok?'PASS':'FAIL'} ${name}`)};
 const bg=read('lib/ai/background-response.ts');
+const collector=read('lib/ai/background-collector.ts');
 const gov=read('lib/ai/governance.ts');
 const migration=read('supabase/migrations/0093_genesis_post_freeze_all_ai_background_resumability.sql');
 const scheduler=read('lib/pipeline/scheduler.ts');
@@ -17,7 +18,7 @@ const active=[
 ];
 check('background helper submits Responses API with background true',bg.includes('background: true'));
 check('background helper persists response ids',bg.includes('upsert_ai_background_response')&&bg.includes('response_id'));
-check('background helper polls existing responses',bg.includes('`${ENDPOINT}/${encodeURIComponent(id)}`'));
+check('background completion retrieval has a durable owner',collector.includes('`${ENDPOINT}/${encodeURIComponent(row.response_id)}`')||bg.includes('`${ENDPOINT}/${encodeURIComponent(id)}`'));
 check('background helper caches completed provider response',bg.includes('responseJson: json'));
 check('background helper exposes pending control signal',bg.includes('OpenAIBackgroundPendingError'));
 check('completed checkpoint can be discarded after invalid AI output',bg.includes('discardOpenAIBackgroundResponse'));
@@ -34,7 +35,7 @@ check('company discovery pending releases ownership without attempt consumption'
 check('route intelligence pending releases ownership without attempt consumption',routeWorker.includes('defer_contact_discovery_background_owned'));
 check('business analysis pending releases ownership without attempt consumption',businessWorker.includes('deferBusinessAnalysisBackground'));
 for(const [name,s] of [['R2',r2],['R3',r3],['R4',r4],['R6',r6]]) check(`${name} pending releases G5 ownership without failure`,s.includes('defer_g5_engagement_background_owned'));
-check('scheduler treats DEFERRED AI work as an occupied AI slot',scheduler.includes('commercialReasoningDidNotClaim')&&scheduler.includes('channelStrategyDidNotClaim')&&scheduler.includes('outreachGenerationDidNotClaim'));
+check('scheduler treats DEFERRED AI work as an occupied lane slot',scheduler.includes('if (reasoning.outcome !== "NO_JOB") return')&&scheduler.includes('if (channel.outcome !== "NO_JOB") return')&&scheduler.includes('if (outreach.outcome !== "NO_JOB") return'));
 check('background checkpoint table is service-role only',migration.includes('revoke all on table public.ai_background_responses from public,anon,authenticated'));
 check('company defer rolls back attempt',migration.includes('defer_company_discovery_background_owned')&&migration.includes('attempt_count=greatest(attempt_count-1,0)'));
 check('route defer rolls back attempt',migration.includes('defer_contact_discovery_background_owned'));
@@ -43,5 +44,5 @@ check('business defer rolls back attempt',migration.includes('defer_business_ana
 const legacyScheduler=read('lib/pipeline/scheduler.ts');
 check('legacy engagement AI remains outside scheduler',!legacyScheduler.includes('runNextEngagementCommercialReasoning')&&!legacyScheduler.includes('runNextEngagementOutreach'));
 const repair=read('lib/ai/structured-response-gateway.ts');
-check('hidden model repair is no longer automatic/untracked',repair.includes('if (params.allowRepair === true)'));
+check('structured output recovery is deterministic-only and makes no hidden provider call',!repair.includes('api.openai.com')&&!repair.includes('fetch(')&&!repair.includes('MODEL_REPAIR'));
 const failed=checks.filter(([,ok])=>!ok).length; console.log(`\n${checks.length-failed}/${checks.length} checks passed`); if(failed) process.exit(1);

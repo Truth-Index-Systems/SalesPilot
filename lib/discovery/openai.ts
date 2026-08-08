@@ -10,6 +10,7 @@ import { compactCompanyDiscoveryInput, stableFingerprint } from "@/lib/ai/cost-o
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 import type { CompanySearchPlan } from "./search-plan";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
+import { aiWorkloadProfile, aiPromptCacheKey } from "@/lib/ai/workload-profile";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 
@@ -111,12 +112,13 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
 
   const model = resolveOpenAIModel("analysis").model;
+  const profile = aiWorkloadProfile("COMPANY_DISCOVERY");
   const startedAt = Date.now();
   const requestedLimit = Number(input.targetCandidateLimit ?? 4);
   const targetCandidateLimit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(5, Math.floor(requestedLimit))) : 4;
   const jsonSchema = companyDiscoveryJsonSchemaFor(targetCandidateLimit);
-  const compactInput = compactCompanyDiscoveryInput(input);
-  const fingerprint = stableFingerprint({ prompt: "company-discovery/v5-bounded-archetype", model, compactInput, targetCandidateLimit, archetypeIndex: input.archetypeIndex ?? 0 });
+  const compactInput = compactCompanyDiscoveryInput(input, { evidenceLimit: profile.evidenceLimit, depth: profile.depth });
+  const fingerprint = stableFingerprint({ prompt: profile.promptVersion, cacheKey: aiPromptCacheKey("COMPANY_DISCOVERY"), model, compactInput, targetCandidateLimit, archetypeIndex: input.archetypeIndex ?? 0 });
   const wholePassEstimate = Number(process.env.SALESPILOT_COMPANY_DISCOVERY_ESTIMATED_COST_USD ?? "0.25");
   const safeWholePassEstimate = Number.isFinite(wholePassEstimate) && wholePassEstimate > 0 ? wholePassEstimate : 0.25;
   const estimatedCostUsd = Math.max(0.01, safeWholePassEstimate / Math.max(1, input.archetypeTotal ?? 1));
@@ -161,7 +163,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
       ].join(" "),
       input: JSON.stringify(compactInput),
       tools: [{ type: "web_search_preview", search_context_size: "medium" }],
-      reasoning: { effort: "medium" },
+      reasoning: { effort: profile.reasoningEffort },
       text: {
         format: {
           type: "json_schema",
@@ -173,7 +175,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
       // GPT-5 reasoning tokens share max_output_tokens with the final JSON.
       // Bounded archetype output materially reduces completion size while leaving
       // enough room for GPT-5 reasoning plus strict JSON.
-      max_output_tokens: 5_500,
+      max_output_tokens: profile.maxOutputTokens,
       store: false,
     }),
     });

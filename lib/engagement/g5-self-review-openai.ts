@@ -1,8 +1,9 @@
 import "server-only";
 import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
+import { aiWorkloadProfile, aiPromptCacheKey } from "@/lib/ai/workload-profile";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
-import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
+import { compactG5SelfReviewBrief, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { G5SelfReviewSchema, g5SelfReviewJsonSchema, type G5SelfReview } from "./g5-self-review-schema";
@@ -20,10 +21,17 @@ function applyPolicy(review: G5SelfReview, rewriteCount: number): G5SelfReview {
 
 export async function reviewG5Outreach(input:{organisationId:string;campaignId:string;schedulerRunId:string;strategyId:string;rewriteCount:number;context:Record<string,unknown>}):Promise<{result:G5SelfReview;model:string;sourceFingerprint:string}> {
   const apiKey=process.env.OPENAI_API_KEY?.trim(); if(!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
-  const model=resolveOpenAIModel("analysis").model;
-  const compactInput=compactForAi(input.context,{evidenceLimit:10,depth:8}) as Record<string,unknown>;
+  const model=resolveOpenAIModel("analysis").model; const profile=aiWorkloadProfile("G5_SELF_REVIEW");
+  const compactInput=compactG5SelfReviewBrief({
+    commercialReasoning:(input.context.commercialReasoning as Record<string,unknown>)??{},
+    channelStrategy:(input.context.channelStrategy as Record<string,unknown>)??{},
+    immutableG4:(input.context.immutableG4 as Record<string,unknown>)??{},
+    personalisationSafety:(input.context.personalisationSafety as Record<string,unknown>)??{},
+    outreach:(input.context.outreach as Record<string,unknown>)??{},
+    rewriteCount:input.rewriteCount,
+  },{evidenceLimit:profile.evidenceLimit,depth:profile.depth}) as Record<string,unknown>;
   const sourceFingerprint=stableFingerprint(compactInput);
-  const requestFingerprint=stableFingerprint({prompt:"g5-self-review/v3-responsibility-boundary",model,sourceFingerprint,rewriteCount:input.rewriteCount});
+  const requestFingerprint=stableFingerprint({prompt:profile.promptVersion,cacheKey:aiPromptCacheKey("G5_SELF_REVIEW"),model,sourceFingerprint,rewriteCount:input.rewriteCount});
   const startedAt=Date.now();
   const requestTimeoutMs = aiRequestTimeoutMs("G5_SELF_REVIEW");
   const reservation=await reserveAiRequest({organisationId:input.organisationId,campaignId:input.campaignId,schedulerRunId:input.schedulerRunId,jobType:"OUTREACH",jobId:input.strategyId,requestScope:`g5-self-review:${requestFingerprint}`,model,estimatedCostUsd:Number(process.env.SALESPILOT_ENGAGEMENT_SELF_REVIEW_ESTIMATED_COST_USD??"0.04")});
@@ -45,7 +53,7 @@ export async function reviewG5Outreach(input:{organisationId:string;campaignId:s
       "Do not reward verbosity or polish for their own sake. Reward credible relevance, restraint and a sensible next commitment.",
       "Everything outside your accountability belongs to another executive or deterministic SalesPilot. Do not assume another role merely to complete the task.",
       "Return exact JSON only. Set promptVersion to g5-self-review/v3-responsibility-boundary."
-    ].join(" "),input:JSON.stringify(compactInput),reasoning:{effort:"high"},text:{format:{type:"json_schema",name:"salespilot_g5_self_review_v1",strict:true,schema:g5SelfReviewJsonSchema}},max_output_tokens:1800,store:false})});
+    ].join(" "),input:JSON.stringify(compactInput),reasoning:{effort:profile.reasoningEffort},text:{format:{type:"json_schema",name:"salespilot_g5_self_review_v1",strict:true,schema:g5SelfReviewJsonSchema}},max_output_tokens:profile.maxOutputTokens,store:false})});
   } catch(error){if(isOpenAIBackgroundPending(error))throw error;const transport=classifyOpenAITransportError(error,"G5_SELF_REVIEW",requestTimeoutMs);await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:transport.code,errorMessage:transport.error.message}).catch(()=>undefined);throw transport.error;}
   const json:unknown=await response.json().catch(()=>null); const usage=responseUsage(json); const responseId=typeof (json as {id?:unknown}|null)?.id==="string"?(json as {id:string}).id:null;
   if(!response.ok){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage,durationMs:Date.now()-startedAt,responseId,errorCode:`HTTP_${response.status}`,errorMessage:JSON.stringify((json as {error?:unknown}|null)?.error??null)}).catch(()=>undefined);throw new Error(`OPENAI_G5_SELF_REVIEW_FAILED:${response.status}`);}

@@ -1,6 +1,7 @@
 import "server-only";
 import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
+import { aiWorkloadProfile, aiPromptCacheKey } from "@/lib/ai/workload-profile";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { ContactDiscoveryResultSchema } from "./schemas";
@@ -55,10 +56,12 @@ const schema={
 export async function researchRouteIntelligence(input:{organisationId:string;campaignId:string;schedulerRunId?:string|null;jobId:string;company:Record<string,unknown>;campaign:Record<string,unknown>;business:Record<string,unknown>;routeExpansionPass?:number}){
   const apiKey=process.env.OPENAI_API_KEY?.trim();if(!apiKey)throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const model=resolveOpenAIModel("analysis").model;
-  const compactInput=compactContactDiscoveryInput(input);
-  const fingerprint=stableFingerprint({prompt:"contact-discovery/v5-responsibility-boundary",model,compactInput});
-  const startedAt=Date.now();
   const routeTask = Number(input.routeExpansionPass ?? 0) === 0 ? "ROUTE_INTELLIGENCE_FIRST_PASS" as const : "ROUTE_INTELLIGENCE_EXPANSION" as const;
+  const profile=aiWorkloadProfile(routeTask);
+  const passInstruction=input.routeExpansionPass===0?"FIRST PASS: establish the strongest directly executable route, identify the authority level appropriate to company scale/likely commitment, and find an independent fallback where official evidence supports it.":input.routeExpansionPass===1?"EXPANSION TWO: search role-title synonyms, adjacent buying-committee members, direct email/LinkedIn evidence and stronger authority-to-budget alignment not covered on pass one.":input.routeExpansionPass===2?"EXPANSION THREE: check departmental routes, regional/divisional leadership, procurement, transformation and executive-assistant/introduction paths using official sources.":"FINAL SAFE EXPANSION: re-check independent official access paths and return uncertainty rather than inventing a route.";
+  const compactInput=compactContactDiscoveryInput({...input, passInstruction} as typeof input & {passInstruction:string},{evidenceLimit:profile.evidenceLimit,depth:profile.depth});
+  const fingerprint=stableFingerprint({prompt:profile.promptVersion,cacheKey:aiPromptCacheKey(routeTask),model,compactInput});
+  const startedAt=Date.now();
   const requestTimeoutMs = aiRequestTimeoutMs(routeTask);
   const reservation=await reserveAiRequest({organisationId:input.organisationId,campaignId:input.campaignId,schedulerRunId:input.schedulerRunId,jobType:"CONTACT_DISCOVERY",jobId:input.jobId,requestScope:`contact-discovery:${fingerprint}`,model,estimatedCostUsd:Number(process.env.SALESPILOT_ROUTE_INTELLIGENCE_ESTIMATED_COST_USD??(Number(input.routeExpansionPass??0)===0?"0.55":"0.30"))});
   let response:Response;
@@ -93,12 +96,11 @@ export async function researchRouteIntelligence(input:{organisationId:string;cam
       "A route may be useful without a named person when a verified department/general channel, switchboard or introduction path exists, but never mark unsupported reachability as executable.",
       "Before finalising, challenge the primary contact/route: identify whether someone one level lower would be sufficiently authorised and more relevant, or one level higher is actually required by the likely commitment. Prefer the closest justified level.",
       "Return at most 8 well-supported people, 10 commercial routes and 10 company channels. Everything outside your accountability belongs to another executive or deterministic SalesPilot. Do not assume another role merely to complete the task. Write calm British English.",
-      input.routeExpansionPass===0?"FIRST PASS: establish the strongest directly executable route, identify the authority level appropriate to company scale/likely commitment, and find an independent fallback where official evidence supports it.":input.routeExpansionPass===1?"EXPANSION TWO: search role-title synonyms, adjacent buying-committee members, direct email/LinkedIn evidence and stronger authority-to-budget alignment not covered on pass one.":input.routeExpansionPass===2?"EXPANSION THREE: check departmental routes, regional/divisional leadership, procurement, transformation and executive-assistant/introduction paths using official sources.":"FINAL SAFE EXPANSION: re-check independent official access paths and return uncertainty rather than inventing a route.",
       "Prompt policy: contact-discovery/v5-responsibility-boundary."
     ].join(" "),
     input:JSON.stringify(compactInput),tools:[{type:"web_search_preview",search_context_size:input.routeExpansionPass===0?"medium":"low"}],
-    reasoning:{effort:"high"},
-    text:{format:{type:"json_schema",name:"salespilot_contact_discovery_v3",strict:true,schema}},max_output_tokens:Number(input.routeExpansionPass??0)===0?9000:6500,store:false
+    reasoning:{effort:profile.reasoningEffort},
+    text:{format:{type:"json_schema",name:"salespilot_contact_discovery_v3",strict:true,schema}},max_output_tokens:profile.maxOutputTokens,store:false
   })});}catch(error){if(isOpenAIBackgroundPending(error))throw error;const transport=classifyOpenAITransportError(error,routeTask,requestTimeoutMs);await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:transport.code,errorMessage:transport.error.message}).catch(()=>undefined);throw transport.error;}
   const json:unknown=await response.json().catch(()=>null);
   if(!response.ok){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId:typeof (json as any)?.id==="string"?(json as any).id:null,errorCode:`HTTP_${response.status}`,errorMessage:JSON.stringify((json as any)?.error??null)}).catch(()=>undefined);throw new Error(`OPENAI_CONTACT_DISCOVERY_FAILED:${response.status}:${JSON.stringify((json as any)?.error??null)}`);}

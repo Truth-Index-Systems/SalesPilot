@@ -1,8 +1,9 @@
 import "server-only";
 import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
+import { aiWorkloadProfile, aiPromptCacheKey } from "@/lib/ai/workload-profile";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
-import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
+import { compactG5ChannelBrief, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import {
@@ -57,6 +58,49 @@ function validateDecision(decision: G5RouteDecision | null, routes: Map<string, 
   }
 }
 
+
+function deterministicSingleRouteStrategy(input: {
+  commercialReasoning: Record<string, unknown>;
+  sourceSnapshot: Record<string, unknown>;
+}): G5ChannelStrategy | null {
+  const routes = [...routeTruthById(input.sourceSnapshot).values()].filter((route) => {
+    if (route.isViable !== true) return false;
+    if (typeof route.channelValue !== "string" || route.channelValue.trim().length === 0) return false;
+    return typeof route.channelType === "string" && Boolean(CHANNEL_COMPATIBILITY[route.channelType]);
+  });
+  if (routes.length !== 1) return null;
+  const route = routes[0];
+  if (typeof route.id !== "string" || typeof route.channelType !== "string") return null;
+  const executionChannel = CHANNEL_COMPATIBILITY[route.channelType];
+  if (!executionChannel) return null;
+
+  const whyNow = typeof input.commercialReasoning.whyNow === "string" && input.commercialReasoning.whyNow.trim()
+    ? input.commercialReasoning.whyNow.trim()
+    : "No separate timing trigger is verified; use the established commercial relevance without manufacturing urgency.";
+  const commitment = typeof input.commercialReasoning.smallestReasonableCommitment === "string" && input.commercialReasoning.smallestReasonableCommitment.trim()
+    ? input.commercialReasoning.smallestReasonableCommitment.trim()
+    : "Confirm relevance and the correct owner for a next conversation.";
+
+  return G5ChannelStrategySchema.parse({
+    schemaVersion: "g5-channel-strategy/v1",
+    promptVersion: "g5-channel-strategy/v3-responsibility-boundary",
+    primary: {
+      routeId: route.id,
+      executionChannel,
+      selectionReason: "This is the only G4-validated route that is both viable and directly reachable, so no comparative channel judgement is required.",
+      commercialFriction: executionChannel === "EMAIL" || executionChannel === "LINKEDIN" ? "LOW" : "MEDIUM",
+      expectedCommitment: commitment,
+    },
+    secondary: null,
+    fallback: null,
+    sequenceRationale: "Use the sole validated executable route first. Do not manufacture an alternative route merely to create sequence diversity.",
+    primaryWhyNow: whyNow,
+    alternativesNotFirst: [],
+    channelConfidence: 95,
+    limitations: ["Only one viable reachable G4 route is currently available; route diversity remains limited."],
+  });
+}
+
 function validateAgainstImmutableRoutes(result: G5ChannelStrategy, sourceSnapshot: Record<string, unknown>): void {
   const routes = routeTruthById(sourceSnapshot);
   if (!routes.size) throw new Error("G5_CHANNEL_STRATEGY_NO_G4_ROUTES");
@@ -79,16 +123,22 @@ export async function generateG5ChannelStrategy(input: {
   commercialReasoning: Record<string, unknown>;
   sourceSnapshot: Record<string, unknown>;
 }): Promise<{ result: G5ChannelStrategy; model: string; sourceFingerprint: string }> {
+  const profile = aiWorkloadProfile("G5_CHANNEL_STRATEGY");
+  const compactInput = compactG5ChannelBrief({
+    commercialReasoning: input.commercialReasoning,
+    sourceSnapshot: input.sourceSnapshot,
+  }, { evidenceLimit: profile.evidenceLimit, depth: profile.depth }) as Record<string, unknown>;
+  const sourceFingerprint = stableFingerprint(compactInput);
+  const deterministic = deterministicSingleRouteStrategy({ commercialReasoning: input.commercialReasoning, sourceSnapshot: input.sourceSnapshot });
+  if (deterministic) {
+    validateAgainstImmutableRoutes(deterministic, input.sourceSnapshot);
+    return { result: deterministic, model: "deterministic:r4-single-route", sourceFingerprint };
+  }
+
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
-
   const model = resolveOpenAIModel("analysis").model;
-  const compactInput = compactForAi({
-    commercialReasoning: input.commercialReasoning,
-    immutableG4: input.sourceSnapshot,
-  }, { evidenceLimit: 8, depth: 8 }) as Record<string, unknown>;
-  const sourceFingerprint = stableFingerprint(compactInput);
-  const requestFingerprint = stableFingerprint({ prompt: "g5-channel-strategy/v3-responsibility-boundary", model, sourceFingerprint });
+  const requestFingerprint = stableFingerprint({ prompt: profile.promptVersion, cacheKey: aiPromptCacheKey("G5_CHANNEL_STRATEGY"), model, sourceFingerprint });
   const startedAt = Date.now();
   const requestTimeoutMs = aiRequestTimeoutMs("G5_CHANNEL_STRATEGY");
 
@@ -133,9 +183,9 @@ export async function generateG5ChannelStrategy(input: {
           "Write calm, concise British English. Return exact JSON only. Set promptVersion to g5-channel-strategy/v3-responsibility-boundary.",
         ].join(" "),
         input: JSON.stringify(compactInput),
-        reasoning: { effort: "medium" },
+        reasoning: { effort: profile.reasoningEffort },
         text: { format: { type: "json_schema", name: "salespilot_g5_channel_strategy_v1", strict: true, schema: g5ChannelStrategyJsonSchema } },
-        max_output_tokens: 2200,
+        max_output_tokens: profile.maxOutputTokens,
         store: false,
       }),
     });

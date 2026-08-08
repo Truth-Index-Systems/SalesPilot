@@ -1,8 +1,9 @@
 import "server-only";
 import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
+import { aiWorkloadProfile, aiPromptCacheKey } from "@/lib/ai/workload-profile";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
-import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
+import { compactG5OutreachBrief, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import {
@@ -111,15 +112,16 @@ export async function generateG5Outreach(input: {
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
 
   const model = resolveOpenAIModel("analysis").model;
-  const compactInput = compactForAi({
+  const profile = aiWorkloadProfile("G5_OUTREACH_GENERATION");
+  const compactInput = compactG5OutreachBrief({
     commercialReasoning: input.commercialReasoning,
     channelStrategy: input.channelStrategy,
-    immutableG4: input.sourceSnapshot,
+    sourceSnapshot: input.sourceSnapshot,
     personalisationSafety: input.personalisationSafety,
     rewriteInstruction: input.rewriteInstruction ?? null,
-  }, { evidenceLimit: 8, depth: 8 }) as Record<string, unknown>;
+  }, { evidenceLimit: profile.evidenceLimit, depth: profile.depth }) as Record<string, unknown>;
   const sourceFingerprint = stableFingerprint(compactInput);
-  const requestFingerprint = stableFingerprint({ prompt: "g5-outreach-generation/v5-responsibility-boundary", model, sourceFingerprint });
+  const requestFingerprint = stableFingerprint({ prompt: profile.promptVersion, cacheKey: aiPromptCacheKey("G5_OUTREACH_GENERATION"), model, sourceFingerprint });
   const startedAt = Date.now();
   const requestTimeoutMs = aiRequestTimeoutMs("G5_OUTREACH_GENERATION");
   const reservation = await reserveAiRequest({
@@ -167,9 +169,9 @@ export async function generateG5Outreach(input: {
           "Write natural professional British English. Return exact JSON only. Set promptVersion to g5-outreach-generation/v5-responsibility-boundary.",
         ].join(" "),
         input: JSON.stringify(compactInput),
-        reasoning: { effort: "low" },
+        reasoning: { effort: profile.reasoningEffort },
         text: { format: { type: "json_schema", name: "salespilot_g5_outreach_generation_v1", strict: true, schema: g5OutreachGenerationJsonSchema } },
-        max_output_tokens: 1900,
+        max_output_tokens: profile.maxOutputTokens,
         store: false,
       }),
     });

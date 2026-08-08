@@ -47,10 +47,6 @@ function submitTimeoutMs() {
   return Number.isFinite(raw) ? Math.max(10_000, Math.min(60_000, Math.trunc(raw))) : 30_000;
 }
 
-function pollTimeoutMs() {
-  const raw = Number(process.env.SALESPILOT_AI_BACKGROUND_POLL_TIMEOUT_MS ?? "20000");
-  return Number.isFinite(raw) ? Math.max(5_000, Math.min(45_000, Math.trunc(raw))) : 20_000;
-}
 
 function pendingStatus(value: unknown) {
   return value === "queued" || value === "in_progress";
@@ -133,24 +129,21 @@ export async function fetchResumableOpenAIResponse(params: {
   let id: string | null = existing?.response_id ?? null;
 
   if (id) {
-    const response = await fetch(`${ENDPOINT}/${encodeURIComponent(id)}`, {
-      method: "GET",
-      cache: "no-store",
-      signal: AbortSignal.timeout(pollTimeoutMs()),
-      headers: { Authorization: `Bearer ${params.apiKey}`, "Content-Type": "application/json" },
-    });
-    json = await response.json().catch(() => null);
-    if (!response.ok) {
-      if (response.status === 404) await clearCheckpoint(key);
-      return syntheticResponse(json, response.status);
+    // R2 dispatcher/collector boundary: workers never poll provider work. The
+    // dedicated collector (webhook-first, polling fallback) owns retrieval and
+    // caches the completed response_json for the next worker claim.
+    if (existing?.status === "failed" || existing?.status === "cancelled" || existing?.status === "incomplete") {
+      await clearCheckpoint(key);
+      return syntheticResponse({ error: { message: `Background response ended with status ${existing.status}` } }, 502);
     }
+    throw new OpenAIBackgroundPendingError(params.task, id, existing?.status ?? "in_progress");
   } else {
     const response = await fetch(ENDPOINT, {
       method: "POST",
       cache: "no-store",
       signal: AbortSignal.timeout(submitTimeoutMs()),
       headers: { Authorization: `Bearer ${params.apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ ...parsedBody, background: true, store: false }),
+      body: JSON.stringify({ ...parsedBody, background: true, store: true }),
     });
     json = await response.json().catch(() => null);
     if (!response.ok) return syntheticResponse(json, response.status);

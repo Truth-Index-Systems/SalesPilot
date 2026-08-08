@@ -1,8 +1,6 @@
 import "server-only";
-import { aiRequestTimeoutMs } from "@/lib/ai/request-policy";
 import type { ZodTypeAny, output as ZodOutput } from "zod";
 
-const ENDPOINT = "https://api.openai.com/v1/responses";
 
 export class StructuredAiOutputError extends Error {
   readonly code: "EMPTY" | "INVALID_JSON" | "INVALID_SCHEMA" | "REPAIR_FAILED";
@@ -66,38 +64,6 @@ function parseCandidate<S extends ZodTypeAny>(candidate: string, schema: S): Zod
   return schema.parse(JSON.parse(candidate)) as ZodOutput<S>;
 }
 
-async function requestRepair<S extends ZodTypeAny>(params: {
-  raw: string;
-  schema: S;
-  jsonSchema: unknown;
-  schemaName: string;
-  apiKey: string;
-  model: string;
-  timeoutMs?: number;
-}): Promise<ZodOutput<S>> {
-  const response = await fetch(ENDPOINT, {
-    method: "POST",
-    cache: "no-store",
-    signal: AbortSignal.timeout(params.timeoutMs ?? aiRequestTimeoutMs("STRUCTURED_OUTPUT_REPAIR")),
-    headers: { Authorization: `Bearer ${params.apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: params.model,
-      instructions: [
-        "You repair malformed or truncated JSON for a production system.",
-        "Preserve every recoverable value from the supplied response.",
-        "Do not add facts, guesses, explanations or markdown.",
-        "Return one object matching the required schema exactly.",
-      ].join(" "),
-      input: params.raw.slice(0, 30_000),
-      text: { format: { type: "json_schema", name: `${params.schemaName}_repair`, strict: true, schema: params.jsonSchema } },
-      max_output_tokens: 9_000,
-      store: false,
-    }),
-  });
-  const json: unknown = await response.json().catch(() => null);
-  if (!response.ok) throw new StructuredAiOutputError("REPAIR_FAILED", `HTTP_${response.status}`);
-  return parseCandidate(extractStructuredOutputText(json), params.schema);
-}
 
 export async function parseStructuredAiResponse<S extends ZodTypeAny>(params: {
   response: unknown;
@@ -106,8 +72,7 @@ export async function parseStructuredAiResponse<S extends ZodTypeAny>(params: {
   schemaName: string;
   apiKey: string;
   model: string;
-  allowRepair?: boolean;
-}): Promise<{ value: ZodOutput<S>; recovery: "NONE" | "DETERMINISTIC" | "MODEL_REPAIR" }> {
+}): Promise<{ value: ZodOutput<S>; recovery: "NONE" | "DETERMINISTIC" }> {
   const raw = extractStructuredOutputText(params.response);
   const candidates = [stripFences(raw), closeTruncatedJson(raw)];
   let parsedJson = false;
@@ -118,26 +83,6 @@ export async function parseStructuredAiResponse<S extends ZodTypeAny>(params: {
       return { value: parseCandidate(candidates[index], params.schema), recovery };
     } catch (error) {
       if (!(error instanceof SyntaxError)) parsedJson = true;
-    }
-  }
-  if (params.allowRepair === true) {
-    try {
-      const value = await requestRepair({
-        raw,
-        schema: params.schema,
-        jsonSchema: params.jsonSchema,
-        schemaName: params.schemaName,
-        apiKey: params.apiKey,
-        model: params.model,
-      });
-      console.info("Structured AI response recovered", { schemaName: params.schemaName, recovery: "MODEL_REPAIR" });
-      return { value, recovery: "MODEL_REPAIR" };
-    } catch (repairError) {
-      console.warn("Structured AI response repair failed", {
-        schemaName: params.schemaName,
-        code: repairError instanceof StructuredAiOutputError ? repairError.code : "REPAIR_REQUEST_FAILED",
-      });
-      // The caller's stage-local retry/dead-letter policy remains authoritative.
     }
   }
   throw new StructuredAiOutputError(parsedJson ? "INVALID_SCHEMA" : "INVALID_JSON");

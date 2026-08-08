@@ -10,6 +10,7 @@ import { normaliseBusinessAnalysis } from "@/lib/intelligence/fit-score";
 import { StructuredAiOutputError, parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 import { BusinessDiscoveryGatewaySchema, canonicaliseBusinessDiscoveryOutput } from "@/lib/intelligence/business-structured-output";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
+import { aiWorkloadProfile, aiPromptCacheKey } from "@/lib/ai/workload-profile";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 
@@ -23,9 +24,11 @@ function getConfig() {
 
 export async function analyseBusiness(params: { organisationId:string|null; jobId:string; website: string; sources: WebsiteSource[] }): Promise<AiEnvelope<BusinessDnaPayload>> {
   const { apiKey, model } = getConfig();
-  const compactSources = params.sources.slice(0, 8).map(source => ({...source, text: source.text.slice(0, 6000)}));
+  const profile = aiWorkloadProfile("BUSINESS_ANALYSIS");
+  const compactSources = params.sources.slice(0, 8).map(source => ({...source, text: source.text.slice(0, 4500)}));
   const sourceBlock = compactSources.map((source, index) => `SOURCE ${index + 1}\nURL: ${source.url}\nTITLE: ${source.title}\nCONTENT: ${source.text}`).join("\n\n");
   const now = new Date().toISOString();
+  const requestInput = `CANONICAL WEBSITE: ${params.website}\nMODEL LABEL: ${model}\nGENERATED AT: ${now}\n\n${sourceBlock}`;
   const instructions = `ROLE: Chief Commercial Strategy Officer for SalesPilot.
 
 MISSION:
@@ -66,14 +69,14 @@ QUALITY RULES:
 - Write concise, calm British English.
 - Return the exact JSON schema only.
 - Set schemaVersion to business-dna/v1 and promptVersion to business-discovery/v3-responsibility-boundary.
-- Set model to ${model} and generatedAt to ${now}.
-- Use the canonical website ${params.website}.`;
+- Set model and generatedAt exactly from the supplied request input metadata.
+- Use the canonical website exactly from the supplied request input metadata.`;
 
   const body = {
     model,
     instructions,
-    input: sourceBlock,
-    reasoning: { effort: "medium" },
+    input: requestInput,
+    reasoning: { effort: profile.reasoningEffort },
     text: {
       format: {
         type: "json_schema",
@@ -86,11 +89,11 @@ QUALITY RULES:
     // This schema contains Business DNA plus several complete campaign proposals.
     // GPT-5 reasoning tokens share this allowance with the final JSON, so a
     // smaller cap can truncate otherwise valid structured output mid-string.
-    max_output_tokens: 9_000,
+    max_output_tokens: profile.maxOutputTokens,
     store: false,
   };
 
-  const fingerprint = stableFingerprint({prompt:"business-discovery/v3-responsibility-boundary",model,website:params.website,sources:compactSources});
+  const fingerprint = stableFingerprint({prompt:profile.promptVersion,cacheKey:aiPromptCacheKey("BUSINESS_ANALYSIS"),model,website:params.website,sources:compactSources});
   const reservation = await reserveAiRequest({ organisationId: params.organisationId, jobType: "BUSINESS_ANALYSIS", jobId: params.jobId, requestScope: `business-analysis:${fingerprint}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_BUSINESS_ANALYSIS_ESTIMATED_COST_USD ?? "0.10") });
   const startedAt = Date.now();
   let lastError: Error | null = null;

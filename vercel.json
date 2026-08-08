@@ -1,1 +1,1 @@
-{"crons":[{"path":"/api/autonomy/pipeline/run","schedule":"* * * * *"}]}
+{"crons":[{"path":"/api/autonomy/ai/collect","schedule":"* * * * *"},{"path":"/api/autonomy/pipeline/run","schedule":"* * * * *"}]}

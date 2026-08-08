@@ -5,6 +5,7 @@ import { Card, Metric, PageHeader } from "@/components/ui";
 import { requirePageUser } from "@/lib/auth/page-user";
 import { requireOrganisationContext } from "@/lib/auth/organisation-context";
 import { getAiCostBaseline, type AiCostFilters, type AiCostRange } from "@/lib/ai/cost-repository";
+import { getAiLatencyObservatory } from "@/lib/ai/latency-repository";
 
 export const dynamic="force-dynamic";
 type Search={range?:AiCostRange;campaign?:string;model?:string;prompt?:string;stage?:string};
@@ -17,7 +18,7 @@ export default async function AiCostsPage({searchParams}:{searchParams:Promise<S
   const context=await requireOrganisationContext();
   if(!["OWNER","ADMIN"].includes(context.role)) notFound();
   const search=await searchParams;
-  const data=await getAiCostBaseline(context.organisationId,search as AiCostFilters);
+  const [data,latency]=await Promise.all([getAiCostBaseline(context.organisationId,search as AiCostFilters),getAiLatencyObservatory(context.organisationId,search.range??"today")]);
   const hasFilters=Boolean(search.campaign||search.model||search.prompt||search.stage||search.range&&search.range!=="today");
   return <AppShell title="AI costs" user={user}>
     <PageHeader eyebrow="Internal cost intelligence" title="AI cost baseline" subtitle="Authoritative production usage by intelligence stage, model, prompt and campaign. No test-mode behaviour is applied." action={<Link className="button secondary" href="/internal/autonomy">Autonomy health</Link>}/>
@@ -35,6 +36,15 @@ export default async function AiCostsPage({searchParams}:{searchParams:Promise<S
       <Metric label="Tokens" value={number(data.totals.inputTokens+data.totals.outputTokens)} foot={`${number(data.totals.inputTokens)} input · ${number(data.totals.outputTokens)} output`}/>
       <Metric label="Web searches" value={number(data.totals.webSearches)} foot="Recorded provider search calls"/>
     </div>
+    <Card className="section"><div className="card-title">R5 latency observatory</div><div className="card-subtitle">Durable background lifecycle timing from submission through provider completion and collection. Percentiles use completed observed requests only.</div>
+      <div className="grid cols-4 section">
+        <Metric label="p50 end-to-end" value={duration(latency.summary.p50Ms)} foot={`p90 ${duration(latency.summary.p90Ms)} · p95 ${duration(latency.summary.p95Ms)}`}/>
+        <Metric label="Background pending" value={number(latency.summary.pending)} foot={`${number(latency.summary.stale)} stale over 30m`} tone={latency.summary.stale?"negative":"positive"}/>
+        <Metric label="Cached input" value={number(latency.summary.cachedInputTokens)} foot="Provider-reported cached tokens"/>
+        <Metric label="Recovery errors" value={number(latency.summary.collectorErrors)} foot="Workspace-scoped collector errors" tone={latency.summary.collectorErrors?"negative":"positive"}/>
+      </div>
+      {latency.stages.length?<div className="table-wrap section"><table className="data-table"><thead><tr><th>Executive</th><th>Calls</th><th>Complete</th><th>Pending</th><th>p50</th><th>p90</th><th>p95</th><th>Provider p50</th><th>Collect p50</th><th>Cache hit</th><th>Reasoning tokens</th><th>Recovery retries</th></tr></thead><tbody>{latency.stages.map(row=><tr key={row.task}><td><strong>{row.task.replaceAll("_"," ")}</strong></td><td>{row.calls}</td><td>{row.completed}</td><td>{row.pending}</td><td>{duration(row.p50Ms)}</td><td>{duration(row.p90Ms)}</td><td>{duration(row.p95Ms)}</td><td>{duration(row.providerP50Ms)}</td><td>{duration(row.collectionP50Ms)}</td><td>{`${(row.cacheHitRate*100).toFixed(1)}%`}</td><td>{number(row.reasoningTokens)}</td><td>{row.retries}</td></tr>)}</tbody></table></div>:<div className="empty-state compact section"><strong>No R5 latency samples yet</strong><span>Background AI requests will populate this observatory after migration 0096 is applied.</span></div>}
+    </Card>
     <Card className="section"><div className="card-title">Cost by intelligence stage</div><div className="card-subtitle">Use this table to identify the first stage worth optimising.</div>
       {data.stages.length?<div className="table-wrap section"><table className="data-table"><thead><tr><th>Stage</th><th>Calls</th><th>Success</th><th>Blocked</th><th>Input</th><th>Output</th><th>Searches</th><th>Avg latency</th><th>Avg actual</th><th>Total</th></tr></thead><tbody>{data.stages.map(row=><tr key={row.stage}><td><strong>{row.stage}</strong></td><td>{row.requests}</td><td>{row.successful}</td><td>{row.blocked}</td><td>{number(row.inputTokens)}</td><td>{number(row.outputTokens)}</td><td>{row.webSearches}</td><td>{duration(row.averageLatencyMs)}</td><td>{money(row.averageActualCostUsd)}</td><td><strong>{money(row.totalCostUsd)}</strong></td></tr>)}</tbody></table></div>:<div className="empty-state compact section"><strong>No AI usage in this view</strong><span>Run the production journey or broaden the filters.</span></div>}
     </Card>

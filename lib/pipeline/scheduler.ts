@@ -38,8 +38,6 @@ type SettledWorker =
 // unless there is enough wall-clock budget for its own abort envelope.
 const SCHEDULER_HARD_LIMIT_MS = 300_000;
 const SCHEDULER_SAFETY_RESERVE_MS = 25_000;
-const ROUTE_INTELLIGENCE_START_BUDGET_MS = 245_000;
-const ENGAGEMENT_AI_START_BUDGET_MS = 130_000;
 
 function remainingSchedulerBudgetMs(startedAt: number): number {
   return Math.max(0, SCHEDULER_HARD_LIMIT_MS - SCHEDULER_SAFETY_RESERVE_MS - (Date.now() - startedAt));
@@ -70,6 +68,11 @@ export type PipelineSchedulerResult = {
   autopilotApproval: G5AutopilotApprovalResult | null;
   engagementQueue: G5ExecutionResult | null;
   engagementLearning: EngagementLearningBuilderResult | null;
+  parallelExecution: {
+    g4: { kind: "ROUTE_INTELLIGENCE" | "COMPANY_DISCOVERY" | "NONE"; attempted: number; results: SettledWorker[] };
+    g5: Array<{ stage: "COMMERCIAL_REASONING" | "CHANNEL_STRATEGY" | "OUTREACH_GENERATION" | "SELF_REVIEW" | "NONE"; result: unknown }>;
+    limits: { organisationHeavyInFlight: 2; campaignCompanyRouteInFlight: 3; schedulerG4DispatchWidth: number; schedulerG5DispatchWidth: number };
+  };
 };
 
 async function settle(work: () => Promise<WorkerExecutionResult>): Promise<SettledWorker> {
@@ -82,123 +85,100 @@ async function settle(work: () => Promise<WorkerExecutionResult>): Promise<Settl
 }
 
 /**
- * Runs one bounded scheduler cycle.
+ * Runs one bounded dispatcher cycle.
  *
- * The scheduler owns work evaluation. Workers only claim and execute already
- * eligible jobs. Normal contact work remains sequential. A campaign may receive
- * one persisted, budget-aware initial burst of fresh contact jobs.
+ * Speed R2 boundary: this scheduler dispatches/resumes eligible pipeline stages,
+ * but it does not own provider polling. OpenAI response retrieval belongs to the
+ * dedicated background collector. Workers consume cached completions only.
+ * Speed R3 permits bounded independent dispatch while preserving G4/G5 state authority.
  */
 export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const schedulerStartedAt = Date.now();
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner, 300);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, personalisationSafety: null, outreachGeneration: null, engagementSelfReview: null, engagementQuality: null, autopilotApproval: null, engagementQueue: null, engagementLearning: null };
+    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, personalisationSafety: null, outreachGeneration: null, engagementSelfReview: null, engagementQuality: null, autopilotApproval: null, engagementQueue: null, engagementLearning: null, parallelExecution: { g4: { kind: "NONE", attempted: 0, results: [] }, g5: [], limits: { organisationHeavyInFlight: 2, campaignCompanyRouteInFlight: 3, schedulerG4DispatchWidth: 0, schedulerG5DispatchWidth: 0 } } };
   }
 
   const runId = lease.run_id;
   try {
     await recoverPipelineJobs(runId);
     const preparation = await preparePipelineWork(runId);
-    const context = { schedulerRunId: runId };
+    // Speed R3 controlled parallelism. The DB reservation boundary is the hard
+    // authority for per-organisation/per-campaign in-flight limits; these widths
+    // only bound how many independent claim attempts one scheduler invocation may
+    // launch concurrently.
+    const g4DispatchWidth = Math.max(1, Math.min(3, Number(process.env.SALESPILOT_R3_G4_DISPATCH_WIDTH ?? "2") || 2));
+    const g5DispatchWidth = Math.max(1, Math.min(3, Number(process.env.SALESPILOT_R3_G5_DISPATCH_WIDTH ?? "2") || 2));
 
-    // G4.7.8 fairness rule: approved companies awaiting Route Intelligence are
-    // customer-committed work and take priority over speculative company
-    // replenishment. Sync the route foundations before choosing the heavyweight
-    // worker for this cron cycle. This prevents Company Discovery from consuming
-    // every fresh execution window and silently starving Route Intelligence.
     const contactFoundation = await syncContactDiscoveryFoundations(runId);
     const contactPlan = await planContactDiscoveryDispatch(runId);
     const routeDue = contactPlan.dispatch_count > 0 && contactPlan.mode !== "BUDGET_BLOCKED";
-    const canStartRouteIntelligence = routeDue
-      && hasSchedulerBudget(schedulerStartedAt, ROUTE_INTELLIGENCE_START_BUDGET_MS);
+    const context = { schedulerRunId: runId };
 
-    let company: SettledWorker | null = null;
-    let contact: SettledWorker | SettledWorker[] | null = null;
-
-    // one deep route investigation per scheduler cycle; never parallelise the heavyweight first pass.
-    if (canStartRouteIntelligence) {
-      console.info("Pipeline scheduler prioritising Route Intelligence over company replenishment", {
-        runId,
-        campaignId: contactPlan.campaign_id,
-        remainingBudgetMs: remainingSchedulerBudgetMs(schedulerStartedAt),
-      });
-      contact = await settle(() => runNextRouteIntelligence(
-        context,
-        contactPlan.campaign_id ? { campaignId: contactPlan.campaign_id } : {},
-      ));
-    } else {
+    async function runG4Batch(): Promise<{ kind: "ROUTE_INTELLIGENCE" | "COMPANY_DISCOVERY" | "NONE"; results: SettledWorker[] }> {
+      if (!hasSchedulerBudget(schedulerStartedAt, 45_000)) return { kind: "NONE", results: [] };
       if (routeDue) {
-        console.info("Pipeline scheduler deferred Route Intelligence due to execution budget", {
-          runId,
-          remainingBudgetMs: remainingSchedulerBudgetMs(schedulerStartedAt),
-          requiredBudgetMs: ROUTE_INTELLIGENCE_START_BUDGET_MS,
-        });
+        const width = Math.min(g4DispatchWidth, Math.max(1, contactPlan.dispatch_count));
+        const results = await Promise.all(Array.from({ length: width }, () => settle(() => runNextRouteIntelligence(
+          context,
+          contactPlan.campaign_id ? { campaignId: contactPlan.campaign_id } : {},
+        ))));
+        return { kind: "ROUTE_INTELLIGENCE", results };
       }
-
-      // Only spend the heavyweight slot on Company Discovery when no runnable
-      // Route Intelligence work is waiting. This keeps discovery autonomous while
-      // ensuring approved companies can never be starved by replenishment.
-      if (!routeDue) {
-        company = await settle(() => runNextCompanyDiscovery(context));
-      }
+      const results = await Promise.all(Array.from({ length: g4DispatchWidth }, () => settle(() => runNextCompanyDiscovery(context))));
+      return { kind: "COMPANY_DISCOVERY", results };
     }
 
-    // Never chain a second heavyweight AI worker in the same invocation. A G4
-    // Route Intelligence or Company Discovery attempt owns the heavyweight slot
-    // even when the external request times out. This preserves wall-clock headroom
-    // for outcome persistence, retry scheduling and lease release.
-    const g4HeavyweightAttempted = company !== null || contact !== null;
-    // Cheap deterministic assembly may continue when the safety reserve permits.
+    type G5LaneResult = {
+      stage: "COMMERCIAL_REASONING" | "CHANNEL_STRATEGY" | "OUTREACH_GENERATION" | "SELF_REVIEW" | "NONE";
+      result: G5CommercialReasoningWorkerResult | G5ChannelStrategyWorkerResult | G5OutreachGenerationWorkerResult | G5SelfReviewWorkerResult | null;
+    };
+
+    async function runG5Lane(): Promise<G5LaneResult> {
+      if (!hasSchedulerBudget(schedulerStartedAt, 45_000)) return { stage: "NONE", result: null };
+      const reasoning = await runNextG5CommercialReasoning(runId);
+      if (reasoning.outcome !== "NO_JOB") return { stage: "COMMERCIAL_REASONING", result: reasoning };
+      const channel = await runNextG5ChannelStrategy(runId);
+      if (channel.outcome !== "NO_JOB") return { stage: "CHANNEL_STRATEGY", result: channel };
+      const outreach = await runNextG5OutreachGeneration(runId);
+      if (outreach.outcome !== "NO_JOB") return { stage: "OUTREACH_GENERATION", result: outreach };
+      const review = await runNextG5SelfReview(runId);
+      if (review.outcome !== "NO_JOB") return { stage: "SELF_REVIEW", result: review };
+      return { stage: "NONE", result: null };
+    }
+
+    // Independent G4 research and already-eligible G5 engagement work dispatch in
+    // parallel. State-machine claims + AI reservation caps remain authoritative.
+    const [g4Batch, g5Lanes] = await Promise.all([
+      runG4Batch(),
+      Promise.all(Array.from({ length: g5DispatchWidth }, () => runG5Lane())),
+    ]);
+
+    const companyResults = g4Batch.kind === "COMPANY_DISCOVERY" ? g4Batch.results : [];
+    const routeResults = g4Batch.kind === "ROUTE_INTELLIGENCE" ? g4Batch.results : [];
+    const company: SettledWorker | null = companyResults[0] ?? null;
+    const contact: SettledWorker | SettledWorker[] | null = routeResults.length > 1 ? routeResults : (routeResults[0] ?? null);
+
+    // Cheap deterministic assembly follows dispatch. Newly submitted background
+    // jobs will naturally become eligible on webhook/collector completion.
     const opportunity = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await syncOpportunityFoundations(runId) : null;
     const opportunityScoring = opportunity && hasSchedulerBudget(schedulerStartedAt, 8_000)
       ? await scoreOpportunityIntelligence(runId)
       : null;
-    // G5 freeze boundary: the legacy G4 engagement domain is no longer scheduler-driven.
-    // G5 seeds directly from approved Opportunities and owns every engagement stage onward.
-    // Keep these result fields null for response-shape compatibility only.
     const engagement: EngagementBuilderResult | null = null;
     const engagementStrategy: EngagementStrategySyncResult | null = null;
     const engagementLearningGuidance: EngagementLearningGuidanceResult | null = null;
 
-    // G5 owns engagement intelligence from the approved Opportunity boundary onward.
-    // Run at most ONE G5 AI worker per scheduler cycle. R2 gets first refusal for
-    // WAITING opportunities; when there is no reasoning job, R3 may enrich an
-    // existing STRATEGY_READY record with its fenced channel decision. This avoids
-    // chaining two 120-second AI envelopes inside one serverless invocation.
-    const commercialReasoning = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
-      ? await runNextG5CommercialReasoning(runId)
-      : null;
-    const commercialReasoningDidNotClaim = !commercialReasoning || commercialReasoning.outcome === "NO_JOB";
-    const channelStrategy = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
-      && commercialReasoningDidNotClaim
-      ? await runNextG5ChannelStrategy(runId)
-      : null;
-    // G5 R5 is deterministic and state-preserving. It converts R2 safe evidence,
-    // commercial inferences and prohibited claims into the canonical personalisation
-    // safety manifest before any R4 generation can be claimed. It may run in the same
-    // cycle as R3 because it consumes no external AI budget.
+    // R5 remains deterministic and may progress independently of heavyweight AI.
     const personalisationSafety = hasSchedulerBudget(schedulerStartedAt, 8_000)
       ? await runNextG5PersonalisationSafety(runId)
       : null;
-    // R4 may run only when neither earlier G5 AI worker consumed this scheduler cycle.
-    // Its SQL claim now additionally requires the persisted R5 safety manifest.
-    const channelStrategyDidNotClaim = !channelStrategy || channelStrategy.outcome === "NO_JOB";
-    const outreachGeneration = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
-      && commercialReasoningDidNotClaim
-      && channelStrategyDidNotClaim
-      ? await runNextG5OutreachGeneration(runId)
-      : null;
-    // R6 is the final heavyweight G5 worker in this controlled release. It may only
-    // run when R2/R3/R4 did not consume the AI slot. PASS advances to approval;
-    // REWRITE returns only the draft to R4; BLOCK terminates the G5 strategy.
-    const outreachGenerationDidNotClaim = !outreachGeneration || outreachGeneration.outcome === "NO_JOB";
-    const engagementSelfReview: G5SelfReviewWorkerResult | null = !g4HeavyweightAttempted && hasSchedulerBudget(schedulerStartedAt, ENGAGEMENT_AI_START_BUDGET_MS)
-      && commercialReasoningDidNotClaim
-      && channelStrategyDidNotClaim
-      && outreachGenerationDidNotClaim
-      ? await runNextG5SelfReview(runId)
-      : null;
+
+    const commercialReasoning = (g5Lanes.find(x => x.stage === "COMMERCIAL_REASONING")?.result as G5CommercialReasoningWorkerResult | undefined) ?? null;
+    const channelStrategy = (g5Lanes.find(x => x.stage === "CHANNEL_STRATEGY")?.result as G5ChannelStrategyWorkerResult | undefined) ?? null;
+    const outreachGeneration = (g5Lanes.find(x => x.stage === "OUTREACH_GENERATION")?.result as G5OutreachGenerationWorkerResult | undefined) ?? null;
+    const engagementSelfReview = (g5Lanes.find(x => x.stage === "SELF_REVIEW")?.result as G5SelfReviewWorkerResult | undefined) ?? null;
     // R7 is deterministic and runs only after R6 has produced READY_FOR_APPROVAL.
     // It never reuses Opportunity Score and never changes the R6 PASS decision.
     const engagementQuality: G5EngagementQualityWorkerResult | null = hasSchedulerBudget(schedulerStartedAt, 8_000)
@@ -219,7 +199,14 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     // Legacy G4 learning is frozen. R11 records factual G5 events; learning is deferred to G6/G7.
     const engagementLearning: EngagementLearningBuilderResult | null = null;
 
-    await recordPipelineSchedulerOutcome(runId, company, contact, {
+    const parallelExecution = {
+      g4: { kind: g4Batch.kind, attempted: g4Batch.results.length, results: g4Batch.results },
+      g5: g5Lanes,
+      limits: { organisationHeavyInFlight: 2 as const, campaignCompanyRouteInFlight: 3 as const, schedulerG4DispatchWidth: g4DispatchWidth, schedulerG5DispatchWidth: g5DispatchWidth },
+    };
+
+    await recordPipelineSchedulerOutcome(runId, g4Batch.kind === "COMPANY_DISCOVERY" ? g4Batch.results : company, g4Batch.kind === "ROUTE_INTELLIGENCE" ? g4Batch.results : contact, {
+      speedR3: parallelExecution,
       contactFoundation,
       foundation: opportunity,
       scoring: opportunityScoring,
@@ -258,6 +245,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       autopilotApproval,
       engagementQueue,
       engagementLearning,
+      parallelExecution,
     };
   } finally {
     await releasePipelineSchedulerLease(runId).catch((error) => {

@@ -1,6 +1,7 @@
 import "server-only";
 import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
+import { aiWorkloadProfile, aiPromptCacheKey } from "@/lib/ai/workload-profile";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { compactForAi, stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
@@ -24,9 +25,10 @@ export async function generateG5CommercialReasoning(input: {
   if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
 
   const model = resolveOpenAIModel("analysis").model;
-  const compactContext = compactForAi(input.context, { evidenceLimit: 8, depth: 7 }) as Record<string, unknown>;
+  const profile = aiWorkloadProfile("G5_COMMERCIAL_REASONING");
+  const compactContext = compactForAi(input.context, { evidenceLimit: profile.evidenceLimit, depth: profile.depth }) as Record<string, unknown>;
   const sourceFingerprint = stableFingerprint(compactContext);
-  const requestFingerprint = stableFingerprint({ prompt: "g5-commercial-reasoning/v3-responsibility-boundary", model, sourceFingerprint });
+  const requestFingerprint = stableFingerprint({ prompt: profile.promptVersion, cacheKey: aiPromptCacheKey("G5_COMMERCIAL_REASONING"), model, sourceFingerprint });
   const startedAt = Date.now();
   const requestTimeoutMs = aiRequestTimeoutMs("G5_COMMERCIAL_REASONING");
 
@@ -70,9 +72,9 @@ export async function generateG5CommercialReasoning(input: {
           "Write calm, concise British English. Return exact JSON only. Set promptVersion to g5-commercial-reasoning/v3-responsibility-boundary.",
         ].join(" "),
         input: JSON.stringify(compactContext),
-        reasoning: { effort: "high" },
+        reasoning: { effort: profile.reasoningEffort },
         text: { format: { type: "json_schema", name: "salespilot_g5_commercial_reasoning_v1", strict: true, schema: g5CommercialReasoningJsonSchema } },
-        max_output_tokens: 2800,
+        max_output_tokens: profile.maxOutputTokens,
         store: false,
       }),
     });
