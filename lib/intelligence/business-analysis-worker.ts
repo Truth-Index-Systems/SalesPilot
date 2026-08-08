@@ -1,7 +1,8 @@
 import "server-only";
-import { analyseBusiness } from "@/lib/intelligence/openai";
+import { analyseBusinessCore, analyseBusinessGrowth } from "@/lib/intelligence/openai";
+import { assembleBusinessAnalysis, CoreBusinessDnaEnvelopeSchema } from "@/lib/intelligence/business-analysis-decomposition";
 import { readWebsite, WebsiteReadError } from "@/lib/intelligence/website-reader";
-import { claimBusinessAnalysisJob, completeBusinessAnalysisJob, deferBusinessAnalysisBackground, failBusinessAnalysisJob, updateBusinessAnalysisProgress } from "@/lib/intelligence/business-analysis-jobs";
+import { claimBusinessAnalysisJob, completeBusinessAnalysisJob, deferBusinessAnalysisBackground, failBusinessAnalysisJob, persistBusinessAnalysisCore, updateBusinessAnalysisProgress } from "@/lib/intelligence/business-analysis-jobs";
 import { StructuredAiOutputError } from "@/lib/ai/structured-response-gateway";
 import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
 import { isOpenAIBackgroundPending } from "@/lib/ai/background-response";
@@ -11,9 +12,7 @@ function classify(error:unknown){
     const retryable=["WEBSITE_TIMEOUT","WEBSITE_UNAVAILABLE"].includes(error.code);
     return {code:error.code,message:retryable?"The public website could not be read completely. This analysis can retry safely.":"The supplied website could not be verified as a supported public source.",retryable};
   }
-  if(error instanceof StructuredAiOutputError){
-    return {code:"INVALID_AI_OUTPUT",message:error.safeMessage,retryable:true};
-  }
+  if(error instanceof StructuredAiOutputError)return {code:"INVALID_AI_OUTPUT",message:error.safeMessage,retryable:true};
   const message=error instanceof Error?error.message:"";
   if(/429|rate limit/i.test(message))return {code:"RATE_LIMIT",message:"The AI provider temporarily rate-limited this request. This analysis can retry safely.",retryable:true};
   if(/timeout|abort/i.test(message))return {code:"TIMEOUT",message:"An external research request timed out. This analysis can retry safely.",retryable:true};
@@ -33,11 +32,27 @@ export async function runBusinessAnalysisJob(id:string,token:string){
   const workerToken=job.worker_token;
   const started=Date.now();
   try{
-    const website=await readWebsite(job.website_input);
-    await updateBusinessAnalysisProgress(id,token,workerToken,"ANALYSING_BUSINESS",52,website.canonicalUrl,website.sources.length);
-    const analysis=await analyseBusiness({organisationId:job.organisation_id,publicAnalysis:job.requested_by===null,jobId:job.id,website:website.canonicalUrl,sources:website.sources});
-    await updateBusinessAnalysisProgress(id,token,workerToken,"PREPARING_RECOMMENDATIONS",88,website.canonicalUrl,website.sources.length);
-    await completeBusinessAnalysisJob(id,token,workerToken,website.canonicalUrl,website.sources.length,analysis,Date.now()-started);
+    const publicAnalysis=job.requested_by===null;
+    let core=job.core_analysis_json?CoreBusinessDnaEnvelopeSchema.parse(job.core_analysis_json):null;
+    let canonicalUrl=job.canonical_url;
+    let pagesRead=job.pages_read??0;
+
+    if(!core){
+      const website=await readWebsite(job.website_input);
+      canonicalUrl=website.canonicalUrl;pagesRead=website.sources.length;
+      await updateBusinessAnalysisProgress(id,token,workerToken,"BUILDING_BUSINESS_DNA",20,canonicalUrl,pagesRead);
+      core=await analyseBusinessCore({organisationId:job.organisation_id,publicAnalysis:job.requested_by===null,jobId:job.id,website:canonicalUrl,sources:website.sources});
+      await persistBusinessAnalysisCore(id,token,workerToken,canonicalUrl,pagesRead,core);
+    }
+
+    if(!core)throw new Error("BUSINESS_DNA_CHECKPOINT_MISSING");
+    const finalCore=core;
+    const finalUrl=canonicalUrl??finalCore.payload.company.website;
+    await updateBusinessAnalysisProgress(id,token,workerToken,"GROWTH_STRATEGY_RUNNING",72,finalUrl,pagesRead);
+    const growth=await analyseBusinessGrowth({organisationId:job.organisation_id,publicAnalysis:job.requested_by===null,jobId:job.id,website:finalUrl,core:finalCore});
+    await updateBusinessAnalysisProgress(id,token,workerToken,"PREPARING_RECOMMENDATIONS",92,finalUrl,pagesRead);
+    const analysis=assembleBusinessAnalysis(finalCore,growth);
+    await completeBusinessAnalysisJob(id,token,workerToken,finalUrl,pagesRead,analysis,Date.now()-started);
     return {claimed:true as const,completed:true as const};
   }catch(error){
     if(isOpenAIBackgroundPending(error)){
@@ -49,7 +64,7 @@ export async function runBusinessAnalysisJob(id:string,token:string){
       return {claimed:false as const,superseded:true as const};
     }
     const failure=classify(error);
-    console.warn("Business analysis job interrupted", { jobId:id, code:failure.code, retryable:failure.retryable, errorName:error instanceof Error ? error.name : typeof error, errorMessage:error instanceof Error ? error.message.slice(0,500) : "unknown" });
+    console.warn("Business analysis job interrupted",{jobId:id,code:failure.code,retryable:failure.retryable,errorName:error instanceof Error?error.name:typeof error,errorMessage:error instanceof Error?error.message.slice(0,500):"unknown"});
     await failBusinessAnalysisJob(id,token,workerToken,failure.code,failure.message,failure.retryable);
     return {claimed:true as const,completed:false as const,failure};
   }

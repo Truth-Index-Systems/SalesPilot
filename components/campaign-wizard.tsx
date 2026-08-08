@@ -71,13 +71,11 @@ const LEGACY_CAMPAIGN_DRAFT_KEY = "salespilot:campaign-draft:v1";
 const CAMPAIGN_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 const ANALYSIS_STAGES = [
-  { label: "Website connected", detail: "Connecting securely to your public website." },
-  { label: "Learning what you sell", detail: "Reviewing your offer, proof points and customer language." },
-  { label: "Understanding what you sell", detail: "Identifying the offer, proof points and positioning." },
-  { label: "Finding your ideal buyers", detail: "Looking for customer language and buying signals." },
-  { label: "Building your Business DNA", detail: "Structuring the strongest commercial understanding." },
-  { label: "Finding your growth angle", detail: "Creating and ranking focused ways to reach your best-fit customers." },
-  { label: "Preparing recommendations", detail: "Checking confidence before opening your review." },
+  { label: "Website connected", detail: "Reading your public website securely." },
+  { label: "Learning what you sell", detail: "Reviewing your offer, proof points and positioning." },
+  { label: "Building your Business DNA", detail: "Turning the evidence into a clear commercial picture." },
+  { label: "Finding ideal customers and growth angles", detail: "Matching your strengths to the markets most worth your time." },
+  { label: "Preparing recommendations", detail: "Ranking focused campaigns before opening your review." },
 ] as const;
 
 type CampaignDraft = {
@@ -181,15 +179,16 @@ export function CampaignWizard({ isAuthenticated = false }: { isAuthenticated?: 
     if (!analysisJob) return;
     const stageMap: Record<string, number> = {
       QUEUED: 0,
-      READING_WEBSITE: 1,
-      ANALYSING_BUSINESS: 3,
-      PREPARING_RECOMMENDATIONS: 6,
-      COMPLETE: 6,
+      READING_WEBSITE: 0,
+      BUILDING_BUSINESS_DNA: 2,
+      BUSINESS_DNA_READY: 3,
+      GROWTH_STRATEGY_RUNNING: 3,
+      PREPARING_RECOMMENDATIONS: 4,
+      COMPLETE: 4,
     };
-    // Never let local UI history imply more progress than the durable job. If a
-    // retryable failure is persisted, derive the checklist from its saved
-    // percentage instead of keeping a stale previous stage beside a 0% badge.
-    const failedStage = analysisJob.progress >= 88 ? 6 : analysisJob.progress >= 52 ? 3 : analysisJob.progress >= 8 ? 1 : 0;
+    // Checklist state is derived from the same persisted percentage/stage as the
+    // badge, so background handoffs cannot make the UI run ahead of reality.
+    const failedStage = analysisJob.progress >= 92 ? 4 : analysisJob.progress >= 70 ? 3 : analysisJob.progress >= 20 ? 2 : analysisJob.progress >= 8 ? 1 : 0;
     setAnalysisStage(analysisJob.stage === "FAILED" ? failedStage : (stageMap[analysisJob.stage] ?? failedStage));
     setAnalysisComplete(analysisJob.status === "COMPLETED");
   }, [analysisJob]);

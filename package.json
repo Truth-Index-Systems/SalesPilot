@@ -119,7 +119,8 @@
     "marketroute:g511-check": "node scripts/validate-marketroute-g511-anonymous-allowance.mjs",
     "marketroute:g513-check": "node scripts/validate-marketroute-g513-analysis-resume.mjs",
     "marketroute:g514-check": "node scripts/validate-marketroute-g514-public-analysis-governance.mjs",
-    "marketroute:g515-check": "node scripts/validate-marketroute-g515-anonymous-governance-identity.mjs"
+    "marketroute:g515-check": "node scripts/validate-marketroute-g515-anonymous-governance-identity.mjs",
+    "marketroute:g516-check": "node scripts/validate-marketroute-g516-business-analysis-decomposition.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
