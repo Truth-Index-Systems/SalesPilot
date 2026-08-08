@@ -21,7 +21,7 @@ const Content = z.object({
 
 export const G5OutreachGenerationSchema = z.object({
   schemaVersion: z.literal("g5-outreach-generation/v1"),
-  promptVersion: z.enum(["g5-outreach-generation/v1", "g5-outreach-generation/v2", "g5-outreach-generation/v3", "g5-outreach-generation/v4-executive-communications"]),
+  promptVersion: z.enum(["g5-outreach-generation/v1", "g5-outreach-generation/v2", "g5-outreach-generation/v3", "g5-outreach-generation/v4-executive-communications", "g5-outreach-generation/v5-responsibility-boundary"]),
   routeId: z.string().uuid(),
   channel: G5OutreachChannel,
   content: Content,
@@ -48,7 +48,7 @@ export const g5OutreachGenerationJsonSchema = {
   ],
   properties: {
     schemaVersion: { type: "string", enum: ["g5-outreach-generation/v1"] },
-    promptVersion: { type: "string", enum: ["g5-outreach-generation/v4-executive-communications"] },
+    promptVersion: { type: "string", enum: ["g5-outreach-generation/v5-responsibility-boundary"] },
     routeId: { type: "string" },
     channel: { type: "string", enum: ["EMAIL", "LINKEDIN", "SWITCHBOARD", "REFERRAL"] },
     content: {

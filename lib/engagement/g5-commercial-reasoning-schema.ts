@@ -4,7 +4,7 @@ const Score = z.number().int().min(0).max(100);
 
 export const G5CommercialReasoningSchema = z.object({
   schemaVersion: z.literal("g5-commercial-reasoning/v1"),
-  promptVersion: z.enum(["g5-commercial-reasoning/v1", "g5-commercial-reasoning/v2-executive-deal-strategy"]),
+  promptVersion: z.enum(["g5-commercial-reasoning/v1", "g5-commercial-reasoning/v2-executive-deal-strategy", "g5-commercial-reasoning/v3-responsibility-boundary"]),
   whyThisCompany: z.string().min(1).max(700),
   whyThisRoute: z.string().min(1).max(700),
   whyNow: z.string().min(1).max(700),
@@ -41,7 +41,7 @@ export const g5CommercialReasoningJsonSchema = {
   ],
   properties: {
     schemaVersion: { type: "string", enum: ["g5-commercial-reasoning/v1"] },
-    promptVersion: { type: "string", enum: ["g5-commercial-reasoning/v2-executive-deal-strategy"] },
+    promptVersion: { type: "string", enum: ["g5-commercial-reasoning/v3-responsibility-boundary"] },
     whyThisCompany: { type: "string" },
     whyThisRoute: { type: "string" },
     whyNow: { type: "string" },

@@ -13,7 +13,7 @@ const RouteDecision = z.object({
 
 export const G5ChannelStrategySchema = z.object({
   schemaVersion: z.literal("g5-channel-strategy/v1"),
-  promptVersion: z.enum(["g5-channel-strategy/v1", "g5-channel-strategy/v2-vp-sales-development"]),
+  promptVersion: z.enum(["g5-channel-strategy/v1", "g5-channel-strategy/v2-vp-sales-development", "g5-channel-strategy/v3-responsibility-boundary"]),
   primary: RouteDecision,
   secondary: RouteDecision.nullable(),
   fallback: RouteDecision.nullable(),
@@ -52,7 +52,7 @@ export const g5ChannelStrategyJsonSchema = {
   ],
   properties: {
     schemaVersion: { type: "string", enum: ["g5-channel-strategy/v1"] },
-    promptVersion: { type: "string", enum: ["g5-channel-strategy/v2-vp-sales-development"] },
+    promptVersion: { type: "string", enum: ["g5-channel-strategy/v3-responsibility-boundary"] },
     primary: routeDecisionJsonSchema,
     secondary: { anyOf: [routeDecisionJsonSchema, { type: "null" }] },
     fallback: { anyOf: [routeDecisionJsonSchema, { type: "null" }] },

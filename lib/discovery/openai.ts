@@ -105,7 +105,7 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
   const model = resolveOpenAIModel("analysis").model;
   const startedAt = Date.now();
   const compactInput = compactCompanyDiscoveryInput(input);
-  const fingerprint = stableFingerprint({ prompt: "company-discovery/v3-executive-market-intelligence", model, compactInput });
+  const fingerprint = stableFingerprint({ prompt: "company-discovery/v4-responsibility-boundary", model, compactInput });
   const reservation = await reserveAiRequest({ organisationId: input.organisationId, campaignId: input.campaignId, schedulerRunId: input.schedulerRunId, jobType: "COMPANY_DISCOVERY", jobId: input.jobId, requestScope: `company-discovery:${fingerprint}`, model, estimatedCostUsd: Number(process.env.SALESPILOT_COMPANY_DISCOVERY_ESTIMATED_COST_USD ?? "0.25") });
   let response: Response;
   try {
@@ -122,7 +122,9 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
       instructions: [
         "ROLE: VP Market Intelligence & Territory Strategy for SalesPilot.",
         "MISSION: Build the highest-value prospect territory available under the approved campaign mandate. Find operating companies that exhibit the observable conditions created by the seller's commercial thesis; do not merely find organisations that share vocabulary with the seller.",
-        "EXECUTIVE ACCOUNTABILITY: Treat sales capacity as scarce. A company should be returned only when you would be willing to allocate a capable account executive's time to it. Balance market coverage, commercial fit, diversity and evidence quality rather than maximising candidate count.",
+        "ACCOUNTABLE FOR: Build and qualify the prospect territory under the approved campaign. Treat sales capacity as scarce. Return a company only when you would be willing to allocate a capable account executive's time to it. Balance market coverage, commercial fit, diversity and evidence quality rather than maximising candidate count.",
+        "ADVISES BUT DOES NOT DECIDE: You may assess account fit, explain evidence and recommend which discovered companies deserve attention. You do NOT approve/reject companies in workflow state, choose contacts, choose routes/channels, set scheduler priority, decide Opportunity readiness, or create outreach. SalesPilot validates/persists; later executives own account access and engagement.",
+        "OUT OF SCOPE / HAND OFF: Your question is 'Is this a commercially attractive account under this campaign?' not 'How do we get in?' Never reject an otherwise strong account merely because an obvious contact or email is unavailable; Account Mapping / Route Intelligence owns reachability. Do not perform buying-committee mapping or invent a route to make an account look actionable.",
         "SEARCH METHOD: First translate the campaign into observable market signals. Search through several independent lenses where supported: industry, operating model, organisational complexity, geography, trigger conditions and likely buyer environment. Build a broad candidate pool before proving individual candidates.",
         "FALSIFICATION: For every candidate ask what strongest available evidence suggests it may NOT be a good prospect. Reflect that honestly in fit scores, uncertainties and riskFlags. Do not rescue a weak candidate simply because it resembles the requested ICP.",
         "ANTI-ICP: Actively avoid companies that are superficially similar but lack the operating reality, scale, geography, audience or commercial conditions that make the campaign relevant.",
@@ -139,7 +141,8 @@ export async function discoverCompanies(input: DiscoverCompaniesInput) {
           ? `This is search pass ${input.searchPass}. Earlier search retained too few supported companies. Broaden through ${input.searchStrategy ?? "ALTERNATIVE_LANGUAGE"} while preserving the approved commercial problem, anti-ICP discipline and evidence threshold.`
           : "This is the primary market-mapping pass. Start with the approved audience, buyer language, observable operating conditions and strongest direct commercial fit.",
         "For each company include only the 1-4 strongest official-site evidence items. Keep explanations concise and decision-useful.",
-        "Write calm British English. Return exact JSON only. Prompt policy: company-discovery/v3-executive-market-intelligence.",
+        "Everything outside your accountability belongs to another executive or deterministic SalesPilot. Do not assume another role merely to complete the task.",
+        "Write calm British English. Return exact JSON only. Prompt policy: company-discovery/v4-responsibility-boundary.",
       ].join(" "),
       input: JSON.stringify(compactInput),
       tools: [{ type: "web_search_preview", search_context_size: "medium" }],
