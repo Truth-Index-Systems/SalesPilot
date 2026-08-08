@@ -12,6 +12,7 @@ type BackgroundRow = {
   status: string;
   ledger_id: string;
   response_json: unknown | null;
+  collector_last_error: string | null;
   created_at: string;
 };
 
@@ -30,6 +31,26 @@ export class OpenAIBackgroundPendingError extends Error {
 
 export function isOpenAIBackgroundPending(error: unknown): error is OpenAIBackgroundPendingError {
   return error instanceof OpenAIBackgroundPendingError || (error instanceof Error && error.message.startsWith("OPENAI_BACKGROUND_PENDING:"));
+}
+
+export class OpenAIBackgroundTerminalError extends Error {
+  readonly responseId: string;
+  readonly task: AiRequestTask;
+  readonly status: string;
+  readonly providerReason: string | null;
+  constructor(task: AiRequestTask, responseId: string, status: string, providerReason?: string | null) {
+    const detail = providerReason ? `:${providerReason}` : "";
+    super(`OPENAI_BACKGROUND_TERMINAL:${task}:${responseId}:${status}${detail}`);
+    this.name = "OpenAIBackgroundTerminalError";
+    this.task = task;
+    this.responseId = responseId;
+    this.status = status;
+    this.providerReason = providerReason ?? null;
+  }
+}
+
+export function isOpenAIBackgroundTerminal(error: unknown): error is OpenAIBackgroundTerminalError {
+  return error instanceof OpenAIBackgroundTerminalError || (error instanceof Error && error.message.startsWith("OPENAI_BACKGROUND_TERMINAL:"));
 }
 
 function checkpointKey(input: { organisationId: string | null; campaignId?: string | null; jobType: AiJobType; jobId?: string | null; requestScope: string }) {
@@ -63,7 +84,7 @@ function responseId(value: unknown): string | null {
 }
 
 async function getCheckpoint(key: string): Promise<BackgroundRow | null> {
-  const rows = await databaseRequest<BackgroundRow[]>(`ai_background_responses?checkpoint_key=eq.${encodeURIComponent(key)}&select=checkpoint_key,response_id,status,ledger_id,response_json,created_at&limit=1`);
+  const rows = await databaseRequest<BackgroundRow[]>(`ai_background_responses?checkpoint_key=eq.${encodeURIComponent(key)}&select=checkpoint_key,response_id,status,ledger_id,response_json,collector_last_error,created_at&limit=1`);
   return rows[0] ?? null;
 }
 
@@ -133,8 +154,10 @@ export async function fetchResumableOpenAIResponse(params: {
     // dedicated collector (webhook-first, polling fallback) owns retrieval and
     // caches the completed response_json for the next worker claim.
     if (existing?.status === "failed" || existing?.status === "cancelled" || existing?.status === "incomplete") {
-      await clearCheckpoint(key);
-      return syntheticResponse({ error: { message: `Background response ended with status ${existing.status}` } }, 502);
+      // Terminal checkpoints are immutable evidence. Do not clear them here: the
+      // caller derives the next deterministic retry scope from responseId, so a
+      // refresh can traverse the same terminal chain and resume the latest run.
+      throw new OpenAIBackgroundTerminalError(params.task, id, existing.status, existing.collector_last_error);
     }
     throw new OpenAIBackgroundPendingError(params.task, id, existing?.status ?? "in_progress");
   } else {
@@ -164,10 +187,10 @@ export async function fetchResumableOpenAIResponse(params: {
     return syntheticResponse(json, 200);
   }
 
-  // Terminal non-success responses should be retriable by the owning stage. Clear
-  // the checkpoint so its next scheduled attempt can submit a fresh background run.
-  await clearCheckpoint(key);
-  return syntheticResponse(json, 502);
+  // Persist terminal provider evidence. The owning stage will close this ledger
+  // and derive a fresh request scope from this response id.
+  await saveCheckpoint({ ...params, checkpointKey: key, responseId: id, status, responseJson: null });
+  throw new OpenAIBackgroundTerminalError(params.task, id, status, null);
 }
 
 export async function discardOpenAIBackgroundResponse(params: {

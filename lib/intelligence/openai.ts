@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending } from "@/lib/ai/background-response";
+import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending, isOpenAIBackgroundTerminal } from "@/lib/ai/background-response";
 import type { WebsiteSource } from "@/lib/intelligence/website-reader";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
@@ -80,11 +80,7 @@ async function runPhase<T>(params: CommonParams & {
   const {apiKey,model}=getConfig();
   const generatedAt=new Date().toISOString();
   const fingerprint=stableFingerprint({phase:params.phase,model,website:params.website,...(params.fingerprintData as Record<string,unknown>)});
-  const requestScope=`business-analysis:${params.phase}:${fingerprint}`;
-  const reservation=await reserveAiRequest({
-    organisationId:params.organisationId,jobType:"BUSINESS_ANALYSIS",jobId:params.jobId,requestScope,model,
-    estimatedCostUsd:params.estimatedCostUsd,publicAnalysis: params.publicAnalysis === true,
-  });
+  const baseRequestScope=`business-analysis:${params.phase}:${fingerprint}`;
   const requestInput = `CANONICAL WEBSITE: ${params.website}\nMODEL LABEL: ${model}\nGENERATED AT: ${generatedAt}\nPHASE: ${params.phase.toUpperCase()}\n\n${params.input}`;
   const body={
     model,
@@ -97,7 +93,17 @@ async function runPhase<T>(params: CommonParams & {
   };
   const startedAt=Date.now();
   let lastError:Error|null=null;
-  for(let attempt=1;attempt<=2;attempt+=1){
+  let requestScope=baseRequestScope;
+
+  // Terminal provider responses are durable checkpoints. Traverse up to five
+  // deterministic retry generations; pending generations resume without
+  // duplicate submissions, while each terminal generation receives its own
+  // governance ledger identity for truthful cost/accounting closure.
+  for(let attempt=1;attempt<=5;attempt+=1){
+    const reservation=await reserveAiRequest({
+      organisationId:params.organisationId,jobType:"BUSINESS_ANALYSIS",jobId:params.jobId,requestScope,model,
+      estimatedCostUsd:params.estimatedCostUsd,publicAnalysis: params.publicAnalysis === true,
+    });
     try{
       const response=await fetchResumableOpenAIResponse({apiKey,task:"BUSINESS_ANALYSIS",organisationId:params.organisationId,jobType:"BUSINESS_ANALYSIS",jobId:params.jobId,requestScope,model,ledgerId:reservation.ledgerId},{
         method:"POST",headers:{"content-type":"application/json",authorization:`Bearer ${apiKey}`},body:JSON.stringify(body),cache:"no-store",signal:AbortSignal.timeout(aiRequestTimeoutMs("BUSINESS_ANALYSIS")),
@@ -113,15 +119,23 @@ async function runPhase<T>(params: CommonParams & {
       return result;
     }catch(error){
       if(isOpenAIBackgroundPending(error))throw error;
+      if(isOpenAIBackgroundTerminal(error)){
+        const reason=error.providerReason??`Provider response ended ${error.status}`;
+        await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,responseId:error.responseId,errorCode:`OPENAI_BACKGROUND_${error.status.toUpperCase()}`,errorMessage:reason}).catch(()=>undefined);
+        lastError=new Error(`OPENAI_BACKGROUND_TERMINAL:${params.phase}:${error.status}:${reason}`);
+        requestScope=`${baseRequestScope}:retry:${stableFingerprint({previousScope:requestScope,responseId:error.responseId})}`;
+        continue;
+      }
       if(error instanceof StructuredAiOutputError){
         await discardOpenAIBackgroundResponse({organisationId:params.organisationId,jobType:"BUSINESS_ANALYSIS",jobId:params.jobId,requestScope}).catch(()=>undefined);
         const safe=safeStructuredAiError(error);lastError=new Error(`STRUCTURED_AI_OUTPUT_${safe.code}:${safe.message}`);
       }else{
         lastError=classifyOpenAITransportError(error,"BUSINESS_ANALYSIS",aiRequestTimeoutMs("BUSINESS_ANALYSIS")).error;
       }
+      if(attempt<2) continue;
+      break;
     }
   }
-  await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:`BUSINESS_ANALYSIS_${params.phase.toUpperCase()}_FAILED`,errorMessage:lastError?.message??"Business analysis phase failed"}).catch(()=>undefined);
   throw lastError??new Error("Business analysis phase failed.");
 }
 
@@ -137,6 +151,6 @@ export async function analyseBusinessGrowth(params: CommonParams & {core:CoreBus
   const profile=aiWorkloadProfile("BUSINESS_ANALYSIS");
   const coreInput=JSON.stringify({company:params.core.payload.company,offers:params.core.payload.offers,positioningCore:params.core.payload.positioningCore,evidenceNotes:params.core.payload.evidenceNotes,unknowns:params.core.payload.unknowns});
   const instructions=`ROLE: MarketRoute Growth Strategy executive.\n\nMISSION: Convert the persisted Core Business DNA into focused go-to-market recommendations for a startup/founder. Define evidence-grounded ICPs, buyer functions, pains, objections and no more than five campaign theses. Do not re-analyse or rewrite the seller's core facts.\n\nDECISION STANDARD: Would scarce founder selling time be deliberately allocated to this segment? Campaign fitScore is 0-100; confidence is 0-1. Challenge each campaign with the strongest risk.\n\nBOUNDARY: Recommend segments and campaigns only. Company Discovery chooses real accounts; Route Intelligence chooses account-specific entry routes; later stages own account-specific reasoning and outreach. Never invent specific companies, contacts, budgets, technologies or trigger events.\n\nOUTPUT: Exact JSON schema only. Concise British English. Set metadata exactly from request input.`;
-  return runPhase({...params,phase:"growth",instructions,input:`PERSISTED CORE BUSINESS DNA:\n${coreInput}`,jsonSchema:growthStrategyJsonSchema,schemaName:"marketroute_growth_strategy",maxOutputTokens:Math.min(profile.maxOutputTokens,3800),reasoningEffort:"medium",estimatedCostUsd:Number(process.env.MARKETROUTE_BUSINESS_ANALYSIS_GROWTH_ESTIMATED_COST_USD??"0.06"),fingerprintData:{prompt:"business-discovery-growth/v1",cacheKey:`${aiPromptCacheKey("BUSINESS_ANALYSIS")}:growth`,core:params.core.payload},canonicalise:canonicalGrowth});
+  return runPhase({...params,phase:"growth",instructions,input:`PERSISTED CORE BUSINESS DNA:\n${coreInput}`,jsonSchema:growthStrategyJsonSchema,schemaName:"marketroute_growth_strategy",maxOutputTokens:Math.min(profile.maxOutputTokens,Math.max(4200,Math.min(6500,Number(process.env.MARKETROUTE_BUSINESS_ANALYSIS_GROWTH_MAX_OUTPUT_TOKENS??"6500")))),reasoningEffort:"medium",estimatedCostUsd:Number(process.env.MARKETROUTE_BUSINESS_ANALYSIS_GROWTH_ESTIMATED_COST_USD??"0.06"),fingerprintData:{prompt:"business-discovery-growth/v1",cacheKey:`${aiPromptCacheKey("BUSINESS_ANALYSIS")}:growth`,core:params.core.payload},canonicalise:canonicalGrowth});
 }
 

@@ -38,6 +38,17 @@ function responseStatus(value: unknown): string {
   return typeof status === "string" ? status : "unknown";
 }
 
+function terminalDiagnostic(value: unknown, status: string): string | null {
+  if (!TERMINAL_FAILURES.has(status)) return null;
+  if (!value || typeof value !== "object") return `OPENAI_BACKGROUND_${status.toUpperCase()}`;
+  const row = value as Record<string, unknown>;
+  const incomplete = row.incomplete_details && typeof row.incomplete_details === "object" ? row.incomplete_details as Record<string, unknown> : null;
+  const reason = incomplete && typeof incomplete.reason === "string" ? incomplete.reason : null;
+  const error = row.error && typeof row.error === "object" ? row.error as Record<string, unknown> : null;
+  const message = error && typeof error.message === "string" ? error.message : null;
+  return [`OPENAI_BACKGROUND_${status.toUpperCase()}`, reason, message].filter(Boolean).join(":").slice(0, 1000);
+}
+
 export async function recordOpenAIBackgroundWebhookEvent(event: {
   eventId: string;
   eventType: string;
@@ -79,9 +90,9 @@ export async function collectOpenAIBackgroundResponseById(responseId: string): P
     body: JSON.stringify({
       p_response_id: responseId,
       p_status: status,
-      p_response_json: status === "completed" ? json : null,
+      p_response_json: status === "completed" || TERMINAL_FAILURES.has(status) ? json : null,
       p_collector_lease_token: null,
-      p_error_message: null,
+      p_error_message: terminalDiagnostic(json, status),
     }),
   });
 
@@ -106,9 +117,9 @@ async function collectClaim(row: CollectableBackgroundRow): Promise<"COMPLETED" 
       body: JSON.stringify({
         p_response_id: row.response_id,
         p_status: status,
-        p_response_json: status === "completed" ? json : null,
+        p_response_json: status === "completed" || TERMINAL_FAILURES.has(status) ? json : null,
         p_collector_lease_token: row.collector_lease_token,
-        p_error_message: null,
+        p_error_message: terminalDiagnostic(json, status),
       }),
     });
     if (status === "completed") return "COMPLETED";
