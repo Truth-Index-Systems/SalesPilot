@@ -16,3 +16,4 @@ export * from "./commercial-coherence";
 
 export * from "./opportunity-mathematics";
 export * from "./research-intelligence";
+export * from "./explainable-reasoning";
