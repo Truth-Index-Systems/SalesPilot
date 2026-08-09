@@ -11,7 +11,7 @@ import { researchGenesisG82IndustryExpansion, type GenesisG82ExpansionEvidence }
 import type { GenesisG8PersistedClaim } from "./persistence/types";
 import type { TruthEntityType } from "./truth";
 
-export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-R3-AUTONOMOUS-EXPANSION-1.1" as const;
+export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-R4-AUTONOMOUS-EXPANSION-1.2" as const;
 
 type ExpansionJob={
   id:string; target_id:string; industry_key:string; industry_name:string; attempt_count:number; lease_token:string; excluded_domains:unknown;
@@ -91,7 +91,7 @@ async function runJob(job:ExpansionJob){
   const counts:PersistCounts={companies:0,contacts:0,routes:0}; let found=0;
   try{
     const known=[...new Set([...excluded(job),...(await loadKnownCompanyDomains())])];
-    const result=await researchGenesisG82IndustryExpansion({jobId:job.id,industryKey:job.industry_key,industryName:job.industry_name,excludedDomains:known});
+    const result=await researchGenesisG82IndustryExpansion({jobId:job.id,industryKey:job.industry_key,industryName:job.industry_name,excludedDomains:known,attemptNumber:job.attempt_count});
     found=result.companies.length; const seen=new Set(known);
     for(const company of result.companies){const p=await persistCompany(job,company,seen);counts.companies+=p.companies;counts.contacts+=p.contacts;counts.routes+=p.routes;}
     await settle(job,"COMPLETED",counts,found);
