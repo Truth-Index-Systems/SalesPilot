@@ -159,7 +159,8 @@
     "mrti2:build8-check": "node scripts/validate-mr-ti2-build8.mjs && npm run mrti2:build6-check && npm run mrti2:build5-check",
     "mrti2:build8-3-check": "node scripts/validate-mrti2-build8-3-legacy-eradication.mjs",
     "mrti2:build8-3-1-openai-schema-check": "node scripts/validate-mrti2-build8-3-1-openai-strict-schema.mjs",
-    "mrti2:build8-3-3-expansion-check": "node scripts/validate-mr-ti2-build8-3-3-expansion-decomposition.mjs"
+    "mrti2:build8-3-3-expansion-check": "node scripts/validate-mr-ti2-build8-3-3-expansion-decomposition.mjs",
+    "genesis:t8-ce-r1-build1-check": "node scripts/validate-genesis-t8-ce-r1-build1.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
