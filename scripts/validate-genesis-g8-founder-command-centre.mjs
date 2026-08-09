@@ -4,6 +4,7 @@ const mod=read('lib/genesis-g8/founder-command-centre.ts');
 const repo=read('lib/founder-dashboard/repository.ts');
 const page=read('app/dashboard/page.tsx');
 const css=read('app/globals.css');
+const reviewUi=read('components/genesis-g8-review-workspace.tsx');
 const mig=read('supabase/migrations/0120_genesis_g81_release18_founder_intelligence_command_centre.sql');
 const docs=read('GENESIS-G8.1-RELEASE18-FOUNDER-INTELLIGENCE-COMMAND-CENTRE.md');
 const index=read('lib/genesis-g8/index.ts');
@@ -30,7 +31,7 @@ const checks=[
  ['attention demand low truth',mig.includes("'HIGH_DEMAND_LOW_TRUTH'")],
  ['industry truth cards',mig.includes("entity_type='industry'")&&page.includes('Industry Truth Index')],
  ['founder dashboard fails open',repo.includes('getGenesisG8FounderCommandCentre(rangeDays).catch')],
- ['existing review controls retained',page.includes('value="APPROVE"')&&page.includes('value="CORRECT"')&&page.includes('value="MORE_RESEARCH"')&&page.includes('value="REJECT"')],
+ ['existing review controls retained',reviewUi.includes('resolve(task,"APPROVE")')&&reviewUi.includes('resolve(task,"CORRECT")')&&reviewUi.includes('resolve(task,"MORE_RESEARCH")')&&reviewUi.includes('resolve(task,"REJECT")')],
  ['service role only RPC',mig.includes('revoke all on function')&&mig.includes('grant execute on function')&&mig.includes('to service_role')],
  ['public index exports R18',index.includes('export * from "./founder-command-centre"')],
  ['responsive command centre styling',css.includes('founder-intelligence-hero')&&css.includes('founder-industry-grid')],

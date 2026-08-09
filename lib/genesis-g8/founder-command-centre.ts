@@ -19,6 +19,11 @@ type RawSnapshot = {
   latestCapacity?: Record<string, unknown> | null;
 };
 
+
+type RawOperationsSnapshot={industryResearch?:unknown[];activity?:unknown[]};
+export type FounderIndustryResearch={id:string;industryKey:string;name:string;priority:number;targetCompanyCount:number;enabled:boolean;companiesResearched:number;contactsResearched:number;routesResearched:number;completedJobs:number;companiesFound:number;companiesPersisted:number;contactsPersisted:number;routesPersisted:number;lastActivity:string|null;progressPercent:number};
+export type FounderActivityItem={occurredAt:string;kind:string;title:string;detail:string;status:string;refId:string};
+
 const n=(value:unknown)=>Number.isFinite(Number(value))?Number(value):0;
 const s=(value:unknown)=>typeof value==="string"?value:"";
 const b=(value:unknown)=>value===true;
@@ -39,6 +44,8 @@ export interface GenesisG8FounderCommandCentre {
   reviews:{openReviews:number};
   industries:FounderIndustryHealth[];
   attention:FounderAttentionItem[];
+  industryResearch:FounderIndustryResearch[];
+  activity:FounderActivityItem[];
   capacity:GenesisG8CapacityDecision;
   activation:ReturnType<typeof summariseGenesisG8ActivationRuntime>;
 }
@@ -48,12 +55,14 @@ function array(value:unknown):unknown[]{return Array.isArray(value)?value:[];}
 
 export async function getGenesisG8FounderCommandCentre(rangeDays=7):Promise<GenesisG8FounderCommandCentre>{
   const since=new Date(Date.now()-Math.max(1,rangeDays)*86400000).toISOString();
-  const [raw,capacitySnapshot,activationRuntime]=await Promise.all([
+  const [raw,capacitySnapshot,activationRuntime,operationsRaw]=await Promise.all([
     databaseRequest<RawSnapshot>("rpc/genesis_g8_founder_intelligence_snapshot",{method:"POST",body:JSON.stringify({p_since:since})}),
     readGenesisG8CapacitySnapshot(),
     readGenesisG8ActivationRuntime(),
+    databaseRequest<RawOperationsSnapshot>("rpc/genesis_g82_founder_operations_snapshot",{method:"POST",body:JSON.stringify({p_since:since})}).catch(()=>({industryResearch:[],activity:[]})),
   ]);
   const snapshot=object(raw);
+  const operations=object(operationsRaw);
   const overall=object(snapshot.overall);
   const evidence=object(snapshot.evidence);
   const retrieval=object(snapshot.retrieval);
@@ -79,6 +88,8 @@ export async function getGenesisG8FounderCommandCentre(rangeDays=7):Promise<Gene
     reviews:{openReviews:n(reviews.open_reviews)},
     industries:array(snapshot.industries).map(row=>{const x=object(row);return {id:s(x.id),name:s(x.name),canonicalKey:s(x.canonicalKey),truthIndex:n(x.truthIndex),confidence:n(x.confidence),coverage:n(x.coverage),reviewRequired:b(x.reviewRequired)};}),
     attention:array(snapshot.attention).map(row=>{const x=object(row);return {entityId:s(x.entityId),kind:s(x.kind),label:s(x.label),truthIndex:n(x.truthIndex),priority:n(x.priority),detail:s(x.detail)};}),
+    industryResearch:array(operations.industryResearch).map(row=>{const x=object(row);return {id:s(x.id),industryKey:s(x.industryKey),name:s(x.name),priority:n(x.priority),targetCompanyCount:n(x.targetCompanyCount),enabled:b(x.enabled),companiesResearched:n(x.companiesResearched),contactsResearched:n(x.contactsResearched),routesResearched:n(x.routesResearched),completedJobs:n(x.completedJobs),companiesFound:n(x.companiesFound),companiesPersisted:n(x.companiesPersisted),contactsPersisted:n(x.contactsPersisted),routesPersisted:n(x.routesPersisted),lastActivity:s(x.lastActivity)||null,progressPercent:n(x.progressPercent)};}),
+    activity:array(operations.activity).map(row=>{const x=object(row);return {occurredAt:s(x.occurredAt),kind:s(x.kind),title:s(x.title),detail:s(x.detail),status:s(x.status),refId:s(x.refId)};}),
     capacity:decideGenesisG8Capacity(capacitySnapshot),
     activation:summariseGenesisG8ActivationRuntime(activationRuntime),
   };

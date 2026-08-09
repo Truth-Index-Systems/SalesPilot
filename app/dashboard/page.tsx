@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { hasFounderDashboardSession } from "@/lib/founder-dashboard/auth";
 import { getFounderDashboard } from "@/lib/founder-dashboard/repository";
 import { TimelineBox } from "@/components/timeline-box";
+import { GenesisG8ReviewWorkspace } from "@/components/genesis-g8-review-workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -81,8 +82,19 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
       </section>
 
       <section className="founder-panel founder-industry-panel">
-        <div className="founder-panel-head"><div><span>Market intelligence</span><h2>Industry Truth Index</h2></div><strong>{g8.industries.length}</strong></div>
-        {g8.industries.length?<div className="founder-industry-grid">{g8.industries.slice(0,12).map(industry=><article key={industry.id}><div><strong>{industry.name}</strong>{industry.reviewRequired?<span>Review</span>:null}</div><b>{industry.truthIndex.toFixed(1)}</b><small>Confidence {industry.confidence.toFixed(0)}% · Coverage {industry.coverage.toFixed(0)}%</small><div className="founder-truth-meter"><i style={{width:`${Math.max(2,industry.truthIndex)}%`}}/></div></article>)}</div>:<div className="founder-empty">Industry-level intelligence will appear here as Genesis begins building the market universe. Company, contact and route intelligence is already tracked above.</div>}
+        <div className="founder-panel-head"><div><span>Market intelligence</span><h2>Industry research coverage</h2></div><strong>{number(g8.industryResearch.reduce((sum,item)=>sum+item.companiesResearched,0))} companies</strong></div>
+        <p className="founder-method-note">Live G8.2 expansion coverage by target market. Companies researched counts unique persisted company memberships, while found/persisted totals show autonomous search throughput.</p>
+        {g8.industryResearch.length?<div className="founder-industry-research-grid">{g8.industryResearch.map(industry=><article key={industry.id}>
+          <div className="founder-industry-research-head"><div><strong>{industry.name}</strong><small>{industry.enabled?"Active expansion":"Paused"} · Priority {industry.priority}</small></div><b>{number(industry.companiesResearched)}</b></div>
+          <div className="founder-industry-research-meter"><i style={{width:`${Math.max(1,industry.progressPercent)}%`}}/></div>
+          <div className="founder-industry-research-stats"><span>Companies <b>{number(industry.companiesResearched)}</b></span><span>Contacts <b>{number(industry.contactsResearched)}</b></span><span>Routes <b>{number(industry.routesResearched)}</b></span><span>Jobs <b>{number(industry.completedJobs)}</b></span></div>
+          <small className="founder-industry-research-foot">Search found {number(industry.companiesFound)} · persisted {number(industry.companiesPersisted)} · target {number(industry.targetCompanyCount)}{industry.lastActivity?` · active ${new Date(industry.lastActivity).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`:""}</small>
+        </article>)}</div>:<div className="founder-empty">Run migration 0124 to enable per-industry expansion coverage.</div>}
+      </section>
+
+      <section className="founder-panel founder-industry-panel">
+        <div className="founder-panel-head"><div><span>Truth by market</span><h2>Industry Truth Index</h2></div><strong>{g8.industries.length}</strong></div>
+        {g8.industries.length?<div className="founder-industry-grid">{g8.industries.slice(0,12).map(industry=><article key={industry.id}><div><strong>{industry.name}</strong>{industry.reviewRequired?<span>Review</span>:null}</div><b>{industry.truthIndex.toFixed(1)}</b><small>Confidence {industry.confidence.toFixed(0)}% · Coverage {industry.coverage.toFixed(0)}%</small><div className="founder-truth-meter"><i style={{width:`${Math.max(2,industry.truthIndex)}%`}}/></div></article>)}</div>:<div className="founder-empty">Industry-level Truth will appear as Genesis creates industry entities. G8.2 expansion coverage above is already live independently.</div>}
       </section>
       </>:null}
 
@@ -95,33 +107,7 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
       </section>
 
 
-      <section className="founder-panel founder-g8-review-panel">
-        <div className="founder-panel-head"><div><span>Genesis G8</span><h2>Human intelligence review</h2></div><strong>{data.g8ReviewSummary.open} open</strong></div>
-        <div className="founder-g8-review-summary">
-          <span>Approved <b>{data.g8ReviewSummary.approved}</b></span>
-          <span>Corrected <b>{data.g8ReviewSummary.corrected}</b></span>
-          <span>More research <b>{data.g8ReviewSummary.moreResearch}</b></span>
-          <span>Rejected <b>{data.g8ReviewSummary.rejected}</b></span>
-        </div>
-        <div className="founder-g8-review-list">
-          {data.g8ReviewQueue.length?data.g8ReviewQueue.map(task=><article key={task.id} className="founder-g8-review-card">
-            <div className="founder-g8-review-copy"><div><span>{task.entity_type.replaceAll("_"," ")}</span><h3>{task.displayName}</h3><small>{task.canonicalKey}</small></div><div className="founder-g8-score"><b>{Number(task.truth_index).toFixed(1)}</b><small>Truth Index</small></div></div>
-            <div className="founder-g8-score-row"><span>Confidence <b>{Number(task.confidence).toFixed(1)}%</b></span><span>Coverage <b>{Number(task.coverage).toFixed(1)}%</b></span></div>
-            <p className="founder-g8-reasons">{task.reasons.length?task.reasons.map(String).join(" · "):"Human judgement requested"}</p>
-            {task.claimKeys.length?<p className="founder-g8-claims">Claims: {task.claimKeys.map(String).join(", ")}</p>:null}
-            <form method="post" action={`/dashboard/genesis-g8/reviews/${task.id}/resolve`} className="founder-g8-review-form">
-              <input type="text" name="note" placeholder="Optional note — required when correcting" />
-              <input type="hidden" name="reasonCode" value="FOUNDER_DASHBOARD" />
-              <div className="founder-g8-review-actions">
-                <button name="action" value="APPROVE" type="submit">Approve</button>
-                <button name="action" value="CORRECT" type="submit">Correct</button>
-                <button name="action" value="MORE_RESEARCH" type="submit">More research</button>
-                <button name="action" value="REJECT" type="submit" className="danger">Reject</button>
-              </div>
-            </form>
-          </article>):<div className="founder-empty">No Genesis G8 decisions currently need human judgement.</div>}
-        </div>
-      </section>
+      <GenesisG8ReviewWorkspace tasks={data.g8ReviewQueue} summary={data.g8ReviewSummary} activity={g8?.activity??[]} />
 
       <section className="founder-metric-grid founder-economics-grid">
         <article><span>Cost / opportunity</span><strong>{money(data.economics.costPerOpportunity)}</strong><small>{data.economics.completedOpportunities} approved or engaged</small></article>

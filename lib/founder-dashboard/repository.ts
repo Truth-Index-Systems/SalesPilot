@@ -11,6 +11,8 @@ type CountRow={id:string;organisation_id?:string;campaign_id?:string;status?:str
 type OutcomeRow={id:string;organisation_id:string;campaign_id:string;engagement_id:string;opportunity_id:string;channel:string;route_quality:number|null;route_confidence:number|null;outcome:string;outcome_value:number|null;occurred_at:string};
 type G8ReviewRow={id:string;entity_id:string;entity_type:string;truth_index:number;confidence:number;coverage:number;reasons_json:unknown;claim_keys_json:unknown;status:string;created_at:string};
 type G8EntityRow={id:string;display_name:string|null;canonical_key:string;review_state:string;status:string};
+type G8ClaimRow={id:string;entity_id:string;claim_key:string;label:string;criticality:string;minimum_evidence:number};
+type G8EvidenceRow={id:string;claim_id:string;direction:string;source_class:string;source_uri:string|null;excerpt:string|null;strength:number;traceability:number;independence:number;observed_at:string;intelligence_channel:string};
 type G8ReviewReceiptRow={id:string;action:string;reviewed_at:string};
 type LearningRow={id:string;organisation_id:string;campaign_id:string;engagement_id:string;opportunity_id:string;queue_outcome:string;engagement_score:number|null;confidence:number|null;human_action:string|null;edit_distance:number|null;actual_cost_usd:number;estimated_cost_usd:number;total_input_tokens:number;total_output_tokens:number;total_latency_ms:number;commercial_prompt_version:string|null;generation_prompt_version:string|null;review_prompt_version:string|null;commercial_model:string|null;generation_model:string|null;review_model:string|null;created_at:string};
 
@@ -41,6 +43,10 @@ export async function getFounderDashboard(rangeDays=7){
     databaseRequest<G8ReviewReceiptRow[]>(`genesis_g8_human_review_receipts?select=id,action,reviewed_at&reviewed_at=gte.${encodeURIComponent(since)}&order=reviewed_at.desc&limit=5000`),
   ]);
   const g8CommandCentre=await g8CommandCentrePromise;
+  const openEntityIds=[...new Set(g8Reviews.map(row=>row.entity_id))];
+  const g8Claims=openEntityIds.length?await databaseRequest<G8ClaimRow[]>(`genesis_g8_intelligence_claims?select=id,entity_id,claim_key,label,criticality,minimum_evidence&entity_id=in.(${openEntityIds.join(",")})&limit=5000`).catch(()=>[]):[];
+  const claimIds=g8Claims.map(row=>row.id);
+  const g8Evidence=claimIds.length?await databaseRequest<G8EvidenceRow[]>(`genesis_g8_intelligence_evidence?select=id,claim_id,direction,source_class,source_uri,excerpt,strength,traceability,independence,observed_at,intelligence_channel&claim_id=in.(${claimIds.join(",")})&order=observed_at.desc&limit=10000`).catch(()=>[]):[];
   const campaignMap=new Map(campaigns.map(r=>[r.id,r]));
   const orgMap=new Map(organisations.map(r=>[r.id,r.name]));
   const promptMap=new Map<string,string>();
@@ -114,7 +120,25 @@ export async function getFounderDashboard(rangeDays=7){
   }).sort((a,b)=>b.responseRate-a.responseRate||b.engagements-a.engagements);
   const outcomeTotals={recorded:outcomes.length,responses:new Set(outcomes.filter(item=>["REPLIED","MEETING_BOOKED","QUALIFIED","WON"].includes(item.outcome)).map(item=>item.engagement_id)).size,meetings:new Set(outcomes.filter(item=>["MEETING_BOOKED","QUALIFIED","WON"].includes(item.outcome)).map(item=>item.engagement_id)).size,wins:new Set(outcomes.filter(item=>item.outcome==="WON").map(item=>item.engagement_id)).size,wonValue:outcomes.filter(item=>item.outcome==="WON").reduce((sum,item)=>sum+Number(item.outcome_value??0),0)};
   const g8EntityMap=new Map(g8Entities.map(entity=>[entity.id,entity]));
-  const g8ReviewQueue=g8Reviews.map(review=>{const entity=g8EntityMap.get(review.entity_id);return {...review,displayName:entity?.display_name??entity?.canonical_key??review.entity_id,canonicalKey:entity?.canonical_key??review.entity_id,reasons:Array.isArray(review.reasons_json)?review.reasons_json:[],claimKeys:Array.isArray(review.claim_keys_json)?review.claim_keys_json:[]}});
+  const claimsByEntity=new Map<string,G8ClaimRow[]>();
+  for(const claim of g8Claims) claimsByEntity.set(claim.entity_id,[...(claimsByEntity.get(claim.entity_id)??[]),claim]);
+  const evidenceByClaim=new Map<string,G8EvidenceRow[]>();
+  for(const evidence of g8Evidence) evidenceByClaim.set(evidence.claim_id,[...(evidenceByClaim.get(evidence.claim_id)??[]),evidence]);
+  const g8ReviewQueue=g8Reviews.map(review=>{
+    const entity=g8EntityMap.get(review.entity_id);
+    const entityClaims=claimsByEntity.get(review.entity_id)??[];
+    const requestedClaimKeys=Array.isArray(review.claim_keys_json)?review.claim_keys_json.filter((value):value is string=>typeof value==="string"):[];
+    const evidence=entityClaims.flatMap(claim=>(evidenceByClaim.get(claim.id)??[]).map(item=>({
+      id:item.id,claimLabel:claim.label,direction:item.direction,sourceUri:item.source_uri,excerpt:item.excerpt,sourceClass:item.source_class,
+      quality:Number(item.strength||0)*Number(item.traceability||0)*Number(item.independence||0),observedAt:item.observed_at,channel:item.intelligence_channel
+    }))).sort((a,b)=>new Date(b.observedAt).getTime()-new Date(a.observedAt).getTime());
+    const canonicalKey=entity?.canonical_key??review.entity_id;
+    const companyLabel=canonicalKey.includes("::")?canonicalKey.split("::")[0]:canonicalKey;
+    const reasons=Array.isArray(review.reasons_json)?review.reasons_json:[];
+    const requestedLabels=entityClaims.filter(claim=>requestedClaimKeys.includes(claim.claim_key)).map(claim=>claim.label);
+    const whyItMatters=requestedLabels.length?`Genesis needs a decision on ${requestedLabels.join(", ")}. The attached evidence has not yet produced a sufficiently reliable autonomous decision.`:`Genesis has explicitly escalated this ${review.entity_type.toLowerCase()} because its current Truth state requires human judgement before normal eligibility can continue.`;
+    return {...review,displayName:entity?.display_name??canonicalKey,canonicalKey,companyLabel,reasons,claimKeys:requestedClaimKeys,evidence,whyItMatters};
+  });
   const g8ReviewSummary={open:g8ReviewQueue.length,approved:g8ReviewReceipts.filter(row=>row.action==="APPROVE").length,corrected:g8ReviewReceipts.filter(row=>row.action==="CORRECT").length,rejected:g8ReviewReceipts.filter(row=>row.action==="REJECT").length,moreResearch:g8ReviewReceipts.filter(row=>row.action==="MORE_RESEARCH").length};
 
   const successfulWithCost=successful.filter(r=>r.actual_cost_usd!=null && Number(r.actual_cost_usd)>=0).length;

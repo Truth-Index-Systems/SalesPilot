@@ -6,6 +6,7 @@ const migration=fs.readFileSync("supabase/migrations/0113_genesis_g81_release11_
 const route=fs.readFileSync("app/dashboard/genesis-g8/reviews/[id]/resolve/route.ts","utf8");
 const dashboard=fs.readFileSync("app/dashboard/page.tsx","utf8");
 const repo=fs.readFileSync("lib/founder-dashboard/repository.ts","utf8");
+const reviewUi=fs.readFileSync("components/genesis-g8-review-workspace.tsx","utf8");
 const root=fs.readFileSync("lib/genesis-g8/index.ts","utf8");
 add(resolution.includes("G8.1-R11-FOUNDER-REVIEW-1.0"),"R11 founder-review resolver is versioned");
 add(resolution.includes('"APPROVED"') && resolution.includes('"REJECTED"'),"approve/reject outcomes are explicit");
@@ -24,8 +25,8 @@ add(migration.includes("FOUNDER_REJECTED_ENTITY"),"rejection cancels queued repa
 add(migration.includes("when 'MORE_RESEARCH' then")===false,"MORE_RESEARCH does not remain stuck in NEEDS_REVIEW state");
 add(route.includes("hasFounderDashboardSession"),"review resolution uses protected founder dashboard session");
 add(route.includes('action === "CORRECT" && !note'),"correction requires concrete founder input");
-add(dashboard.includes("Human intelligence review"),"founder dashboard surfaces G8 review queue");
-add(dashboard.includes('value="APPROVE"') && dashboard.includes('value="CORRECT"') && dashboard.includes('value="MORE_RESEARCH"') && dashboard.includes('value="REJECT"'),"dashboard exposes all four review actions");
+add(dashboard.includes("GenesisG8ReviewWorkspace") && reviewUi.includes("Human intelligence review"),"founder dashboard surfaces G8 review queue");
+add(reviewUi.includes('resolve(task,"APPROVE")') && reviewUi.includes('resolve(task,"CORRECT")') && reviewUi.includes('resolve(task,"MORE_RESEARCH")') && reviewUi.includes('resolve(task,"REJECT")'),"dashboard exposes all four review actions through the interactive review workspace");
 add(repo.includes("genesis_g8_founder_review_queue"),"founder repository reads open G8 review tasks");
 add(repo.includes("genesis_g8_human_review_receipts"),"dashboard reports structured human feedback history");
 add(root.includes('export * from "./founder-review-resolution"'),"R11 exported from G8 root");

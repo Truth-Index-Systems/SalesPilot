@@ -176,46 +176,34 @@ export async function resolveGenesisG8FounderReview(input: GenesisG8FounderRevie
   }
 
   if (input.action === "APPROVE") {
-    // Approval changes operational eligibility only. Rehydrate the unchanged Truth
-    // state, then let the normal planner keep repairing any remaining gaps in the
-    // background while Knowledge is immediately usable.
-    const retrieval = await retrieveGenesisG8KnowledgeById(resolved.entity_id, { persistTruthIfChanged: true });
-    if (!retrieval) throw new Error("GENESIS_G8_ENTITY_NOT_FOUND");
-    const plan = planGenesisG8DualChannelWork(retrieval.eligibility);
-    const envelope = scopeFounderEnvelope(buildGenesisG8ExecutionEnvelope(plan, {
-      entityId: retrieval.hydrated.entity.id,
-      entityType: retrieval.hydrated.entity.entityType,
-      canonicalKey: retrieval.hydrated.entity.canonicalKey,
-      workflowRef: `g8-r11-founder-review:${resolved.review_task_id}`,
-    }), resolved.review_task_id);
-    const dispatched = await dispatchGenesisG8ExecutionEnvelope(envelope, before.workflow);
-    return { version: GENESIS_G8_FOUNDER_REVIEW_VERSION, reviewTaskId: resolved.review_task_id, entityId: resolved.entity_id, action: input.action, outcome: "APPROVED", receiptId: resolved.receipt_id, repairDispatches: dispatched.receipts.filter((receipt) => receipt.kind === "DISCOVERY_REPAIR").map((receipt) => receipt.dispatchKey) };
+    // The founder decision is already durably resolved above. Follow-up background
+    // repair is best-effort: a dispatch fault must never make a successful human
+    // approval appear to have failed or tempt the founder to click twice.
+    try {
+      const retrieval = await retrieveGenesisG8KnowledgeById(resolved.entity_id, { persistTruthIfChanged: true });
+      if (!retrieval) throw new Error("GENESIS_G8_ENTITY_NOT_FOUND");
+      const plan = planGenesisG8DualChannelWork(retrieval.eligibility);
+      const envelope = scopeFounderEnvelope(buildGenesisG8ExecutionEnvelope(plan, {
+        entityId: retrieval.hydrated.entity.id, entityType: retrieval.hydrated.entity.entityType, canonicalKey: retrieval.hydrated.entity.canonicalKey,
+        workflowRef: `g8-r11-founder-review:${resolved.review_task_id}`,
+      }), resolved.review_task_id);
+      const dispatched = await dispatchGenesisG8ExecutionEnvelope(envelope, before.workflow);
+      return { version: GENESIS_G8_FOUNDER_REVIEW_VERSION, reviewTaskId: resolved.review_task_id, entityId: resolved.entity_id, action: input.action, outcome: "APPROVED", receiptId: resolved.receipt_id, repairDispatches: dispatched.receipts.filter((receipt) => receipt.kind === "DISCOVERY_REPAIR").map((receipt) => receipt.dispatchKey) };
+    } catch (error) {
+      console.warn("Genesis founder approval follow-up repair unavailable", error instanceof Error ? error.message : "unknown");
+      return { version: GENESIS_G8_FOUNDER_REVIEW_VERSION, reviewTaskId: resolved.review_task_id, entityId: resolved.entity_id, action: input.action, outcome: "APPROVED", receiptId: resolved.receipt_id, repairDispatches: [] };
+    }
   }
 
-  const retrieval = await retrieveGenesisG8KnowledgeById(resolved.entity_id, { persistTruthIfChanged: true });
-  if (!retrieval) throw new Error("GENESIS_G8_ENTITY_NOT_FOUND");
-  const claimKeys = stringArray(resolved.claim_keys_json);
-  const envelope = founderResearchEnvelope({
-    reviewTaskId: resolved.review_task_id,
-    entityId: retrieval.hydrated.entity.id,
-    entityType: retrieval.hydrated.entity.entityType,
-    truthIndex: retrieval.eligibility.truthIndex,
-    confidence: retrieval.eligibility.confidence,
-    coverage: retrieval.eligibility.coverage,
-    claimKeys,
-    gaps: retrieval.hydrated.gaps,
-    note: input.note ?? null,
-  });
-  const dispatched = envelope.instructions.length
-    ? await dispatchGenesisG8ExecutionEnvelope(envelope, before.workflow)
-    : { receipts: [] as Array<{ dispatchKey: string }> };
-  return {
-    version: GENESIS_G8_FOUNDER_REVIEW_VERSION,
-    reviewTaskId: resolved.review_task_id,
-    entityId: resolved.entity_id,
-    action: input.action,
-    outcome: input.action === "CORRECT" ? "CORRECTION_RESEARCH_QUEUED" : "RESEARCH_QUEUED",
-    receiptId: resolved.receipt_id,
-    repairDispatches: dispatched.receipts.map((receipt) => receipt.dispatchKey),
-  };
+  try {
+    const retrieval = await retrieveGenesisG8KnowledgeById(resolved.entity_id, { persistTruthIfChanged: true });
+    if (!retrieval) throw new Error("GENESIS_G8_ENTITY_NOT_FOUND");
+    const claimKeys = stringArray(resolved.claim_keys_json);
+    const envelope = founderResearchEnvelope({ reviewTaskId: resolved.review_task_id, entityId: retrieval.hydrated.entity.id, entityType: retrieval.hydrated.entity.entityType, truthIndex: retrieval.eligibility.truthIndex, confidence: retrieval.eligibility.confidence, coverage: retrieval.eligibility.coverage, claimKeys, gaps: retrieval.hydrated.gaps, note: input.note ?? null });
+    const dispatched = envelope.instructions.length ? await dispatchGenesisG8ExecutionEnvelope(envelope, before.workflow) : { receipts: [] as Array<{ dispatchKey: string }> };
+    return { version: GENESIS_G8_FOUNDER_REVIEW_VERSION, reviewTaskId: resolved.review_task_id, entityId: resolved.entity_id, action: input.action, outcome: input.action === "CORRECT" ? "CORRECTION_RESEARCH_QUEUED" : "RESEARCH_QUEUED", receiptId: resolved.receipt_id, repairDispatches: dispatched.receipts.map((receipt) => receipt.dispatchKey) };
+  } catch (error) {
+    console.warn("Genesis founder research follow-up unavailable after durable review resolution", error instanceof Error ? error.message : "unknown");
+    return { version: GENESIS_G8_FOUNDER_REVIEW_VERSION, reviewTaskId: resolved.review_task_id, entityId: resolved.entity_id, action: input.action, outcome: input.action === "CORRECT" ? "CORRECTION_RESEARCH_QUEUED" : "RESEARCH_QUEUED", receiptId: resolved.receipt_id, repairDispatches: [] };
+  }
 }
