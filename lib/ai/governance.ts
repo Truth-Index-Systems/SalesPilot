@@ -17,6 +17,7 @@ export type AiGovernanceContext = {
 };
 
 type Reservation={allowed:boolean;ledger_id:string|null;reason_code:string|null;requests_today:number;cost_today:number;request_limit:number;cost_limit:number};
+type CapacitySnapshot={active_heavy:number;organisation_limit:number;active_campaign_research:number;campaign_research_limit:number};
 type Usage={input_tokens?:number;output_tokens?:number;total_tokens?:number;cached_input_tokens?:number;reasoning_tokens?:number};
 
 function platformEnabled(){return (process.env.MARKETROUTE_AI_PLATFORM_ENABLED ?? process.env.SALESPILOT_AI_PLATFORM_ENABLED)?.trim().toLowerCase()==="true";}
@@ -46,6 +47,10 @@ export function aiParallelCapacityReason(error: unknown): string | null {
 
 export async function reserveAiRequest(context:AiGovernanceContext){
   const key=requestKey(context);
+  // Build 8.3.6: reconcile stale/terminal reservation leases before the local idempotency fast path.
+  if(context.organisationId){
+    await databaseRequest("rpc/reconcile_ai_reservation_capacity",{method:"POST",body:JSON.stringify({p_organisation_id:context.organisationId})}).catch(()=>undefined);
+  }
   // A previously submitted background response is already committed provider work.
   // Resume/polling must remain possible even if the workspace reaches its allowance
   // or the platform gate is subsequently paused; no new model request is created.
@@ -78,7 +83,14 @@ export async function reserveAiRequest(context:AiGovernanceContext){
   const reservation=Array.isArray(result)?result[0]:result;
   if(!reservation?.allowed||!reservation.ledger_id){
     const reason=reservation?.reason_code??"UNKNOWN";
-    if(reason.startsWith("PARALLEL_")) throw new Error(`AI_PARALLEL_CAPACITY:${reason}`);
+    if(reason.startsWith("PARALLEL_")){
+      if(context.organisationId){
+        const cap=await databaseRequest<CapacitySnapshot[]|CapacitySnapshot>("rpc/ai_governance_capacity_snapshot",{method:"POST",body:JSON.stringify({p_organisation_id:context.organisationId,p_campaign_id:context.campaignId??null})}).catch(()=>undefined);
+        const row=Array.isArray(cap)?cap[0]:cap;
+        console.info("AI_GOVERNANCE_CAPACITY",{reason,organisationId:context.organisationId,jobType:context.jobType,jobId:context.jobId??null,activeHeavy:row?.active_heavy??null,organisationLimit:row?.organisation_limit??null,activeCampaignResearch:row?.active_campaign_research??null,campaignResearchLimit:row?.campaign_research_limit??null});
+      }
+      throw new Error(`AI_PARALLEL_CAPACITY:${reason}`);
+    }
     throw new Error(`AI_GOVERNANCE_BLOCKED:${reason}`);
   }
   return {ledgerId:reservation.ledger_id};
