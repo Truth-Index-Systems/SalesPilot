@@ -9,3 +9,9 @@ export * from "./input-contract";
 export * from "./explainability";
 
 export * from "./constraint-mathematics";
+
+export * from "./constraint-propagation";
+
+export * from "./commercial-coherence";
+
+export * from "./opportunity-mathematics";
