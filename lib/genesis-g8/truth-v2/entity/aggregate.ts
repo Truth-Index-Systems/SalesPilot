@@ -1,0 +1,106 @@
+import { MR_TI_2_CONTRACT_VERSION, MR_TI_2_ENGINE_VERSION } from "../types";
+import type { MrTi2ClaimReviewState } from "../claims";
+import type { MrTi2ClaimDefinition } from "../types";
+import type { MrTi2ClaimContribution, MrTi2EntityAggregationInput, MrTi2EntityTruthResult } from "./types";
+
+const TRUTH_CAP=99.9;
+const REVIEW_RANK:Readonly<Record<MrTi2ClaimReviewState,number>>={AUTO:0,VERIFY:1,HUMAN_REVIEW_REQUIRED:2};
+const clamp01=(value:number)=>Math.min(1,Math.max(0,Number.isFinite(value)?value:0));
+const toPct=(value:number)=>Math.min(TRUTH_CAP,Math.max(0,value*100));
+
+function claimDefinitionMap(definitions:readonly MrTi2ClaimDefinition[]):Map<string,MrTi2ClaimDefinition>{
+  const map=new Map<string,MrTi2ClaimDefinition>();
+  for(const definition of definitions){
+    if(map.has(definition.key)) throw new Error(`MR_TI_2_DUPLICATE_CLAIM_DEFINITION:${definition.key}`);
+    if(!(definition.weight>0) || !Number.isFinite(definition.weight)) throw new Error(`MR_TI_2_INVALID_CLAIM_WEIGHT:${definition.key}`);
+    map.set(definition.key,definition);
+  }
+  return map;
+}
+
+function overallReviewState(contributions:readonly MrTi2ClaimContribution[]):MrTi2ClaimReviewState{
+  let state:MrTi2ClaimReviewState="AUTO";
+  for(const item of contributions){ if(REVIEW_RANK[item.reviewState]>REVIEW_RANK[state]) state=item.reviewState; }
+  return state;
+}
+
+export function calculateMrTi2FoundationalModifier(foundationalIntegrity:number):number{
+  const fi=clamp01(foundationalIntegrity);
+  return clamp01(1-Math.pow(1-fi,1.5));
+}
+
+export function aggregateMrTi2EntityTruth(input:MrTi2EntityAggregationInput):MrTi2EntityTruthResult{
+  const definitions=claimDefinitionMap(input.definitions);
+  const unknownClaimKeys=Object.keys(input.claims).filter((key)=>!definitions.has(key));
+  if(unknownClaimKeys.length) throw new Error(`MR_TI_2_UNCONTRACTED_CLAIMS:${unknownClaimKeys.join(",")}`);
+
+  const contributions:MrTi2ClaimContribution[]=input.definitions.map((definition)=>{
+    const state=input.claims[definition.key];
+    const represented=Boolean(state?.represented && state.probability!==null);
+    const probability=represented?clamp01(state!.probability as number):null;
+    return {
+      claimKey:definition.key,
+      impactClass:definition.impactClass,
+      weight:definition.weight,
+      represented,
+      probability,
+      weightedTruthMass:represented?definition.weight*(probability as number):0,
+      contradictionSeverity:state?.severity??0,
+      reviewState:state?.reviewState??"AUTO",
+      dependencyConstrained:state?.dependencyConstrained??false,
+    };
+  });
+
+  const coverageClaims=contributions.filter((item)=>definitions.get(item.claimKey)!.countsTowardCoverage);
+  const totalWeight=coverageClaims.reduce((sum,item)=>sum+item.weight,0);
+  if(!(totalWeight>0)) throw new Error("MR_TI_2_ZERO_ENTITY_WEIGHT");
+  const represented=coverageClaims.filter((item)=>item.represented);
+  const representedWeight=represented.reduce((sum,item)=>sum+item.weight,0);
+  const weightedTruthMass=represented.reduce((sum,item)=>sum+item.weight*(item.probability as number),0);
+
+  const coverage=representedWeight/totalWeight;
+  const representedConfidence=representedWeight>0?weightedTruthMass/representedWeight:0;
+  const baseTruth=weightedTruthMass/totalWeight;
+
+  // Missing foundational claims are deliberately excluded from FI; their absence is already
+  // paid for through weighted coverage/base truth and must never be double-penalised as false.
+  const representedFoundational=contributions.filter((item)=>item.impactClass==="FOUNDATIONAL"&&item.represented);
+  const foundationalWeight=representedFoundational.reduce((sum,item)=>sum+item.weight,0);
+  const foundationalTruthMass=representedFoundational.reduce((sum,item)=>sum+item.weight*(item.probability as number),0);
+  const foundationalIntegrity=foundationalWeight>0?foundationalTruthMass/foundationalWeight:1;
+  const foundationalModifier=calculateMrTi2FoundationalModifier(foundationalIntegrity);
+  const truthIndex=Math.min(TRUTH_CAP,100*baseTruth*foundationalModifier);
+
+  const maxContradictionSeverity=contributions.reduce((max,item)=>Math.max(max,item.contradictionSeverity),0);
+  const missingClaims=contributions.filter((item)=>!item.represented).map((item)=>item.claimKey);
+  const contradictedClaims=contributions.filter((item)=>item.reviewState!=="AUTO").map((item)=>item.claimKey);
+  const dependencyConstrainedClaims=contributions.filter((item)=>item.dependencyConstrained).map((item)=>item.claimKey);
+  const limitingClaims=[...contributions]
+    .filter((item)=>definitions.get(item.claimKey)!.countsTowardCoverage)
+    .sort((a,b)=>{
+      const aGap=a.weight*(1-(a.probability??0));
+      const bGap=b.weight*(1-(b.probability??0));
+      return bGap-aGap || b.weight-a.weight || a.claimKey.localeCompare(b.claimKey);
+    })
+    .slice(0,5)
+    .map((item)=>item.claimKey);
+
+  return {
+    engineVersion:MR_TI_2_ENGINE_VERSION,
+    contractVersion:MR_TI_2_CONTRACT_VERSION,
+    entityType:input.entityType,
+    state:{
+      truthIndex,
+      representedConfidence:toPct(representedConfidence),
+      coverage:Math.min(100,Math.max(0,coverage*100)),
+      foundationalIntegrity:toPct(foundationalIntegrity),
+      foundationalIntegrityRepresented:foundationalWeight>0,
+      foundationalModifier,
+      baseTruth:Math.min(TRUTH_CAP,Math.max(0,baseTruth*100)),
+      maxContradictionSeverity,
+      reviewState:overallReviewState(contributions),
+    },
+    diagnostics:{missingClaims,contradictedClaims,dependencyConstrainedClaims,limitingClaims,contributions},
+    calculatedAt:input.calculatedAt??new Date().toISOString(),
+  };
+}

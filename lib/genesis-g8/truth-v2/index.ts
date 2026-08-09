@@ -6,3 +6,5 @@ export * from "./evidence";
 export * from "./matrix-one";
 export * from "./claims";
 export * from "./matrix-two";
+export * from "./entity";
+export * from "./snapshot-repository";
