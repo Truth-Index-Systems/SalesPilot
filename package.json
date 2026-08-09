@@ -154,7 +154,9 @@
     "mrti2:build5-math": "node scripts/test-mr-ti2-build5-math.mjs",
     "mrti2:build5-check": "node scripts/validate-mr-ti2-build5.mjs && npm run mrti2:build5-math",
     "mrti2:build6-math": "node scripts/test-mr-ti2-build6-math.mjs",
-    "mrti2:build6-check": "node scripts/validate-mr-ti2-build6.mjs && npm run mrti2:build6-math"
+    "mrti2:build6-check": "node scripts/validate-mr-ti2-build6.mjs && npm run mrti2:build6-math",
+    "mrti2:build7-check": "node scripts/validate-mr-ti-2-build7.mjs",
+    "mrti2:build8-check": "node scripts/validate-mr-ti2-build8.mjs && npm run mrti2:build6-check && npm run mrti2:build5-check"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

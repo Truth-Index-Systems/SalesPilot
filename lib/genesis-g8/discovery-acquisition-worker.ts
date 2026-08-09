@@ -7,6 +7,8 @@ import { hydrateGenesisG8EntityTruth } from "./hydration";
 import { ensureGenesisG8ContractClaims, insertGenesisG8Evidence, upsertGenesisG8Entity } from "./persistence/repository";
 import type { GenesisG8PersistedClaim } from "./persistence/types";
 import type { EvidenceSourceClass, TruthEntityType } from "./truth";
+import { persistMrTi2EvidenceAssessment } from "./truth-v2/ai/sidecar-repository";
+import { getMrTi2ClaimDefinition } from "./truth-v2/contracts";
 
 export const GENESIS_G8_DISCOVERY_ACQUISITION_WORKER_VERSION = "G8.1-R12-ACQUISITION-1.0" as const;
 
@@ -32,6 +34,21 @@ function sourceClass(kind:string|undefined|null,url:string,canonicalDomain?:stri
 }
 function evidenceStrength(e:CandidateEvidence){ const q=Number(e.quality); return clamp01(Number.isFinite(q)&&q>0?q/100:(e.excerptMatched?0.9:0.72)); }
 function claimMap(claims:GenesisG8PersistedClaim[]){ return new Map(claims.map(c=>[c.claimKey,c])); }
+function authorityForSourceClass(source:EvidenceSourceClass){
+  switch(source){
+    case "REGULATORY_OR_GOVERNMENT": return 0.98;
+    case "OFFICIAL_PRIMARY": return 0.95;
+    case "OFFICIAL_PROFILE": return 0.90;
+    case "MAJOR_REPUTABLE_MEDIA": return 0.85;
+    case "INDUSTRY_PUBLICATION": return 0.78;
+    case "COMMERCIAL_DATABASE": return 0.70;
+    case "BUSINESS_DIRECTORY": return 0.58;
+    case "SOCIAL_OR_COMMUNITY": return 0.45;
+    case "SEARCH_SNIPPET": return 0.35;
+    default: return 0.30;
+  }
+}
+
 async function settle(job:AcquisitionJob,status:"COMPLETED"|"QUEUED"|"FAILED",error?:string|null){
   await databaseRequest("rpc/settle_genesis_g8_discovery_acquisition",{method:"POST",body:JSON.stringify({p_id:job.id,p_lease_token:job.lease_token,p_status:status,p_error:error??null})});
 }
@@ -41,10 +58,16 @@ async function persistEvidence(entityId:string,entityType:TruthEntityType,items:
     if(!item.sourceUrl) continue; const family=clean(item.sourceDomain)||host(item.sourceUrl); const seen=familySeen.get(family)||0; familySeen.set(family,seen+1);
     for(const key of [...new Set(item.claimKeys)]){
       const claim=byKey.get(key); if(!claim) continue;
-      await insertGenesisG8Evidence({claimId:claim.id,direction:"SUPPORTS",sourceClass:sourceClass(item.sourceKind,item.sourceUrl,canonicalDomain),sourceUri:item.sourceUrl,
-        sourceRef:item.sourceTitle??null,sourceFamily:family,excerpt:item.excerpt??null,strength:evidenceStrength(item),traceability:item.excerpt?1:0.8,
-        independence:seen===0?1:0.25,observedAt:item.observedAt||new Date().toISOString(),channel:"DISCOVERY_INTELLIGENCE",
-        provenance:{channel:"DISCOVERY_INTELLIGENCE",discoveredAt:item.observedAt||new Date().toISOString(),sourceRef:"existing-discovery"}});
+      const source=sourceClass(item.sourceKind,item.sourceUrl,canonicalDomain);
+      const observedAt=item.observedAt||new Date().toISOString();
+      const directness=evidenceStrength(item);
+      const traceability=item.excerpt?1:0.8;
+      const insertedEvidence=await insertGenesisG8Evidence({claimId:claim.id,direction:"SUPPORTS",sourceClass:source,sourceUri:item.sourceUrl,
+        sourceRef:item.sourceTitle??null,sourceFamily:family,excerpt:item.excerpt??null,strength:directness,traceability,
+        independence:seen===0?1:0.25,observedAt,channel:"DISCOVERY_INTELLIGENCE",
+        provenance:{channel:"DISCOVERY_INTELLIGENCE",discoveredAt:observedAt,sourceRef:"existing-discovery"}});
+      const definition=getMrTi2ClaimDefinition(entityType,key);
+      if(definition){await persistMrTi2EvidenceAssessment({evidenceId:insertedEvidence.id,observation:{claimKey:key,direction:"SUPPORT",proposition:definition.proposition,evidenceText:item.excerpt??item.sourceTitle??item.sourceUrl,sourceUrl:item.sourceUrl,sourceTitle:item.sourceTitle??null,sourceClass:source,authority:authorityForSourceClass(source),directness,traceability,sourcePublishedAt:null,observedAt,sourceLineageKey:family,derivativeOfLineageKey:seen>0?family:null,derivativeDepth:seen,relationshipHints:[]}});}
       inserted++;
     }
   }

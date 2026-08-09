@@ -9,7 +9,7 @@ import { readGenesisG8KnowledgeBundle } from "./persistence/read-repository";
 import { hydrateGenesisG8EntityTruth } from "./hydration";
 import { researchGenesisG8ClaimRepairV2 } from "./discovery-repair-openai-v2";
 import { persistMrTi2EvidenceAssessment, persistMrTi2RelationshipHints } from "./truth-v2/ai";
-import { calculateAndPersistMrTi2Shadow } from "./truth-v2/shadow-hydration";
+import { calculateAndPersistMrTi2Truth } from "./truth-v2/production-hydration";
 import type { ClaimCriticality, TruthEntityType } from "./truth";
 
 export const GENESIS_G8_DISCOVERY_REPAIR_WORKER_VERSION = "G8.1-R9-REPAIR-WORKER-1.0" as const;
@@ -138,8 +138,8 @@ async function runRepair(job: RepairJob): Promise<GenesisG8RepairWorkerReceipt> 
       evidenceInserted += 1;
     }
 
-    const mrTi2Shadow = await calculateAndPersistMrTi2Shadow(job.entity_id).catch((error) => {
-      console.warn("MR-TI-2 shadow calculation unavailable", error instanceof Error ? error.message : "unknown");
+    const mrTi2Truth = await calculateAndPersistMrTi2Truth(job.entity_id).catch((error) => {
+      console.warn("MR-TI-2 production calculation unavailable", error instanceof Error ? error.message : "unknown");
       return null;
     });
     const hydrated = await hydrateGenesisG8EntityTruth(job.entity_id, { persistIfChanged: true });
@@ -159,7 +159,7 @@ async function runRepair(job: RepairJob): Promise<GenesisG8RepairWorkerReceipt> 
       outcome: "COMPLETED",
       evidenceInserted,
       truthIndex: hydrated?.truth.truthIndex,
-      reviewRequired: hydrated?.truth.review.required ?? (mrTi2Shadow?.state.reviewState === "HUMAN_REVIEW_REQUIRED"),
+      reviewRequired: hydrated?.truth.review.required ?? (mrTi2Truth?.state.reviewState === "HUMAN_REVIEW_REQUIRED"),
     };
   } catch (error) {
     if (isOpenAIBackgroundPending(error)) {

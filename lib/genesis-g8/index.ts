@@ -1,5 +1,4 @@
 export * from "./contracts";
-export * from "./truth";
 export {
   GENESIS_G8_DEFAULT_CHANNEL_STRATEGY,
   GENESIS_G8_INTELLIGENCE_CHANNELS,
@@ -21,7 +20,8 @@ export type {
   GenesisG8ReviewState,
   GenesisG8TruthSnapshot,
 } from "./persistence/types";
-export * from "./read-model";
+export * from "./hydration";
+export * from "./truth-v2";
 export * from "./knowledge-gaps";
 export * from "./eligibility";
 export * from "./gap-repair";

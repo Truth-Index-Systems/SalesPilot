@@ -1,4 +1,4 @@
-import type { GenesisG8IntelligenceGap } from "./read-model";
+import type { GenesisG8IntelligenceGap } from "./hydration";
 
 export type GenesisG8GapRepairMode =
   | "DISCOVER_MISSING_CLAIM"

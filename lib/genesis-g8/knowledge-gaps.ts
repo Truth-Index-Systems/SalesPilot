@@ -1,4 +1,4 @@
-import type { GenesisG8HydratedKnowledge, GenesisG8IntelligenceGap } from "./read-model";
+import type { GenesisG8HydratedKnowledge, GenesisG8IntelligenceGap } from "./hydration";
 
 export interface GenesisG8GapSummary {
   total: number;

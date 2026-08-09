@@ -27,6 +27,13 @@ const EvidenceSchema = z.object({
   sourceTitle: z.string().max(240).nullable(),
   excerpt: z.string().min(1).max(700),
   directness: z.number().int().min(0).max(100),
+  authority: z.number().int().min(0).max(100).optional(),
+  traceability: z.number().int().min(0).max(100).optional(),
+  direction: z.enum(["SUPPORT","CONTRADICT"]).optional(),
+  sourcePublishedAt: z.string().datetime({offset:true}).nullable().optional(),
+  sourceLineageKey: z.string().min(1).max(240).optional(),
+  derivativeOfLineageKey: z.string().min(1).max(240).nullable().optional(),
+  derivativeDepth: z.number().int().min(0).max(20).optional(),
 });
 const ContactSchema = z.object({
   name: z.string().min(1).max(180), role: z.string().max(180).nullable(), seniority: z.string().max(120).nullable(),
@@ -54,6 +61,13 @@ const evidenceJson = {
     sourceClass: { type: "string", enum: SourceClassSchema.options },
     sourceUrl: { type: "string" }, sourceTitle: { type: ["string","null"] }, excerpt: { type: "string" },
     directness: { type: "integer", minimum: 0, maximum: 100 },
+    authority: { type: "integer", minimum: 0, maximum: 100 },
+    traceability: { type: "integer", minimum: 0, maximum: 100 },
+    direction: { type: "string", enum: ["SUPPORT","CONTRADICT"] },
+    sourcePublishedAt: { type: ["string","null"] },
+    sourceLineageKey: { type: "string" },
+    derivativeOfLineageKey: { type: ["string","null"] },
+    derivativeDepth: { type: "integer", minimum: 0, maximum: 20 },
   },
 } as const;
 const expansionJsonSchema = {
@@ -122,7 +136,7 @@ async function recoverCompletedExpansionResponse(params:{
   return recovered;
 }
 
-export type GenesisG82ExpansionEvidence = { claimKey:string; sourceClass:EvidenceSourceClass; sourceUrl:string; sourceTitle:string|null; excerpt:string; directness:number };
+export type GenesisG82ExpansionEvidence = { claimKey:string; sourceClass:EvidenceSourceClass; sourceUrl:string; sourceTitle:string|null; excerpt:string; directness:number; authority?:number; traceability?:number; direction?:"SUPPORT"|"CONTRADICT"; sourcePublishedAt?:string|null; sourceLineageKey?:string; derivativeOfLineageKey?:string|null; derivativeDepth?:number };
 export type GenesisG82ExpansionResult = z.infer<typeof ExpansionResultSchema>;
 
 export async function researchGenesisG82IndustryExpansion(input:{
@@ -163,6 +177,7 @@ export async function researchGenesisG82IndustryExpansion(input:{
             "COMPANY CLAIM KEYS: company evidence may use only identity, canonical_domain, current_operation, industry, sector, geography, offering, customer_market, company_scale or buying_signals.",
             "CONTACT CLAIM KEYS: contact evidence may use only identity, company_relationship, current_employment, role, seniority, authority, work_location, linkedin or email. Return contacts only when current public evidence exists.",
             "ROUTE CLAIM KEYS: route evidence may use only target_company, route_identity, entry_point, decision_maker or route_path. Return a route only when there is a public, verifiable path such as a contact page, named role/profile, public email or official form.",
+            "MR-TI-2 CONTRACT: You are collecting primitive evidence inputs for deterministic MR-TI-2.0. Never calculate Truth Index, claim probability, coverage, freshness, independence or foundational integrity. For every evidence item classify SUPPORT/CONTRADICT and return authority, directness and traceability as 0-100 primitive observations, plus sourcePublishedAt when known, sourceLineageKey, derivativeOfLineageKey and derivativeDepth. Root/original evidence has derivativeDepth 0 and no derivative parent. Repeated/copied evidence must identify its lineage so the engine can apply exponential independence decay.",
             "SOURCES: Prefer official sites, government/regulatory sources and official profiles. Give exact public URLs and traceable excerpts. Never invent an email, role, URL or company.",
             recoveryPass
               ? "BOUNDARY: Return up to three distinct companies when verifiable companies exist; prioritise three strong companies over a larger weak batch. For each company provide at least two company-level evidence items from exact public URLs. Contacts/routes may be empty. Return companies: [] only after genuinely searching multiple queries in the requested search angle and finding no verifiable new domains."

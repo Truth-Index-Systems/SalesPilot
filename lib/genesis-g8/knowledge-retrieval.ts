@@ -3,7 +3,7 @@ import type { TruthEntityType } from "./truth";
 import { evaluateGenesisG8KnowledgeEligibility, type GenesisG8EligibilityResult } from "./eligibility";
 import { getGenesisG8EntityByCanonicalKey } from "./persistence/read-repository";
 import { hydrateGenesisG8EntityTruth } from "./hydration";
-import type { GenesisG8HydratedKnowledge } from "./read-model";
+import type { GenesisG8HydratedKnowledge } from "./hydration";
 
 export interface GenesisG8KnowledgeRetrievalResult {
   hydrated: GenesisG8HydratedKnowledge;

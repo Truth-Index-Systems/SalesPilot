@@ -10,6 +10,8 @@ import { ensureGenesisG8ContractClaims, insertGenesisG8Evidence, upsertGenesisG8
 import { researchGenesisG82IndustryExpansion, type GenesisG82ExpansionEvidence } from "./autonomous-expansion-openai";
 import type { GenesisG8PersistedClaim } from "./persistence/types";
 import type { TruthEntityType } from "./truth";
+import { persistMrTi2EvidenceAssessment } from "./truth-v2/ai/sidecar-repository";
+import { getMrTi2ClaimDefinition } from "./truth-v2/contracts";
 
 export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-R7-AUTONOMOUS-EXPANSION-1.5" as const;
 
@@ -43,11 +45,21 @@ async function persistEvidence(params:{entityId:string;entityType:TruthEntityTyp
   for(const e of params.evidence){
     const claim=byKey.get(e.claimKey); if(!claim)continue;
     const family=sourceFamily(e.sourceUrl); const seen=familyCounts.get(family)??0; familyCounts.set(family,seen+1);
-    await insertGenesisG8Evidence({
-      claimId:claim.id,direction:"SUPPORTS",sourceClass:e.sourceClass,sourceUri:e.sourceUrl,sourceRef:e.sourceTitle,
-      sourceFamily:family,excerpt:e.excerpt,strength:Math.max(0,Math.min(1,e.directness/100)),traceability:1,independence:seen===0?1:0.25,
-      observedAt:new Date().toISOString(),channel:"DISCOVERY_INTELLIGENCE",provenance:{channel:"DISCOVERY_INTELLIGENCE",discoveredAt:new Date().toISOString(),sourceRef:params.sourceRef},
-    }); inserted++;
+    const observedAt=new Date().toISOString();
+    const insertedEvidence=await insertGenesisG8Evidence({
+      claimId:claim.id,direction:e.direction==="CONTRADICT"?"CONTRADICTS":"SUPPORTS",sourceClass:e.sourceClass,sourceUri:e.sourceUrl,sourceRef:e.sourceTitle,
+      sourceFamily:family,excerpt:e.excerpt,strength:Math.max(0,Math.min(1,e.directness/100)),traceability:Math.max(0,Math.min(1,(e.traceability??100)/100)),independence:seen===0?1:0.25,
+      observedAt,channel:"DISCOVERY_INTELLIGENCE",provenance:{channel:"DISCOVERY_INTELLIGENCE",discoveredAt:observedAt,sourceRef:params.sourceRef},
+    });
+    const definition=getMrTi2ClaimDefinition(params.entityType,e.claimKey);
+    if(definition){
+      await persistMrTi2EvidenceAssessment({evidenceId:insertedEvidence.id,observation:{
+        claimKey:e.claimKey,direction:e.direction??"SUPPORT",proposition:definition.proposition,evidenceText:e.excerpt,sourceUrl:e.sourceUrl,sourceTitle:e.sourceTitle,sourceClass:e.sourceClass,
+        authority:Math.max(0,Math.min(1,(e.authority??75)/100)),directness:Math.max(0,Math.min(1,e.directness/100)),traceability:Math.max(0,Math.min(1,(e.traceability??100)/100)),
+        sourcePublishedAt:e.sourcePublishedAt??null,observedAt,sourceLineageKey:e.sourceLineageKey??family,derivativeOfLineageKey:e.derivativeOfLineageKey??null,derivativeDepth:Math.max(0,Math.trunc(e.derivativeDepth??seen)),relationshipHints:[],
+      }});
+    }
+    inserted++;
   }
   await hydrateGenesisG8EntityTruth(params.entityId,{persistIfChanged:true});
   return inserted;

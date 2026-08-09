@@ -32,7 +32,7 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
       </section>
 
       {mrTi2?<section className="founder-panel founder-intelligence-hero">
-        <div className="founder-panel-head"><div><span>MR-TI-2 shadow intelligence</span><h2>Truth Index 2 explainability</h2></div><b className="founder-live-badge">Build 7 · Shadow</b></div>
+        <div className="founder-panel-head"><div><span>MR-TI-2 production intelligence</span><h2>Truth Index 2 production explainability</h2></div><b className="founder-live-badge">Build 8 · Production</b></div>
         <div className="founder-intelligence-metrics">
           <div><span>MR-TI-2 Truth</span><strong>{mrTi2.averageTruthIndex.toFixed(1)}</strong><small>{number(mrTi2.entities)} V2 snapshot entities</small></div>
           <div><span>Represented confidence</span><strong>{mrTi2.averageConfidence.toFixed(1)}%</strong><small>confidence in represented claims</small></div>
