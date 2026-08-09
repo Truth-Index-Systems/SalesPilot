@@ -3,3 +3,4 @@ export * from "./token-theory";
 export * from "./commercial-graph-9d";
 
 export * from "./commercial-genome-ontology";
+export * from "./commercial-genome-completeness";
