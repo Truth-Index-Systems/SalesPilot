@@ -11,7 +11,11 @@ import { assertOpenAiStrictJsonSchema } from "@/lib/ai/strict-json-schema";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import type { GenesisG8EvidenceSourceClass as EvidenceSourceClass } from "./evidence-types";
 
-export const GENESIS_G82_EXPANSION_RESEARCH_VERSION = "G8.2-MRTI2-B8.3.4-AI-CANONICALISATION-4.0" as const;
+export const GENESIS_G82_EXPANSION_RESEARCH_VERSION = "G8.2-MRTI2-B8.3.5-DISPATCH-AUDIT-4.1" as const;
+
+function expansionDecision(stage:string, detail:Record<string,unknown>={}){
+  console.info("GENESIS_G82_EXPANSION_DECISION",{stage,...detail});
+}
 
 export const GENESIS_G82_EXPANSION_COMPANIES_PER_CALL = 3 as const;
 
@@ -133,7 +137,7 @@ async function recoverCompletedExpansionResponse(params:{
       if(!recovered&&canonical.companies.length>0)recovered=canonical;
     }catch(error){
       console.warn("Expansion AI canonicalisation pending or failed",error instanceof Error?error.message:String(error));
-      if(isOpenAIBackgroundPending(error))throw error;
+      if(isOpenAIBackgroundPending(error)){expansionDecision("CANONICALISATION_PENDING",{jobId:input.jobId,requestScope,error:error instanceof Error?error.message:String(error)});throw error;}
     }
   }
   return recovered;
@@ -160,9 +164,12 @@ export async function researchGenesisG82IndustryExpansion(input:{
   const estimatedCostUsd=Math.max(0.01,Number(process.env.MARKETROUTE_G82_EXPANSION_ESTIMATED_COST_USD??"0.08")||0.08);
   for(let generation=0;generation<3;generation++){
     const recoveryPass=generation>0;
+    expansionDecision("AI_RESERVATION_REQUEST",{jobId:input.jobId,requestScope,generation,recoveryPass});
     const reservation=await reserveAiRequest({organisationId,campaignId:null,jobType:"GENESIS_G82_EXPANSION",jobId:input.jobId,requestScope,model,estimatedCostUsd});
+    expansionDecision("AI_RESERVATION_GRANTED",{jobId:input.jobId,requestScope,ledgerId:reservation.ledgerId,generation});
     const startedAt=Date.now(); let response:Response;
     try{
+      expansionDecision("BACKGROUND_FETCH_OR_SUBMIT",{jobId:input.jobId,requestScope,generation});
       response=await fetchResumableOpenAIResponse({apiKey,task:"GENESIS_G82_EXPANSION",organisationId,campaignId:null,jobType:"GENESIS_G82_EXPANSION",jobId:input.jobId,requestScope,model,ledgerId:reservation.ledgerId},{
         method:"POST",cache:"no-store",signal:AbortSignal.timeout(timeoutMs),headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},
         body:JSON.stringify({
@@ -191,10 +198,11 @@ export async function researchGenesisG82IndustryExpansion(input:{
         }),
       });
     }catch(error){
-      if(isOpenAIBackgroundPending(error)) throw error;
+      if(isOpenAIBackgroundPending(error)){expansionDecision("BACKGROUND_PENDING",{jobId:input.jobId,requestScope,error:error instanceof Error?error.message:String(error)}); throw error;}
       if(isOpenAIBackgroundTerminal(error)){
         const reason=error.providerReason??`Provider response ended ${error.status}`;
         await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,responseId:error.responseId,errorCode:`OPENAI_BACKGROUND_${error.status.toUpperCase()}`,errorMessage:reason}).catch(()=>undefined);
+        expansionDecision("BACKGROUND_TERMINAL",{jobId:input.jobId,requestScope,status:error.status,reason,responseId:error.responseId});
         lastTerminalError=new Error(`GENESIS_G82_EXPANSION_BACKGROUND_TERMINAL:${error.status}:${reason}`);
         requestScope=`${baseScope}:retry:${stableFingerprint({previousScope:requestScope,responseId:error.responseId})}`; continue;
       }
@@ -202,24 +210,28 @@ export async function researchGenesisG82IndustryExpansion(input:{
       await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:transport.code,errorMessage:transport.error.message}).catch(()=>undefined); throw transport.error;
     }
     const json:unknown=await response.json().catch(()=>null); const responseId=typeof (json as any)?.id==="string"?(json as any).id:null;
+    expansionDecision("BACKGROUND_RESPONSE_AVAILABLE",{jobId:input.jobId,requestScope,responseId,status:(json as any)?.status??"unknown",httpStatus:response.status});
     if(!response.ok){await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId,errorCode:`HTTP_${response.status}`,errorMessage:JSON.stringify((json as any)?.error??null)}).catch(()=>undefined);throw new Error(`GENESIS_G82_EXPANSION_OPENAI_FAILED:${response.status}`);}
     if((json as any)?.status==="incomplete"){
       const reason=typeof (json as any)?.incomplete_details?.reason==="string"?(json as any).incomplete_details.reason:"UNKNOWN";
       await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId,errorCode:"INCOMPLETE_RESPONSE",errorMessage:reason}).catch(()=>undefined);
-      if(responseId){lastTerminalError=new Error(`GENESIS_G82_EXPANSION_INCOMPLETE:${reason}`);requestScope=`${baseScope}:retry:${stableFingerprint({previousScope:requestScope,responseId})}`;continue;} throw lastTerminalError??new Error(`GENESIS_G82_EXPANSION_INCOMPLETE:${reason}`);
+      if(responseId){expansionDecision("PROVIDER_INCOMPLETE_RETRY",{jobId:input.jobId,requestScope,responseId,reason});lastTerminalError=new Error(`GENESIS_G82_EXPANSION_INCOMPLETE:${reason}`);requestScope=`${baseScope}:retry:${stableFingerprint({previousScope:requestScope,responseId})}`;continue;} throw lastTerminalError??new Error(`GENESIS_G82_EXPANSION_INCOMPLETE:${reason}`);
     }
     await completeAiRequest({ledgerId:reservation.ledgerId,ok:true,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId});
     let accepted:HardAcceptance<GenesisG82ExpansionResult>;
     try{accepted=hardAcceptGenesisG82Expansion(decodeAiJson(json));}catch(error){accepted={value:null,issues:[error instanceof Error?error.message:"AI_OUTPUT_JSON_INVALID"]};}
-    if(accepted.value&&accepted.issues.length===0)return accepted.value;
+    if(accepted.value&&accepted.issues.length===0){expansionDecision("HARD_GATE_ACCEPTED",{jobId:input.jobId,requestScope,companies:accepted.value.companies.length});return accepted.value;}
+    expansionDecision("HARD_GATE_CANONICALISATION_REQUIRED",{jobId:input.jobId,requestScope,issues:accepted.issues.slice(0,8),hasPartialValue:Boolean(accepted.value),partialCompanies:accepted.value?.companies.length??0});
     try{
+      expansionDecision("CANONICALISATION_START",{jobId:input.jobId,requestScope});
       const canonical=await canonicaliseWithAi({apiKey,model,organisationId,jobType:"GENESIS_G82_EXPANSION",task:"GENESIS_G82_EXPANSION",jobId:input.jobId,parentScope:requestScope,rawResponse:json,schemaName:"genesis_g82_expansion_v1",jsonSchema:expansionJsonSchema,instructions:"Canonicalise the research into up to three company foundations. Keep exactly the evidence already supported by the supplied research, use only the allowed company claim keys, preserve source URLs/lineage, and omit all contact/route depth.",accept:hardAcceptGenesisG82Expansion});
-      if(canonical.companies.length>0)return canonical;
+      if(canonical.companies.length>0){expansionDecision("CANONICALISATION_ACCEPTED",{jobId:input.jobId,requestScope,companies:canonical.companies.length});return canonical;}
     }catch(error){
-      if(isOpenAIBackgroundPending(error))throw error;
+      if(isOpenAIBackgroundPending(error)){expansionDecision("CANONICALISATION_PENDING",{jobId:input.jobId,requestScope,error:error instanceof Error?error.message:String(error)});throw error;}
       console.warn("Expansion AI canonicalisation failed",{issues:accepted.issues.slice(0,8),error:error instanceof Error?error.message:String(error)});
       if(accepted.value&&accepted.value.companies.length>0)return accepted.value;
     }
+    expansionDecision("DISCARD_CHECKPOINT",{jobId:input.jobId,requestScope,generation});
     await discardOpenAIBackgroundResponse({organisationId,campaignId:null,jobType:"GENESIS_G82_EXPANSION",jobId:input.jobId,requestScope}).catch(()=>undefined);
     if(generation===0){requestScope=`${baseScope}:breadth-recovery:${attemptNumber}`;continue;}
     throw new Error(`GENESIS_G82_EXPANSION_HARD_GATE_EMPTY:${input.industryKey}:${searchAngle}`);

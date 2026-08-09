@@ -13,7 +13,11 @@ import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
 import { persistMrTi2EvidenceAssessment } from "./truth-v2/ai/sidecar-repository";
 import { getMrTi2ClaimDefinition } from "./truth-v2/contracts";
 
-export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-MRTI2-B8.3.4-AI-CANONICALISATION-1.8" as const;
+export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-MRTI2-B8.3.5-DISPATCH-AUDIT-1.9" as const;
+
+function expansionDecision(stage:string, detail:Record<string,unknown>={}){
+  console.info("GENESIS_G82_EXPANSION_DECISION",{stage,...detail});
+}
 
 type ExpansionJob={
   id:string; target_id:string; industry_key:string; industry_name:string; attempt_count:number; lease_token:string; excluded_domains:unknown;
@@ -87,23 +91,29 @@ async function settle(job:ExpansionJob,status:"QUEUED"|"COMPLETED"|"FAILED",coun
 
 async function runJob(job:ExpansionJob){
   const counts:PersistCounts={companies:0,contacts:0,routes:0}; let found=0;
+  expansionDecision("JOB_CLAIMED",{jobId:job.id,industryKey:job.industry_key,attemptCount:job.attempt_count});
   try{
     const known=[...new Set([...excluded(job),...(await loadKnownCompanyDomains())])];
+    expansionDecision("RESEARCH_DISPATCH",{jobId:job.id,industryKey:job.industry_key,knownDomainCount:known.length});
     const result=await researchGenesisG82IndustryExpansion({jobId:job.id,industryKey:job.industry_key,industryName:job.industry_name,excludedDomains:known,attemptNumber:job.attempt_count});
-    found=result.companies.length; const seen=new Set(known);
+    found=result.companies.length; expansionDecision("RESEARCH_ACCEPTED",{jobId:job.id,companiesFound:found}); const seen=new Set(known);
     for(const company of result.companies){
-      try{const p=await persistCompany(job,company,seen);counts.companies+=p.companies;counts.contacts+=p.contacts;counts.routes+=p.routes;}
+      try{expansionDecision("PERSIST_COMPANY_START",{jobId:job.id,company:typeof company?.name==="string"?company.name:"unknown"});const p=await persistCompany(job,company,seen);counts.companies+=p.companies;counts.contacts+=p.contacts;counts.routes+=p.routes;expansionDecision("PERSIST_COMPANY_DONE",{jobId:job.id,company:typeof company?.name==="string"?company.name:"unknown",persisted:p.companies});}
       catch(error){console.warn("Expansion company skipped at hard persistence boundary",{jobId:job.id,company:typeof company?.name==="string"?company.name:"unknown",error:error instanceof Error?error.message:String(error)});}
     }
     if(found>0&&counts.companies===0)throw new Error("GENESIS_G82_EXPANSION_NOTHING_SAFE_TO_PERSIST");
+    expansionDecision("SETTLE_COMPLETED",{jobId:job.id,companiesFound:found,companiesPersisted:counts.companies});
     await settle(job,"COMPLETED",counts,found);
     return {jobId:job.id,industry:job.industry_name,outcome:"COMPLETED" as const,companiesFound:found,...counts};
   }catch(error){
     const message=error instanceof Error?error.message:String(error);
     if(isOpenAIBackgroundPending(error)||isAiGovernanceDeferred(error)||aiParallelCapacityReason(error)){
+      const reason=isOpenAIBackgroundPending(error)?"BACKGROUND_PENDING":isAiGovernanceDeferred(error)?"AI_GOVERNANCE_DEFERRED":"AI_PARALLEL_CAPACITY";
+      expansionDecision("SETTLE_QUEUED",{jobId:job.id,reason,error:message});
       await settle(job,"QUEUED",counts,found,message); return {jobId:job.id,industry:job.industry_name,outcome:"PENDING" as const,companiesFound:found,...counts,error:message};
     }
     const retryable=job.attempt_count<7&&!/NOT_CONFIGURED|INVALID_SCHEMA|ENTITY_UPSERT/.test(message);
+    expansionDecision(retryable?"SETTLE_RETRYABLE_FAILURE":"SETTLE_FINAL_FAILURE",{jobId:job.id,error:message,attemptCount:job.attempt_count});
     await settle(job,retryable?"QUEUED":"FAILED",counts,found,message);
     return {jobId:job.id,industry:job.industry_name,outcome:retryable?"FAILED_RETRYABLE" as const:"FAILED_FINAL" as const,companiesFound:found,...counts,error:message};
   }
