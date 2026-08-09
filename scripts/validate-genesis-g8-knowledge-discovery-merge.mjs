@@ -8,11 +8,11 @@ const files={
  wizard:fs.readFileSync('components/campaign-wizard.tsx','utf8')
 };
 const checks=[
- ['versioned merge',files.merge.includes('G8.1-R15-KNOWLEDGE-DISCOVERY-MERGE-1.0')],
+ ['versioned merge lineage',files.merge.includes('G8.1-R20-ADAPTIVE-KNOWLEDGE-DISCOVERY-MERGE-1.0')],
  ['feature flag',files.merge.includes('GENESIS_G8_KNOWLEDGE_DISCOVERY_MERGE')],
  ['fail open',files.merge.includes('failed open')],
  ['bounded shortlist',files.merge.includes('slice(0,25)')],
- ['usable only',files.merge.includes('mayUseKnowledgeImmediately')&&files.merge.includes('!item.blocking')],
+ ['usable only',files.merge.includes('mayUseKnowledgeImmediately')&&files.merge.includes('!c.blocking')],
  ['launch schema additive',files.schema.includes('knowledgeMatch: z.unknown().optional()')],
  ['wizard sends match',files.wizard.includes('knowledgeMatch,')],
  ['draft preserves knowledge match',files.wizard.includes('knowledgeMatch: parsed.knowledgeMatch ?? null')&&files.wizard.includes('setKnowledgeMatch(draft.knowledgeMatch ?? null)')],

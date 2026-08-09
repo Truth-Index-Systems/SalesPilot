@@ -4,7 +4,7 @@ import { databaseRequest } from "@/lib/database/postgrest";
 import type { OrganisationContext } from "@/lib/auth/organisation-context";
 import { decideGenesisG8Activation, readGenesisG8ActivationRuntime, recordGenesisG8ActivationEvent } from "./activation-controller";
 
-export const GENESIS_G8_KNOWLEDGE_DISCOVERY_MERGE_VERSION = "G8.1-R15-KNOWLEDGE-DISCOVERY-MERGE-1.0" as const;
+export const GENESIS_G8_KNOWLEDGE_DISCOVERY_MERGE_VERSION = "G8.1-R20-ADAPTIVE-KNOWLEDGE-DISCOVERY-MERGE-1.0" as const;
 
 export type GenesisG8LaunchKnowledgeCandidate = {
   entityId: string; canonicalKey: string; businessFit: number; retrievalScore: number;
@@ -50,10 +50,12 @@ export async function mergeGenesisG8KnowledgeIntoCampaign(params:{
     await recordGenesisG8ActivationEvent({organisationId:params.context.organisationId,campaignId:params.campaignId,configuredLevel:activation.configuredLevel,effectiveLevel:activation.effectiveLevel,decision:"FALLBACK",reason:activation.reasons.join(" "),candidateCount:params.knowledgeMatch.candidates.length,seededCount:0,latencyMs:Date.now()-started,fallbackUsed:true,failed:false});
     return {seeded:0,skipped:true,activation};
   }
-  const eligible=params.knowledgeMatch.candidates.filter(c=>c.mayUseKnowledgeImmediately&&!c.blocking&&c.truthIndex>=60&&c.confidence>=55&&c.coverage>=20).slice(0,activation.candidateLimit);
+  // R20 trusts the existing R5/R13 eligibility decision as the primary authority.
+  // The server-side merge RPC still re-verifies entity status and minimum safety floors.
+  const eligible=params.knowledgeMatch.candidates.filter(c=>c.mayUseKnowledgeImmediately&&!c.blocking).slice(0,activation.candidateLimit);
   const payload=eligible.map(c=>({entityId:c.entityId,businessFit:c.businessFit,retrievalScore:c.retrievalScore}));
   if(!payload.length){
-    await recordGenesisG8ActivationEvent({organisationId:params.context.organisationId,campaignId:params.campaignId,configuredLevel:activation.configuredLevel,effectiveLevel:activation.effectiveLevel,decision:"FALLBACK",reason:"No candidate survived the R19 production quality gate.",candidateCount:params.knowledgeMatch.candidates.length,seededCount:0,latencyMs:Date.now()-started,fallbackUsed:true,failed:false});
+    await recordGenesisG8ActivationEvent({organisationId:params.context.organisationId,campaignId:params.campaignId,configuredLevel:activation.configuredLevel,effectiveLevel:activation.effectiveLevel,decision:"FALLBACK",reason:"No candidate survived the R20 adaptive-default eligibility gate.",candidateCount:params.knowledgeMatch.candidates.length,seededCount:0,latencyMs:Date.now()-started,fallbackUsed:true,failed:false});
     return {seeded:0,skipped:true,activation};
   }
   try {
@@ -68,7 +70,7 @@ export async function mergeGenesisG8KnowledgeIntoCampaign(params:{
     return { seeded, skipped:false, activation };
   } catch (error) {
     // R19 remains fail-open. Discovery is the production safety path.
-    console.warn("Genesis G8 controlled activation failed open", error);
+    console.warn("Genesis G8 adaptive default failed open to Discovery", error);
     await recordGenesisG8ActivationEvent({organisationId:params.context.organisationId,campaignId:params.campaignId,configuredLevel:activation.configuredLevel,effectiveLevel:activation.effectiveLevel,decision:"FAILED_OPEN",reason:error instanceof Error?error.message:"UNKNOWN",candidateCount:payload.length,seededCount:0,latencyMs:Date.now()-started,fallbackUsed:true,failed:true});
     return { seeded:0, skipped:true, activation };
   }
