@@ -1,0 +1,52 @@
+import fs from "node:fs";
+import path from "node:path";
+
+const root = process.cwd();
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+const token = read("lib/genesis-t8/token-theory.ts");
+const constitution = read("lib/genesis-t8/constitution.ts");
+const index = read("lib/genesis-t8/index.ts");
+const doc = read("GENESIS-T8-CE-R1-BUILD2-COMMERCIAL-TOKEN-THEORY.md");
+
+const checks = [];
+const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
+
+check("token theory version is explicit", token.includes('GENESIS_T8_TOKEN_THEORY_VERSION = "1.0.0"'));
+check("Build 2 identity is explicit", token.includes('GENESIS_T8_CE_BUILD = "BUILD2"'));
+check("atomic token contract exists", token.includes("GenesisT8CommercialToken"));
+check("token has one subject field", token.includes("subjectEntityId: string"));
+check("token has canonical predicate", token.includes("predicate: string"));
+check("token has canonical value", token.includes("canonicalValue: string"));
+check("token has mutability", token.includes("GenesisT8TokenMutability"));
+check("token has lifecycle", token.includes("GenesisT8TokenLifecycleState"));
+check("token references evidence IDs", token.includes("evidenceIds: readonly string[]"));
+check("AI discovery requires evidence reference", token.includes("AI_DISCOVERY_REQUIRES_EVIDENCE_REFERENCE"));
+check("TI version is fixed to frozen 2.1.8", token.includes('truthEngineVersion: "TI-2.1.8"'));
+check("truth bounds are guarded", token.includes("GENESIS_T8_TOKEN_VIOLATION:TRUTH_BOUND"));
+check("discovered token cannot carry truth", token.includes("DISCOVERED_TOKEN_CANNOT_HAVE_TRUTH"));
+check("qualified states require TI output", token.includes("QUALIFIED_STATE_REQUIRES_TI_OUTPUT"));
+check("relationship is first class", token.includes("GenesisT8TokenRelation"));
+check("relationship has two token endpoints", token.includes("fromTokenId: string") && token.includes("toTokenId: string"));
+check("relationship invariant exists", token.includes("assertTokenRelationInvariant"));
+check("token identity excludes evidence by construction", token.includes("canonicalTokenIdentityKey") && !/canonicalTokenIdentityKey[\s\S]{0,500}evidenceIds/.test(token));
+check("token identity excludes truth by construction", token.includes("canonicalTokenIdentityKey") && !/canonicalTokenIdentityKey[\s\S]{0,500}probability/.test(token));
+check("token identity excludes graph position by law", token.includes("DIMENSIONAL_POSITION_BELONGS_TO_THE_GRAPH_NOT_TOKEN_IDENTITY"));
+check("missingness is not negative knowledge", token.includes("MISSING_KNOWLEDGE_IS_ABSENCE_NOT_A_NEGATIVE_TOKEN"));
+check("history is preserved", token.includes("CURRENT_STATE_NEVER_DESTROYS_HISTORY"));
+check("supersession semantics are explicit", token.includes("SUPERSESSION_REPLACES_AUTHORITY_NOT_PROVENANCE"));
+check("tokens cannot be score containers", token.includes("TOKENS_STORE_FACTS_NOT_MATCH_OR_OPPORTUNITY_SCORES"));
+check("lifecycle transitions are deterministic", token.includes("canTransitionTokenLifecycle"));
+check("token theory is exported", index.includes('export * from "./token-theory"'));
+check("constitution still declares truth before reasoning", constitution.includes("TRUTH_PRECEDES_REASONING"));
+check("constitution still names TI role", constitution.includes("truth probability") && constitution.includes("truth confidence"));
+check("documentation states no runtime pipeline change", doc.includes("does not change the active MarketRoute pipeline"));
+check("documentation defers 9D semantics to Build 3", doc.includes("9-dimensional graph semantics are deliberately deferred to Build 3"));
+check("documentation separates token from evidence", doc.includes("Evidence is not the token"));
+check("documentation separates token from relationship", doc.includes("A relationship connects two tokens"));
+check("documentation forbids reasoning as fact", doc.includes("must never persist Match Strength"));
+check("Build 2 does not define commercial mathematics", doc.includes("Commercial Engine mathematics"));
+
+const failed = checks.filter((c) => !c.ok);
+for (const c of checks) console.log(`${c.ok ? "PASS" : "FAIL"} ${c.name}`);
+console.log(`\nGenesis T8 CE-R1 Build 2: ${checks.length - failed.length}/${checks.length} checks passed.`);
+if (failed.length) process.exit(1);
