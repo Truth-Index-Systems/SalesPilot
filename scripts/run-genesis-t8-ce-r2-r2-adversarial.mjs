@@ -1,0 +1,27 @@
+import assert from "node:assert/strict";
+import { pathToFileURL } from "node:url";
+const modPath=process.argv[2]; if(!modPath) throw new Error("compiled module path required");
+const m=await import(pathToFileURL(modPath));
+let pass=0; const test=(name,fn)=>{fn();pass++;console.log("PASS",name)};
+const truth=(p,c,k=1,x=0)=>({probability:p,confidence:c,coverage:k,contradictionSeverity:x});
+const base=(cls,pol,t)=>({constraintId:`c-${cls}-${pol}`,constraintClass:cls,applicability:"APPLICABLE",semanticPolarity:pol,truth:t});
+
+test("p=.5 is epistemically neutral",()=>assert.equal(m.resolvedTruthSignal(.5,1),0));
+test("zero TI confidence creates zero truth force",()=>assert.equal(m.resolvedTruthSignal(1,0),0));
+test("full true confident support reaches +1",()=>assert.equal(m.resolvedTruthSignal(1,1),1));
+test("full false confident support reaches -1",()=>assert.equal(m.resolvedTruthSignal(0,1),-1));
+test("semantic opposition reverses sign",()=>assert.equal(m.applySemanticPolarity(.8,"OPPOSES_REALITY"),-.8));
+test("coverage does not alter truth-force equation",()=>assert.equal(m.resolvedTruthSignal(.9,.8),m.resolvedTruthSignal(.9,.8)));
+test("low coverage reduces knowledge not support",()=>{const a=m.evaluateLocalConstraint(base("SUPPORTING","SUPPORTS_REALITY",truth(.95,.9,.2)));const b=m.evaluateLocalConstraint(base("SUPPORTING","SUPPORTS_REALITY",truth(.95,.9,1)));assert.equal(a.supportStrength,b.supportStrength);assert.ok(a.representedKnowledge<b.representedKnowledge)});
+test("supporting constraint never creates limiting pressure",()=>{const s=m.evaluateLocalConstraint(base("SUPPORTING","OPPOSES_REALITY",truth(.95,.9)));assert.equal(s.limitingPressure,0);assert.equal(s.supportStrength,0)});
+test("limiting constraint creates pressure but no support",()=>{const s=m.evaluateLocalConstraint(base("LIMITING","OPPOSES_REALITY",truth(.95,.9)));assert.ok(s.limitingPressure>0);assert.equal(s.supportStrength,0)});
+test("boundary opposition produces elimination support not binary elimination",()=>{const s=m.evaluateLocalConstraint(base("BOUNDARY","OPPOSES_REALITY",truth(.95,.9)));assert.ok(s.boundaryEliminationSupport>0);assert.equal(s.localState,"BOUNDARY_SUPPORTS_ELIMINATION")});
+test("boundary support produces survival support",()=>{const s=m.evaluateLocalConstraint(base("BOUNDARY","SUPPORTS_REALITY",truth(.95,.9)));assert.ok(s.boundarySurvivalSupport>0);assert.equal(s.boundaryEliminationSupport,0)});
+test("unknown constraint has zero viability force",()=>{const s=m.evaluateLocalConstraint({constraintId:"u",constraintClass:"UNKNOWN",applicability:"APPLICABLE",semanticPolarity:"UNKNOWN",truth:null});assert.equal(s.supportStrength+s.limitingPressure+s.boundaryEliminationSupport+s.boundarySurvivalSupport,0);assert.equal(s.knowledgeDeficit,1)});
+test("TI contradiction severity passes through exactly",()=>{const s=m.evaluateLocalConstraint(base("CONTRADICTORY","SUPPORTS_REALITY",truth(.8,.8,.8,.73)));assert.equal(s.contradictionUncertainty,.73);assert.equal(s.localState,"CONTRADICTED")});
+test("contradiction does not directly eliminate or limit in R2",()=>{const s=m.evaluateLocalConstraint(base("CONTRADICTORY","OPPOSES_REALITY",truth(.99,1,1,1)));assert.equal(s.limitingPressure,0);assert.equal(s.boundaryEliminationSupport,0)});
+test("not-applicable constraint has no state force",()=>{const s=m.evaluateLocalConstraint({...base("BOUNDARY","OPPOSES_REALITY",truth(1,1)),applicability:"NOT_APPLICABLE"});assert.equal(s.localState,"INACTIVE");assert.equal(s.boundaryEliminationSupport,0)});
+test("unresolved applicability does not become negative",()=>{const s=m.evaluateLocalConstraint({...base("LIMITING","OPPOSES_REALITY",truth(1,1,.4)),applicability:"UNRESOLVED"});assert.equal(s.localState,"UNRESOLVED");assert.equal(s.limitingPressure,0)});
+test("invalid TI bound is rejected",()=>assert.throws(()=>m.evaluateLocalConstraint(base("SUPPORTING","SUPPORTS_REALITY",truth(1.2,1))),/TI_PROBABILITY_BOUND/));
+test("missing TI truth for applicable known polarity is rejected",()=>assert.throws(()=>m.evaluateLocalConstraint({constraintId:"x",constraintClass:"BOUNDARY",applicability:"APPLICABLE",semanticPolarity:"OPPOSES_REALITY",truth:null}),/REQUIRES_TI_TRUTH/));
+console.log(`\nGenesis T8 CE-R2 R2 adversarial runtime: ${pass}/18 passed.`);

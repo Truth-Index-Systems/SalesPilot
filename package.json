@@ -168,7 +168,11 @@
     "genesis:t8-ce-r1-build6-check": "npm run genesis:t8-ce-r1-build5-check && node scripts/validate-genesis-t8-ce-r1-build6.mjs",
     "genesis:t8-ce-r1-build7-static-check": "npm run genesis:t8-ce-r1-build6-check && node scripts/validate-genesis-t8-ce-r1-build7.mjs",
     "genesis:t8-ce-r1-build7-runtime-check": "node scripts/test-genesis-t8-ce-r1-build7-runtime.mjs",
-    "genesis:t8-ce-r1-build7-check": "npm run genesis:t8-ce-r1-build7-static-check && npm run genesis:t8-ce-r1-build7-runtime-check"
+    "genesis:t8-ce-r1-build7-check": "npm run genesis:t8-ce-r1-build7-static-check && npm run genesis:t8-ce-r1-build7-runtime-check",
+    "genesis:t8-ce-r2-r1-build1-check": "npm run genesis:t8-ce-r1-build7-check && node scripts/validate-genesis-t8-ce-r2-r1-build1.mjs",
+    "genesis:t8-ce-r2-r2-check": "npm run genesis:t8-ce-r2-r2-static-check && npm run genesis:t8-ce-r2-r2-runtime-check",
+    "genesis:t8-ce-r2-r2-static-check": "npm run genesis:t8-ce-r2-r1-build1-check && node scripts/validate-genesis-t8-ce-r2-r2.mjs",
+    "genesis:t8-ce-r2-r2-runtime-check": "rm -rf .genesis-t8-r2-r2-runtime && tsc --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --skipLibCheck --esModuleInterop --outDir .genesis-t8-r2-r2-runtime --rootDir . lib/genesis-t8/mathematics/constraint-mathematics.ts lib/genesis-t8/mathematics/constraints.ts lib/genesis-t8/commercial-graph-9d.ts lib/genesis-t8/token-theory.ts lib/genesis-t8/authority-registry.ts lib/genesis-t8/canonical-runtime.ts && node scripts/run-genesis-t8-ce-r2-r2-adversarial.mjs .genesis-t8-r2-r2-runtime/lib/genesis-t8/mathematics/constraint-mathematics.js && rm -rf .genesis-t8-r2-r2-runtime"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
