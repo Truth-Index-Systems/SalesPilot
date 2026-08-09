@@ -148,7 +148,9 @@
     "mr-ti2:build1-check": "node scripts/validate-mr-ti2-build1.mjs",
     "mr-ti2:build2-check": "node scripts/validate-mr-ti2-build2.mjs",
     "mr-ti2:build3-math": "node scripts/test-mr-ti2-build3-math.mjs",
-    "mr-ti2:build3-check": "node scripts/validate-mr-ti2-build3.mjs && npm run mr-ti2:build3-math"
+    "mr-ti2:build3-check": "node scripts/validate-mr-ti2-build3.mjs && npm run mr-ti2:build3-math",
+    "mr-ti2:build4-math": "node scripts/test-mr-ti2-build4-math.mjs",
+    "mr-ti2:build4-check": "node scripts/validate-mr-ti2-build4.mjs && npm run mr-ti2:build4-math"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
