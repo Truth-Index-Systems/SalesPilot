@@ -10,7 +10,9 @@ import { stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import type { EvidenceSourceClass } from "./truth";
 
-export const GENESIS_G82_EXPANSION_RESEARCH_VERSION = "G8.2-R1-EXPANSION-RESEARCH-1.0" as const;
+export const GENESIS_G82_EXPANSION_RESEARCH_VERSION = "G8.2-R3-EXPANSION-RESEARCH-1.1" as const;
+
+export const GENESIS_G82_EXPANSION_COMPANIES_PER_CALL = 6 as const;
 
 const SourceClassSchema = z.enum([
   "REGULATORY_OR_GOVERNMENT", "OFFICIAL_PRIMARY", "OFFICIAL_PROFILE", "MAJOR_REPUTABLE_MEDIA",
@@ -41,7 +43,7 @@ const CompanySchema = z.object({
 const ExpansionResultSchema = z.object({
   schemaVersion: z.literal("genesis-g82-expansion/v1"),
   summary: z.string().max(800),
-  companies: z.array(CompanySchema).max(3),
+  companies: z.array(CompanySchema).max(GENESIS_G82_EXPANSION_COMPANIES_PER_CALL),
 });
 
 const evidenceJson = {
@@ -57,7 +59,7 @@ const expansionJsonSchema = {
   type: "object", additionalProperties: false, required: ["schemaVersion","summary","companies"],
   properties: {
     schemaVersion: { type: "string", enum: ["genesis-g82-expansion/v1"] }, summary: { type: "string" },
-    companies: { type: "array", maxItems: 3, items: {
+    companies: { type: "array", maxItems: GENESIS_G82_EXPANSION_COMPANIES_PER_CALL, items: {
       type: "object", additionalProperties: false,
       required: ["name","domain","sector","geography","offering","customerMarket","evidence","contacts","routes"],
       properties: {
@@ -94,7 +96,7 @@ export async function researchGenesisG82IndustryExpansion(input:{
   const fingerprint=stableFingerprint({version:GENESIS_G82_EXPANSION_RESEARCH_VERSION,industryKey:input.industryKey,excluded:input.excludedDomains.slice(0,250)});
   const baseScope=`genesis-g82-expansion:${fingerprint}`;
   let requestScope=baseScope; let lastTerminalError:Error|null=null;
-  const estimatedCostUsd=Math.max(0.01,Number(process.env.MARKETROUTE_G82_EXPANSION_ESTIMATED_COST_USD??"0.08")||0.08);
+  const estimatedCostUsd=Math.max(0.01,Number(process.env.MARKETROUTE_G82_EXPANSION_ESTIMATED_COST_USD??"0.12")||0.12);
   for(let generation=0;generation<3;generation++){
     const reservation=await reserveAiRequest({organisationId,campaignId:null,jobType:"GENESIS_G8_REPAIR",jobId:input.jobId,requestScope,model,estimatedCostUsd});
     const startedAt=Date.now(); let response:Response;
@@ -105,19 +107,19 @@ export async function researchGenesisG82IndustryExpansion(input:{
           model,
           instructions:[
             "ROLE: Genesis autonomous public-commercial intelligence researcher for MarketRoute.",
-            "MISSION: Expand one named industry by finding a very small batch of real companies Genesis does not already know. Evidence first; never assign Truth Index, approval state, fit score, opportunity score or outreach.",
+            "MISSION: Expand one named industry by finding a compact batch of real companies Genesis does not already know. Use the web-search context efficiently across the whole batch rather than restarting the same market research for each company. Evidence first; never assign Truth Index, approval state, fit score, opportunity score or outreach.",
             "NOVELTY: Do not return any domain in excludedDomains. Prefer active companies/startups with a clear official web presence and commercially useful public information.",
             "COMPANY CLAIM KEYS: company evidence may use only identity, canonical_domain, current_operation, industry, sector, geography, offering, customer_market, company_scale or buying_signals.",
             "CONTACT CLAIM KEYS: contact evidence may use only identity, company_relationship, current_employment, role, seniority, authority, work_location, linkedin or email. Return contacts only when current public evidence exists.",
             "ROUTE CLAIM KEYS: route evidence may use only target_company, route_identity, entry_point, decision_maker or route_path. Return a route only when there is a public, verifiable path such as a contact page, named role/profile, public email or official form.",
             "SOURCES: Prefer official sites, government/regulatory sources and official profiles. Give exact public URLs and traceable excerpts. Never invent an email, role, URL or company.",
-            "BOUNDARY: Maximum three companies, two contacts per company and one route per company. Empty arrays are valid when evidence is unavailable.",
+            "BOUNDARY: Return up to six distinct companies in this single call, prioritising six when evidence quality permits. Maximum two contacts per company and one route per company. Never pad the batch with weak or duplicate companies; empty nested arrays are valid when evidence is unavailable.",
             "Write concise British English and return exact JSON only. Prompt policy: genesis-g82-expansion/v1.",
           ].join(" "),
           input:JSON.stringify({industryKey:input.industryKey,industryName:input.industryName,excludedDomains:input.excludedDomains.slice(0,250)}),
           tools:[{type:"web_search_preview",search_context_size:"medium"}],reasoning:{effort:profile.reasoningEffort},
           text:{format:{type:"json_schema",name:"genesis_g82_expansion_v1",strict:true,schema:expansionJsonSchema}},
-          max_output_tokens:Math.max(profile.maxOutputTokens,6000),store:false,
+          max_output_tokens:Math.max(profile.maxOutputTokens,10000),store:false,
         }),
       });
     }catch(error){

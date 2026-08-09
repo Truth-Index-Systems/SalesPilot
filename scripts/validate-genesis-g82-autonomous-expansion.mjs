@@ -18,13 +18,13 @@ pass('R17 snapshot extended for expansion',migration.includes('left join public.
 pass('customer repairs outrank background repairs',migration.includes("case when q.organisation_id is not null or q.campaign_id is not null or q.company_id is not null then 0 else 1 end"));
 pass('expansion shares governed G8 budget lane',ai.includes('jobType:"GENESIS_G8_REPAIR"'));
 pass('AI cannot assign Truth Index',ai.includes('never assign Truth Index'));
-pass('bounded three-company output',ai.includes('Maximum three companies'));
+pass('bounded multi-company output',ai.includes('GENESIS_G82_EXPANSION_COMPANIES_PER_CALL = 6')&&ai.includes('up to six distinct companies'));
 pass('known domains excluded',ai.includes('excludedDomains'));
 pass('global known company domains loaded before research',worker.includes('loadKnownCompanyDomains'));
 pass('company claim keys bounded',ai.includes('COMPANY CLAIM KEYS'));
 pass('contact claim keys bounded',ai.includes('CONTACT CLAIM KEYS'));
 pass('route claim keys bounded',ai.includes('ROUTE CLAIM KEYS'));
-pass('empty contact route results valid',ai.includes('Empty arrays are valid'));
+pass('empty contact route results valid',ai.includes('empty nested arrays are valid'));
 pass('company persistence uses canonical G8 entity',worker.includes('upsertGenesisG8Entity({entityType:"company"'));
 pass('contacts persist to G8 graph',worker.includes('entityType:"contact"'));
 pass('routes persist to G8 graph',worker.includes('entityType:"route"'));

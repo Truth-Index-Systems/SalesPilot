@@ -107,7 +107,7 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
       </section>
 
 
-      <GenesisG8ReviewWorkspace tasks={data.g8ReviewQueue} summary={data.g8ReviewSummary} activity={g8?.activity??[]} />
+      <GenesisG8ReviewWorkspace tasks={data.g8ReviewQueue} summary={data.g8ReviewSummary} activity={g8?.activity??[]} renderedAt={data.generatedAt} />
 
       <section className="founder-metric-grid founder-economics-grid">
         <article><span>Cost / opportunity</span><strong>{money(data.economics.costPerOpportunity)}</strong><small>{data.economics.completedOpportunities} approved or engaged</small></article>
