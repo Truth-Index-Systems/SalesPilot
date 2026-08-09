@@ -11,11 +11,11 @@ const states=[
  {constraintId:'x',local:local('x','CONTRADICTORY',{contradictionUncertainty:0.3}),effectiveSupportStrength:0,effectiveLimitingPressure:0,effectiveBoundaryEliminationSupport:0,effectiveBoundarySurvivalSupport:0,relevantContradictionUncertainty:0.3,effectiveKnowledgeDeficit:0.3,incomingDependencyIds:[]},
  {constraintId:'u',local:local('u','UNKNOWN',{applicability:'UNRESOLVED',knowledgeDeficit:0.7}),effectiveSupportStrength:0,effectiveLimitingPressure:0,effectiveBoundaryEliminationSupport:0,effectiveBoundarySurvivalSupport:0,relevantContradictionUncertainty:0,effectiveKnowledgeDeficit:0.7,incomingDependencyIds:[]},
 ];
-const propagation={orderedConstraintIds:['b','l','s','u','x'],states,viability:'SURVIVES',eliminatingConstraintIds:[],unresolvedBoundaryConstraintIds:[]};
+const propagation={orderedConstraintIds:['b','s','l','x','u'],states,viability:'SURVIVES',eliminatingConstraintIds:[],unresolvedBoundaryConstraintIds:[]};
 const commercial={viability:'SURVIVES',commercialCoherence:0.72,constraintPressure:0.4,commercialStability:0.9,knowledgeSufficiency:0.7,reasoningConfidence:0.8,dimensions:[],nearestFailureBoundaryConstraintIds:['b']};
 const realisation={state:'ACTIONABLE',commercial,contactState:'APPROPRIATE',routeState:'DIRECT',routeTargetMode:'PERSON',actionable:true,reasonCode:'CONTACT_AND_ROUTE_AVAILABLE'};
 const opportunity={opportunityId:'opp1',targetEntityId:'target1',realisation};
-const order={opportunityId:'opp1',targetEntityId:'target1',realisationState:'ACTIONABLE',realisationPrecedence:5,vector:{commercialCoherence:.72,commercialStability:.9,knowledgeSufficiency:.7,reasoningConfidence:.8,constraintHeadroom:.6},commercialStrength:.6,decisionAssurance:.7,opportunityRobustness:.6,paretoFront:1,rank:1};
+const order={opportunityId:'opp1',targetEntityId:'target1',realisationState:'ACTIONABLE',realisationPrecedence:4,vector:{commercialCoherence:.72,commercialStability:.9,knowledgeSufficiency:.7,reasoningConfidence:.8,constraintHeadroom:.6},commercialStrength:.6,decisionAssurance:.7,opportunityRobustness:.6,paretoFront:1,rank:1};
 const contract=(id,cls,app='APPLICABLE')=>({constraintId:id,constraintClass:cls,sellerEntityId:'seller',offeringEntityId:'offer',targetEntityId:'target1',canonicalSubjectTokenIds:[`st-${id}`],canonicalTargetTokenIds:[`tt-${id}`],canonicalRelationshipIds:[`rel-${id}`],relevantDimensions:['COMMERCIAL'],applicability:app,semanticDependencyKey:`sem-${id}`,evidenceIds:[`ev-${id}`]});
 const contracts=[contract('b','BOUNDARY'),contract('s','SUPPORTING'),contract('l','LIMITING'),contract('x','CONTRADICTORY'),contract('u','UNKNOWN','UNRESOLVED')];
 const research={opportunityId:'opp1',targetEntityId:'target1',orderedCandidates:[],researchRequired:true,next:{researchId:'r1',semanticQuestionKey:'procurement.route',kind:'ROUTE',impactClass:'REALISATION_PIVOTAL',impactPrecedence:3,unresolvedMass:1,nearestFailureBoundary:false,reasonCode:'ROUTE_CAN_CHANGE_REALISATION'}};
@@ -44,6 +44,7 @@ test('missing contract fails',()=>throws(()=>mod.buildOpportunityExplanationTrac
 test('unknown propagated contract fails',()=>throws(()=>mod.buildOpportunityExplanationTrace(opportunity,order,propagation,[...contracts.slice(0,-1),contract('zzz','UNKNOWN')])));
 test('research opportunity mismatch fails',()=>throws(()=>mod.buildOpportunityExplanationTrace(opportunity,order,propagation,contracts,{...research,opportunityId:'other'})));
 test('research target mismatch fails',()=>throws(()=>mod.buildOpportunityExplanationTrace(opportunity,order,propagation,contracts,{...research,targetEntityId:'other'})));
+test('forged order mathematics fails',()=>throws(()=>mod.buildOpportunityExplanationTrace(opportunity,{...order,commercialStrength:.99},propagation,contracts)));
 test('trace is frozen',()=>{if(!Object.isFrozen(trace)||!Object.isFrozen(trace.constraintTraces))throw 0});
 test('AI envelope is frozen',()=>{if(!Object.isFrozen(mod.createAIExplanationEnvelope(trace)))throw 0});
 console.log(`Genesis T8 CE-R2 R7 adversarial runtime: ${pass}/${total}`); if(pass!==total)process.exit(1);

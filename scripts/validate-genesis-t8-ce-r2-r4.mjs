@@ -17,7 +17,7 @@ check("commercial coherence depends on support and pressure",src.includes("comme
 check("non-survivors get zero coherence",src.includes('propagation.viability === "SURVIVES" ? commercialCoherenceFromSupportAndPressure'));
 check("commercial stability uses nearest boundary",src.includes("minimumBoundaryMargin"));
 check("nearest failure boundary ids exposed",src.includes("nearestFailureBoundaryConstraintIds"));
-check("knowledge sufficiency is conservative",src.includes("Math.min(...knowledgeByGroup)"));
+check("knowledge sufficiency is decision-local",src.includes("knowledgeChannels")&&src.includes("viabilityKnowledge")&&src.includes("stabilityKnowledge")&&src.includes("enrichmentKnowledge"));
 check("reasoning confidence separate",src.includes("reasoningConfidence"));
 check("contact states categorical",["APPROPRIATE","PLAUSIBLE","UNKNOWN","INAPPROPRIATE"].every(x=>src.includes(`"${x}"`)));
 check("route states categorical",["DIRECT","INDIRECT","WEAK","UNKNOWN","BLOCKED"].every(x=>src.includes(`"${x}"`)));

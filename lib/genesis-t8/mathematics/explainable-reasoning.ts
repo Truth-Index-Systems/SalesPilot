@@ -6,8 +6,8 @@
  * this trace into natural language, but may not alter any mathematical state.
  */
 import type { GenesisT8AIConstraintContract } from "./constraints";
-import type { GenesisT8CommercialRealityPropagation } from "./constraint-propagation";
-import type { GenesisT8OpportunityCandidate, GenesisT8OpportunityOrderState } from "./opportunity-mathematics";
+import { assertCommercialRealityPropagationInvariant, type GenesisT8CommercialRealityPropagation } from "./constraint-propagation";
+import { assertOpportunityCandidateInvariant, assertOpportunityOrderStateInvariant, type GenesisT8OpportunityCandidate, type GenesisT8OpportunityOrderState } from "./opportunity-mathematics";
 import type { GenesisT8ResearchSelection } from "./research-intelligence";
 
 export const GENESIS_T8_EXPLAINABLE_REASONING_VERSION = "1.0.0" as const;
@@ -121,6 +121,9 @@ export function assertExplanationInputsInvariant(
   propagation: GenesisT8CommercialRealityPropagation,
   contracts: readonly GenesisT8AIConstraintContract[],
 ): void {
+  assertOpportunityCandidateInvariant(opportunity);
+  assertOpportunityOrderStateInvariant(opportunity, orderState);
+  assertCommercialRealityPropagationInvariant(propagation);
   if (orderState.opportunityId !== opportunity.opportunityId || orderState.targetEntityId !== opportunity.targetEntityId) {
     throw new Error("GENESIS_T8_CE_R2_R7_VIOLATION:ORDER_IDENTITY_MISMATCH");
   }

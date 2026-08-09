@@ -7,9 +7,11 @@
  *
  * Semantics remain AI-owned. R5 consumes only R4 deterministic state.
  */
-import type {
-  GenesisT8OpportunityRealisation,
-  GenesisT8OpportunityRealisationState,
+import {
+  assertOpportunityRealisationInvariant,
+  realisationKnowledgeSufficiency,
+  type GenesisT8OpportunityRealisation,
+  type GenesisT8OpportunityRealisationState,
 } from "./commercial-coherence";
 
 export const GENESIS_T8_OPPORTUNITY_MATHEMATICS_VERSION = "1.0.0" as const;
@@ -21,7 +23,7 @@ export const GENESIS_T8_REALISATION_PRECEDENCE = Object.freeze({
   STRANDED: 2,
   VIABLE_BUT_UNRESOLVED: 3,
   ACTIONABLE_WITHOUT_NAMED_CONTACT: 4,
-  ACTIONABLE: 5,
+  ACTIONABLE: 4,
 } satisfies Readonly<Record<GenesisT8OpportunityRealisationState, number>>);
 
 export type GenesisT8OpportunityCandidate = Readonly<{
@@ -68,6 +70,7 @@ export function assertOpportunityCandidateInvariant(candidate: GenesisT8Opportun
   if (!candidate.realisation || !Object.prototype.hasOwnProperty.call(GENESIS_T8_REALISATION_PRECEDENCE, candidate.realisation.state)) {
     throw new Error("GENESIS_T8_CE_R2_R5_VIOLATION:REALISATION_STATE");
   }
+  assertOpportunityRealisationInvariant(candidate.realisation);
   for (const forbidden of ["score", "weight", "priorityWeight", "rankingWeight", "probability", "importance"]) {
     if (Object.prototype.hasOwnProperty.call(candidate as object, forbidden)) {
       throw new Error(`GENESIS_T8_CE_R2_R5_VIOLATION:FORBIDDEN_WEIGHTED_SCORE:${forbidden}`);
@@ -81,7 +84,7 @@ export function opportunityOrderingVector(candidate: GenesisT8OpportunityCandida
   return Object.freeze({
     commercialCoherence: clamp01(commercial.commercialCoherence),
     commercialStability: clamp01(commercial.commercialStability),
-    knowledgeSufficiency: clamp01(commercial.knowledgeSufficiency),
+    knowledgeSufficiency: Math.min(clamp01(commercial.knowledgeSufficiency), realisationKnowledgeSufficiency(candidate.realisation)),
     reasoningConfidence: clamp01(commercial.reasoningConfidence),
     constraintHeadroom: clamp01(1 - commercial.constraintPressure),
   });
@@ -125,14 +128,15 @@ export function paretoDominates(a: GenesisT8OpportunityOrderingVector, b: Genesi
 
 function computeParetoFronts(candidates: readonly GenesisT8OpportunityCandidate[]): Map<string, number> {
   const fronts = new Map<string, number>();
-  const byState = new Map<GenesisT8OpportunityRealisationState, GenesisT8OpportunityCandidate[]>();
+  const byTier = new Map<number, GenesisT8OpportunityCandidate[]>();
   for (const candidate of candidates) {
-    const list = byState.get(candidate.realisation.state) ?? [];
+    const tier = GENESIS_T8_REALISATION_PRECEDENCE[candidate.realisation.state];
+    const list = byTier.get(tier) ?? [];
     list.push(candidate);
-    byState.set(candidate.realisation.state, list);
+    byTier.set(tier, list);
   }
 
-  for (const group of byState.values()) {
+  for (const group of byTier.values()) {
     let remaining = [...group].sort((a, b) => a.opportunityId.localeCompare(b.opportunityId));
     let front = 1;
     while (remaining.length) {
@@ -150,6 +154,22 @@ function computeParetoFronts(candidates: readonly GenesisT8OpportunityCandidate[
     }
   }
   return fronts;
+}
+
+export function assertOpportunityOrderStateInvariant(candidate: GenesisT8OpportunityCandidate, state: GenesisT8OpportunityOrderState): void {
+  assertOpportunityCandidateInvariant(candidate);
+  if (state.opportunityId !== candidate.opportunityId || state.targetEntityId !== candidate.targetEntityId) throw new Error("GENESIS_T8_CE_R2_R5_VIOLATION:ORDER_IDENTITY_MISMATCH");
+  if (state.realisationState !== candidate.realisation.state) throw new Error("GENESIS_T8_CE_R2_R5_VIOLATION:ORDER_REALISATION_MISMATCH");
+  const expectedPrecedence = GENESIS_T8_REALISATION_PRECEDENCE[candidate.realisation.state];
+  if (state.realisationPrecedence !== expectedPrecedence) throw new Error("GENESIS_T8_CE_R2_R5_VIOLATION:ORDER_PRECEDENCE_MISMATCH");
+  const vector = opportunityOrderingVector(candidate);
+  for (const key of ["commercialCoherence","commercialStability","knowledgeSufficiency","reasoningConfidence","constraintHeadroom"] as const) {
+    if (Math.abs(state.vector[key] - vector[key]) > EPSILON) throw new Error(`GENESIS_T8_CE_R2_R5_VIOLATION:ORDER_VECTOR_MISMATCH:${key}`);
+  }
+  if (Math.abs(state.commercialStrength - commercialStrength(vector)) > EPSILON) throw new Error("GENESIS_T8_CE_R2_R5_VIOLATION:ORDER_COMMERCIAL_STRENGTH_MISMATCH");
+  if (Math.abs(state.decisionAssurance - decisionAssurance(vector)) > EPSILON) throw new Error("GENESIS_T8_CE_R2_R5_VIOLATION:ORDER_DECISION_ASSURANCE_MISMATCH");
+  if (Math.abs(state.opportunityRobustness - opportunityRobustness(vector)) > EPSILON) throw new Error("GENESIS_T8_CE_R2_R5_VIOLATION:ORDER_ROBUSTNESS_MISMATCH");
+  if (!Number.isInteger(state.paretoFront) || state.paretoFront < 1 || !Number.isInteger(state.rank) || state.rank < 1) throw new Error("GENESIS_T8_CE_R2_R5_VIOLATION:ORDER_POSITION");
 }
 
 export function orderOpportunities(candidates: readonly GenesisT8OpportunityCandidate[]): GenesisT8OpportunityOrderingResult {
@@ -210,7 +230,8 @@ export function topOrderedOpportunities(result: GenesisT8OpportunityOrderingResu
 }
 
 export const GENESIS_T8_R5_LAWS = Object.freeze([
-  "REALISATION_PRECEDES_COMMERCIAL_STRENGTH",
+  "REALISATION_TIER_PRECEDES_COMMERCIAL_STRENGTH",
+  "NAMED_CONTACT_AND_VALID_ORGANISATIONAL_ROUTE_SHARE_ONE_ACTIONABLE_TIER_UNTIL_CONTACT_ROUTE_MATH_EXISTS",
   "COMMERCIAL_IMPOSSIBILITY_CANNOT_BE_OUTRANKED_BY_REACHABILITY",
   "PARETO_DOMINANCE_PRECEDES_MAXIMIN_TIE_BREAKING",
   "WEAKEST_AXIS_GOVERNS_ROBUSTNESS",

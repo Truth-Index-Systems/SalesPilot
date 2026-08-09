@@ -121,6 +121,29 @@ function topologicalConstraintOrder(
   return Object.freeze(ordered);
 }
 
+export function assertCommercialRealityPropagationInvariant(propagation: GenesisT8CommercialRealityPropagation): void {
+  if (!["SURVIVES", "ELIMINATED", "UNRESOLVED"].includes(propagation.viability)) throw new Error("GENESIS_T8_CE_R2_R3_VIOLATION:PROPAGATION_VIABILITY");
+  const ids = propagation.states.map((state) => state.constraintId);
+  if (new Set(ids).size !== ids.length) throw new Error("GENESIS_T8_CE_R2_R3_VIOLATION:PROPAGATION_DUPLICATE_STATE");
+  if (propagation.orderedConstraintIds.length !== ids.length || propagation.orderedConstraintIds.some((id, index) => id !== ids[index])) {
+    throw new Error("GENESIS_T8_CE_R2_R3_VIOLATION:PROPAGATION_ORDER_MISMATCH");
+  }
+  const byId = new Map(propagation.states.map((state) => [state.constraintId, state]));
+  for (const state of propagation.states) {
+    if (state.local.constraintId !== state.constraintId) throw new Error("GENESIS_T8_CE_R2_R3_VIOLATION:PROPAGATION_LOCAL_ID_MISMATCH");
+    for (const value of [state.effectiveSupportStrength,state.effectiveLimitingPressure,state.effectiveBoundaryEliminationSupport,state.effectiveBoundarySurvivalSupport,state.relevantContradictionUncertainty,state.effectiveKnowledgeDeficit]) {
+      if (!Number.isFinite(value) || value < 0 || value > 1) throw new Error("GENESIS_T8_CE_R2_R3_VIOLATION:PROPAGATION_CHANNEL_BOUND");
+    }
+  }
+  for (const id of [...propagation.eliminatingConstraintIds, ...propagation.unresolvedBoundaryConstraintIds]) {
+    const state = byId.get(id);
+    if (!state || state.local.constraintClass !== "BOUNDARY") throw new Error("GENESIS_T8_CE_R2_R3_VIOLATION:PROPAGATION_BOUNDARY_REFERENCE");
+  }
+  if (propagation.eliminatingConstraintIds.length > 0 && propagation.viability !== "ELIMINATED") throw new Error("GENESIS_T8_CE_R2_R3_VIOLATION:PROPAGATION_ELIMINATION_MISMATCH");
+  if (propagation.eliminatingConstraintIds.length === 0 && propagation.unresolvedBoundaryConstraintIds.length > 0 && propagation.viability !== "UNRESOLVED") throw new Error("GENESIS_T8_CE_R2_R3_VIOLATION:PROPAGATION_UNRESOLVED_MISMATCH");
+  if (propagation.eliminatingConstraintIds.length === 0 && propagation.unresolvedBoundaryConstraintIds.length === 0 && propagation.viability !== "SURVIVES") throw new Error("GENESIS_T8_CE_R2_R3_VIOLATION:PROPAGATION_SURVIVAL_MISMATCH");
+}
+
 /**
  * Dependency relevance is intentionally binary at R3: a contradiction is
  * commercially relevant if and only if it lies on an active semantic dependency
@@ -154,7 +177,8 @@ function propagatedChannels(
         support: 0,
         limiting: source.effectiveLimitingPressure,
         boundaryElimination: source.effectiveBoundaryEliminationSupport,
-        boundarySurvival: source.effectiveBoundarySurvivalSupport,
+        // Required failure may cascade, but satisfaction may never rescue a different boundary.
+        boundarySurvival: 0,
       };
     case "LIMITING":
       return { ...common, support: 0, limiting: source.effectiveLimitingPressure, boundaryElimination: 0, boundarySurvival: 0 };
@@ -257,7 +281,8 @@ export const GENESIS_T8_CONSTRAINT_PROPAGATION_LAWS = Object.freeze([
   "DEPENDENCIES_ARE_CATEGORICAL_NOT_NUMERIC_WEIGHTS",
   "REASONING_DEPENDENCY_GRAPH_IS_ACYCLIC_EVEN_WHEN_COMMERCIAL_GRAPH_CONTAINS_CYCLES",
   "PROPAGATION_PRESERVES_CHANNEL_CLASS",
-  "REQUIRED_DEPENDENCIES_MAY_CASCADE_BOUNDARY_STATE",
+  "REQUIRED_DEPENDENCIES_MAY_CASCADE_BOUNDARY_FAILURE_ONLY",
+  "REQUIRED_DEPENDENCY_SATISFACTION_MAY_NOT_RESCUE_ANOTHER_BOUNDARY",
   "LIMITING_DEPENDENCIES_MAY_PROPAGATE_LIMITING_PRESSURE_ONLY",
   "SUPPORTING_DEPENDENCIES_MAY_PROPAGATE_SUPPORT_ONLY",
   "INFORMATIONAL_DEPENDENCIES_PROPAGATE_UNCERTAINTY_NOT_VIABILITY_FORCE",

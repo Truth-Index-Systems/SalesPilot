@@ -7,8 +7,8 @@
  * candidates; R6 orders them deterministically by decision impact and unresolved
  * information already present in R3/R4 state.
  */
-import type { GenesisT8CommercialRealityPropagation } from "./constraint-propagation";
-import type { GenesisT8OpportunityCandidate } from "./opportunity-mathematics";
+import { assertCommercialRealityPropagationInvariant, type GenesisT8CommercialRealityPropagation } from "./constraint-propagation";
+import { assertOpportunityCandidateInvariant, type GenesisT8OpportunityCandidate } from "./opportunity-mathematics";
 
 export const GENESIS_T8_RESEARCH_INTELLIGENCE_VERSION = "1.0.0" as const;
 export const GENESIS_T8_CE_R2_R6_BUILD = "R6-BUILD1" as const;
@@ -124,6 +124,8 @@ export function evaluateResearchCandidate(
   propagation: GenesisT8CommercialRealityPropagation,
   candidate: GenesisT8ResearchCandidate,
 ): GenesisT8ResearchPriorityState {
+  assertOpportunityCandidateInvariant(opportunity);
+  assertCommercialRealityPropagationInvariant(propagation);
   assertResearchCandidateInvariant(candidate);
   const states = propagatedStateById(propagation);
   const commercial = opportunity.realisation.commercial;
@@ -241,14 +243,25 @@ export function selectNextPortfolioResearch(
     opportunitySelections.push(selectNextResearchForOpportunity(opportunity, propagation, candidates));
   }
 
-  for (const selection of opportunitySelections) {
-    if (selection.next) {
-      return Object.freeze({
-        next: Object.freeze({ ...selection.next, opportunityId: selection.opportunityId, targetEntityId: selection.targetEntityId }),
-        researchRequired: true,
-        opportunitySelections: Object.freeze(opportunitySelections),
-      });
-    }
+  const rankedNext = opportunitySelections
+    .map((selection, rankIndex) => selection.next ? ({ selection, rankIndex, next: selection.next }) : undefined)
+    .filter((item): item is { selection: GenesisT8ResearchSelection; rankIndex: number; next: GenesisT8ResearchPriorityState } => Boolean(item))
+    .sort((a, b) => {
+      const priority = comparePriority(a.next, b.next);
+      if (priority !== 0) return priority;
+      // Current R5 order is a deterministic tie-break only inside the same
+      // research-impact class/vector; it may never outrank decision impact.
+      if (a.rankIndex !== b.rankIndex) return a.rankIndex - b.rankIndex;
+      return a.selection.opportunityId.localeCompare(b.selection.opportunityId);
+    });
+
+  const chosen = rankedNext[0];
+  if (chosen) {
+    return Object.freeze({
+      next: Object.freeze({ ...chosen.next, opportunityId: chosen.selection.opportunityId, targetEntityId: chosen.selection.targetEntityId }),
+      researchRequired: true,
+      opportunitySelections: Object.freeze(opportunitySelections),
+    });
   }
   return Object.freeze({ researchRequired: false, opportunitySelections: Object.freeze(opportunitySelections) });
 }
@@ -264,5 +277,6 @@ export const GENESIS_T8_R6_LAWS = Object.freeze([
   "DEFINITIVE_NOT_VIABLE_REALITIES_DO_NOT_RECEIVE_SPECULATIVE_RESEARCH_PRIORITY",
   "DUPLICATE_SEMANTIC_RESEARCH_QUESTIONS_CANNOT_MULTIPLY_PRIORITY",
   "THE_SINGLE_NEXT_RESEARCH_TARGET_IS_DETERMINISTIC",
-  "PORTFOLIO_RESEARCH_RESPECTS_R5_OPPORTUNITY_ORDER_BEFORE_R6_LOCAL_PRIORITY",
+  "PORTFOLIO_RESEARCH_IMPACT_CLASS_PRECEDES_CURRENT_R5_RANK",
+  "CURRENT_R5_RANK_BREAKS_TIES_ONLY_INSIDE_EQUAL_RESEARCH_PRIORITY",
 ] as const);

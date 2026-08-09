@@ -29,7 +29,7 @@ const checks=[
  ["duplicate research guard",src.includes("DUPLICATE_RESEARCH_ID")],
  ["duplicate semantic question guard",src.includes("DUPLICATE_SEMANTIC_QUESTION")],
  ["deterministic tie",src.includes("researchId.localeCompare")],
- ["portfolio respects R5",src.includes("R5_OPPORTUNITY_ORDER")],
+ ["portfolio decision impact precedes R5 rank",src.includes("PORTFOLIO_RESEARCH_IMPACT_CLASS_PRECEDES_CURRENT_R5_RANK")],
  ["unknown is not negative",src.includes("UNKNOWN_INFORMATION_NEVER_COUNTS_AS_NEGATIVE")],
  ["spec research loop",spec.includes("AI → TI → UDOSIB")],
  ["spec value of information",spec.includes("Value of Information")],

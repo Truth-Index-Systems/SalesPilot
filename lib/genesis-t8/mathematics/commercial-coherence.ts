@@ -11,6 +11,7 @@ import type {
   GenesisT8CommercialRealityPropagation,
   GenesisT8PropagatedConstraintState,
 } from "./constraint-propagation";
+import { assertCommercialRealityPropagationInvariant } from "./constraint-propagation";
 
 export const GENESIS_T8_COMMERCIAL_COHERENCE_VERSION = "1.0.0" as const;
 export const GENESIS_T8_CE_R2_R4_BUILD = "R4-BUILD1" as const;
@@ -36,12 +37,23 @@ export type GenesisT8DimensionCoherenceState = Readonly<{
   contributingConstraintIds: readonly string[];
 }>;
 
+export type GenesisT8CommercialKnowledgeChannels = Readonly<{
+  /** Knowledge sufficient to resolve active viability boundaries. */
+  viability: number;
+  /** Knowledge sufficient to assess stability/pressure near active boundaries. */
+  stability: number;
+  /** Optional supporting/enrichment knowledge; never allowed to collapse decision assurance. */
+  enrichment: number;
+}>;
+
 export type GenesisT8CommercialCoherenceState = Readonly<{
   viability: GenesisT8CommercialRealityPropagation["viability"];
   commercialCoherence: number;
   constraintPressure: number;
   commercialStability: number;
+  /** Backward-compatible decision-relevant aggregate = min(viability, stability). */
   knowledgeSufficiency: number;
+  knowledgeChannels: GenesisT8CommercialKnowledgeChannels;
   reasoningConfidence: number;
   dimensions: readonly GenesisT8DimensionCoherenceState[];
   nearestFailureBoundaryConstraintIds: readonly string[];
@@ -196,10 +208,48 @@ function minimumBoundaryMargin(states: readonly GenesisT8PropagatedConstraintSta
   });
 }
 
+function minimumKnowledgeForClasses(
+  states: readonly GenesisT8PropagatedConstraintState[],
+  classes: ReadonlySet<string>,
+): number {
+  const relevant = states.filter((state) => state.local.applicability !== "NOT_APPLICABLE" && classes.has(state.local.constraintClass));
+  if (!relevant.length) return 1;
+  return Math.min(...relevant.map((state) => clamp01(1 - state.effectiveKnowledgeDeficit)));
+}
+
+function assertUnitInterval(value: number, code: string): void {
+  if (!Number.isFinite(value) || value < 0 || value > 1) throw new Error(`GENESIS_T8_CE_R2_R4_VIOLATION:${code}`);
+}
+
+export function assertCommercialCoherenceStateInvariant(state: GenesisT8CommercialCoherenceState): void {
+  if (!["SURVIVES", "ELIMINATED", "UNRESOLVED"].includes(state.viability)) throw new Error("GENESIS_T8_CE_R2_R4_VIOLATION:COMMERCIAL_VIABILITY");
+  for (const [code, value] of [
+    ["COMMERCIAL_COHERENCE", state.commercialCoherence],
+    ["CONSTRAINT_PRESSURE", state.constraintPressure],
+    ["COMMERCIAL_STABILITY", state.commercialStability],
+    ["KNOWLEDGE_SUFFICIENCY", state.knowledgeSufficiency],
+    ["REASONING_CONFIDENCE", state.reasoningConfidence],
+  ] as const) assertUnitInterval(value, code);
+  // Pre-R8 persisted R4 snapshots may not contain the channel breakdown. They
+  // remain readable if their aggregate is structurally valid; all newly
+  // evaluated R8 states emit and validate the channels below.
+  if (state.knowledgeChannels) {
+    assertUnitInterval(state.knowledgeChannels.viability, "VIABILITY_KNOWLEDGE");
+    assertUnitInterval(state.knowledgeChannels.stability, "STABILITY_KNOWLEDGE");
+    assertUnitInterval(state.knowledgeChannels.enrichment, "ENRICHMENT_KNOWLEDGE");
+    const expectedKnowledge = Math.min(state.knowledgeChannels.viability, state.knowledgeChannels.stability);
+    if (Math.abs(state.knowledgeSufficiency - expectedKnowledge) > EPSILON) throw new Error("GENESIS_T8_CE_R2_R4_VIOLATION:KNOWLEDGE_AGGREGATE_MISMATCH");
+  }
+  if (state.viability !== "SURVIVES" && (state.commercialCoherence > EPSILON || state.commercialStability > EPSILON)) {
+    throw new Error("GENESIS_T8_CE_R2_R4_VIOLATION:NON_SURVIVING_COMMERCIAL_FORCE");
+  }
+}
+
 export function evaluateCommercialCoherence(
   propagation: GenesisT8CommercialRealityPropagation,
   contexts: readonly GenesisT8CoherenceConstraintContext[],
 ): GenesisT8CommercialCoherenceState {
+  assertCommercialRealityPropagationInvariant(propagation);
   const stateById = new Map(propagation.states.map((state) => [state.constraintId, state]));
   const contextIds = new Set<string>();
   for (const context of contexts) {
@@ -212,7 +262,6 @@ export function evaluateCommercialCoherence(
   const supportGroups = new Map<string, number[]>();
   const limitingGroups = new Map<string, number[]>();
   const contradictionGroups = new Map<string, number[]>();
-  const knowledgeGroups = new Map<string, number[]>();
 
   for (const context of contexts) {
     const state = stateById.get(context.constraintId)!;
@@ -220,7 +269,6 @@ export function evaluateCommercialCoherence(
     supportGroups.set(context.reinforcementGroupKey, [...(supportGroups.get(context.reinforcementGroupKey) ?? []), positive]);
     limitingGroups.set(context.reinforcementGroupKey, [...(limitingGroups.get(context.reinforcementGroupKey) ?? []), state.effectiveLimitingPressure]);
     contradictionGroups.set(context.reinforcementGroupKey, [...(contradictionGroups.get(context.reinforcementGroupKey) ?? []), state.relevantContradictionUncertainty]);
-    knowledgeGroups.set(context.reinforcementGroupKey, [...(knowledgeGroups.get(context.reinforcementGroupKey) ?? []), 1 - state.effectiveKnowledgeDeficit]);
   }
 
   const support = reinforceIndependentGroups(supportGroups);
@@ -230,10 +278,12 @@ export function evaluateCommercialCoherence(
   const coherence = propagation.viability === "SURVIVES" ? commercialCoherenceFromSupportAndPressure(support, pressure) : 0;
   const boundary = minimumBoundaryMargin(propagation.states);
 
-  // Knowledge sufficiency is intentionally conservative: a critical unknown
-  // group remains visible rather than being averaged away by many known facts.
-  const knowledgeByGroup = [...knowledgeGroups.values()].map((values) => values.length ? Math.min(...values.map(clamp01)) : 0);
-  const knowledgeSufficiency = knowledgeByGroup.length ? Math.min(...knowledgeByGroup) : 0;
+  // Decision-local knowledge: optional supporting/enrichment unknowns never
+  // collapse assurance about viability or stability.
+  const viabilityKnowledge = minimumKnowledgeForClasses(propagation.states, new Set(["BOUNDARY"]));
+  const stabilityKnowledge = minimumKnowledgeForClasses(propagation.states, new Set(["BOUNDARY", "LIMITING", "CONTRADICTORY"]));
+  const enrichmentKnowledge = minimumKnowledgeForClasses(propagation.states, new Set(["SUPPORTING", "UNKNOWN"]));
+  const knowledgeSufficiency = Math.min(viabilityKnowledge, stabilityKnowledge);
   const reasoningConfidence = propagation.viability === "UNRESOLVED"
     ? 0
     : clamp01(knowledgeSufficiency * (1 - contradiction));
@@ -268,10 +318,31 @@ export function evaluateCommercialCoherence(
     constraintPressure: pressure,
     commercialStability: propagation.viability === "SURVIVES" ? boundary.margin : 0,
     knowledgeSufficiency,
+    knowledgeChannels: Object.freeze({ viability: viabilityKnowledge, stability: stabilityKnowledge, enrichment: enrichmentKnowledge }),
     reasoningConfidence,
     dimensions: Object.freeze(dimensions),
     nearestFailureBoundaryConstraintIds: boundary.ids,
   });
+}
+
+export function assertOpportunityRealisationInvariant(realisation: GenesisT8OpportunityRealisation): void {
+  if (!GENESIS_T8_OPPORTUNITY_REALISATION_STATES.includes(realisation.state)) throw new Error("GENESIS_T8_CE_R2_R4_VIOLATION:REALISATION_STATE");
+  assertCommercialCoherenceStateInvariant(realisation.commercial);
+  if (!GENESIS_T8_CONTACT_STATES.includes(realisation.contactState)) throw new Error("GENESIS_T8_CE_R2_R4_VIOLATION:REALISATION_CONTACT_STATE");
+  if (!GENESIS_T8_ROUTE_STATES.includes(realisation.routeState)) throw new Error("GENESIS_T8_CE_R2_R4_VIOLATION:REALISATION_ROUTE_STATE");
+  if (!GENESIS_T8_ROUTE_TARGET_MODES.includes(realisation.routeTargetMode)) throw new Error("GENESIS_T8_CE_R2_R4_VIOLATION:REALISATION_ROUTE_TARGET");
+  const actionableState = realisation.state === "ACTIONABLE" || realisation.state === "ACTIONABLE_WITHOUT_NAMED_CONTACT";
+  if (realisation.actionable !== actionableState) throw new Error("GENESIS_T8_CE_R2_R4_VIOLATION:ACTIONABLE_FLAG_MISMATCH");
+  if (realisation.commercial.viability === "ELIMINATED" && realisation.state !== "NOT_VIABLE") throw new Error("GENESIS_T8_CE_R2_R4_VIOLATION:ELIMINATED_REALISATION_MISMATCH");
+  if (realisation.commercial.viability === "UNRESOLVED" && realisation.state !== "COMMERCIAL_REALITY_UNRESOLVED") throw new Error("GENESIS_T8_CE_R2_R4_VIOLATION:UNRESOLVED_REALISATION_MISMATCH");
+  if (realisation.commercial.viability === "SURVIVES" && (realisation.state === "NOT_VIABLE" || realisation.state === "COMMERCIAL_REALITY_UNRESOLVED")) throw new Error("GENESIS_T8_CE_R2_R4_VIOLATION:SURVIVING_REALISATION_MISMATCH");
+}
+
+export function realisationKnowledgeSufficiency(realisation: GenesisT8OpportunityRealisation): number {
+  if (realisation.commercial.viability !== "SURVIVES") return 0;
+  if (realisation.routeState === "UNKNOWN" || realisation.routeState === "WEAK") return 0;
+  if (realisation.routeTargetMode === "PERSON" && realisation.contactState === "UNKNOWN") return 0;
+  return 1;
 }
 
 export function evaluateOpportunityRealisation(
@@ -279,6 +350,7 @@ export function evaluateOpportunityRealisation(
   contact: GenesisT8ContactRealisationInput,
   route: GenesisT8RouteRealisationInput,
 ): GenesisT8OpportunityRealisation {
+  assertCommercialCoherenceStateInvariant(commercial);
   assertContactRealisationInputInvariant(contact);
   assertRouteRealisationInputInvariant(route);
 
@@ -318,7 +390,8 @@ export const GENESIS_T8_COMMERCIAL_COHERENCE_LAWS = Object.freeze([
   "INDEPENDENT_GROUPS_REINFORCE_WITH_BOUNDED_DIMINISHING_RETURNS",
   "SUPPORT_CANNOT_EXCEED_ONE_AND_PRESSURE_CANNOT_CREATE_SUPPORT",
   "COMMERCIAL_STABILITY_IS_DISTANCE_TO_NEAREST_ACTIVE_BOUNDARY",
-  "KNOWLEDGE_SUFFICIENCY_REMAINS_ORTHOGONAL_TO_COMMERCIAL_FIT",
+  "KNOWLEDGE_SUFFICIENCY_IS_DECISION_LOCAL_AND_REMAINS_ORTHOGONAL_TO_COMMERCIAL_FIT",
+  "OPTIONAL_SUPPORTING_UNKNOWNS_AFFECT_ENRICHMENT_NOT_VIABILITY_ASSURANCE",
   "CONTACT_AND_ROUTE_INTERFACES_ARE_CATEGORICAL_UNTIL_THEIR_OWN_ENGINES_DEFINE_MATHEMATICS",
   "ORGANISATIONAL_AND_INTERMEDIARY_ROUTES_MAY_BE_ACTIONABLE_WITHOUT_A_NAMED_CONTACT",
 ] as const);

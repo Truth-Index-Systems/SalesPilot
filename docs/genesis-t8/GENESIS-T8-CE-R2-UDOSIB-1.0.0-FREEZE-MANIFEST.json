@@ -1,0 +1,33 @@
+{
+  "freezeId": "GENESIS-T8-CE-R2-UDOSIB-1.0.0",
+  "platform": "Genesis T8",
+  "release": "CE-R2",
+  "version": "1.0.0",
+  "status": "FROZEN",
+  "authorityBoundary": {
+    "semantics": "AI",
+    "truth": "TI-2.1.8 authorised Truth Authority",
+    "mathematics": "UDOSIB 1.0.0 deterministic kernel",
+    "presentation": "Application/AI explanation only"
+  },
+  "kernelFiles": {
+    "lib/genesis-t8/mathematics/commercial-coherence.ts": "90730cdb17154fc7704e23159b9704b34fd015e48554e9a6bd6385465c6a235d",
+    "lib/genesis-t8/mathematics/constitution.ts": "87549b523cbac7ca41ce991e741c143e647258979a3a1b86cb01e05ad5169498",
+    "lib/genesis-t8/mathematics/constraint-mathematics.ts": "701653b32c4b17a606c184f5545e1c80dddf2c2d50e70c2a371df18369490e8d",
+    "lib/genesis-t8/mathematics/constraint-propagation.ts": "b1374573233b5fe345dc988b0fd532eae36dcd8d2f44d1ee3ead46ae15edb781",
+    "lib/genesis-t8/mathematics/constraints.ts": "5f10ae78f9403090a4c9b34233fe57c5b076d596279c311e080fec7bfd9768f5",
+    "lib/genesis-t8/mathematics/explainability.ts": "66ec0178122416b6e2222f67a04e42d7e5c7f1e8e0f653141cd50fe8c719e5f8",
+    "lib/genesis-t8/mathematics/explainable-reasoning.ts": "d5c6b137767078ad8a7f6ed9f4eb6e7f943ca15629cf1ff75dea34b74c94fd0a",
+    "lib/genesis-t8/mathematics/index.ts": "7a736f98fdff87b3753cf449d0bc5e176c69c51f7cdf7fc0ae70b84bcc658091",
+    "lib/genesis-t8/mathematics/input-contract.ts": "d45b028ac3c1d062b3136c4dde68e713a27f9d8759b8dbcfeba2b60c2c4d2ec8",
+    "lib/genesis-t8/mathematics/opportunity-mathematics.ts": "bf1ca6cc85e4b99769b5f19139b20a906b664f1b7c34371ae116638fb24f1724",
+    "lib/genesis-t8/mathematics/opportunity.ts": "bf03c7393e7aa6bc9c4ad9da197a59de62fbe1d71ba3b5a771dd6b7841117378",
+    "lib/genesis-t8/mathematics/pipeline.ts": "43dbbd419a8b39f339d68777a274583a12af79b6b0225c264c9077022da6d904",
+    "lib/genesis-t8/mathematics/research-intelligence.ts": "6eef0d7e519d8a64db128744aa720bfc980870a5f8f16dcc2ff2a581f29d036c",
+    "lib/genesis-t8/mathematics/research.ts": "e0ffecf31093aedc63392b56a9c4a496664a4628c3f456ae9c148a953d32f724",
+    "lib/genesis-t8/mathematics/state.ts": "5df61a2bbf6583d1b76e5e3b1223ecd7c4bd4e664b4085fd036b8bbc231b2acd"
+  },
+  "kernelFileCount": 15,
+  "freezeGate": "genesis:t8-ce-r2-r8-freeze-check",
+  "auditBlockersClosed": 5
+}

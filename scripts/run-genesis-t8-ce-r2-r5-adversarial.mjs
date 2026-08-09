@@ -5,7 +5,11 @@ const m=await import(pathToFileURL(modulePath).href);
 let pass=0; const test=(name,fn)=>{try{fn();pass++;console.log("PASS",name)}catch(e){console.error("FAIL",name,e);process.exitCode=1}};
 
 const commercial=(o={})=>({viability:"SURVIVES",commercialCoherence:.8,constraintPressure:.1,commercialStability:.8,knowledgeSufficiency:.8,reasoningConfidence:.8,dimensions:[],nearestFailureBoundaryConstraintIds:[],...o});
-const real=(state,o={})=>({state,commercial:commercial(o),contactState:"APPROPRIATE",routeState:"DIRECT",routeTargetMode:"PERSON",actionable:state==="ACTIONABLE"||state==="ACTIONABLE_WITHOUT_NAMED_CONTACT",reasonCode:"CONTACT_AND_ROUTE_AVAILABLE"});
+const real=(state,o={})=>{
+ const viability=state==="NOT_VIABLE"?"ELIMINATED":state==="COMMERCIAL_REALITY_UNRESOLVED"?"UNRESOLVED":"SURVIVES";
+ const nonSurvivor=viability!=="SURVIVES"?{commercialCoherence:0,commercialStability:0}:{ };
+ return {state,commercial:commercial({...o,...nonSurvivor,viability}),contactState:"APPROPRIATE",routeState:state==="STRANDED"?"BLOCKED":state==="VIABLE_BUT_UNRESOLVED"?"UNKNOWN":"DIRECT",routeTargetMode:state==="ACTIONABLE_WITHOUT_NAMED_CONTACT"?"ORGANISATION":"PERSON",actionable:state==="ACTIONABLE"||state==="ACTIONABLE_WITHOUT_NAMED_CONTACT",reasonCode:state==="NOT_VIABLE"?"COMMERCIAL_ELIMINATION":state==="COMMERCIAL_REALITY_UNRESOLVED"?"COMMERCIAL_UNRESOLVED":state==="STRANDED"?"ROUTE_BLOCKED":state==="VIABLE_BUT_UNRESOLVED"?"CONTACT_OR_ROUTE_UNKNOWN":state==="ACTIONABLE_WITHOUT_NAMED_CONTACT"?"ORGANISATIONAL_OR_INTERMEDIARY_ROUTE_AVAILABLE":"CONTACT_AND_ROUTE_AVAILABLE"};
+};
 const c=(id,state="ACTIONABLE",o={})=>({opportunityId:id,targetEntityId:`target-${id}`,realisation:real(state,o)});
 
 // Core invariants
@@ -18,7 +22,7 @@ test("equal vectors do not dominate",()=>{const v={commercialCoherence:.8,commer
 
 // Realisation hierarchy
 test("actionable outranks stronger stranded fit",()=>{const r=m.orderOpportunities([c("stranded","STRANDED",{commercialCoherence:1,commercialStability:1,knowledgeSufficiency:1,reasoningConfidence:1,constraintPressure:0}),c("action","ACTIONABLE",{commercialCoherence:.6,commercialStability:.6,knowledgeSufficiency:.6,reasoningConfidence:.6,constraintPressure:.2})]);assert.equal(r.ordered[0].opportunityId,"action")});
-test("named actionable outranks actionable without named contact",()=>{const r=m.orderOpportunities([c("org","ACTIONABLE_WITHOUT_NAMED_CONTACT",{commercialCoherence:1,commercialStability:1,knowledgeSufficiency:1,reasoningConfidence:1,constraintPressure:0}),c("person","ACTIONABLE",{commercialCoherence:.55,commercialStability:.55,knowledgeSufficiency:.55,reasoningConfidence:.55,constraintPressure:.3})]);assert.equal(r.ordered[0].opportunityId,"person")});
+test("valid organisational route shares actionable tier with named contact",()=>{const r=m.orderOpportunities([c("org","ACTIONABLE_WITHOUT_NAMED_CONTACT",{commercialCoherence:1,commercialStability:1,knowledgeSufficiency:1,reasoningConfidence:1,constraintPressure:0}),c("person","ACTIONABLE",{commercialCoherence:.55,commercialStability:.55,knowledgeSufficiency:.55,reasoningConfidence:.55,constraintPressure:.3})]);assert.equal(r.ordered[0].opportunityId,"org");assert.equal(r.ordered[0].realisationPrecedence,r.ordered[1].realisationPrecedence)});
 test("unresolved outranks stranded",()=>{const r=m.orderOpportunities([c("s","STRANDED"),c("u","VIABLE_BUT_UNRESOLVED")]);assert.equal(r.ordered[0].opportunityId,"u")});
 test("stranded outranks commercial unresolved",()=>{const r=m.orderOpportunities([c("s","STRANDED"),c("u","COMMERCIAL_REALITY_UNRESOLVED")]);assert.equal(r.ordered[0].opportunityId,"s")});
 test("commercial unresolved outranks not viable",()=>{const r=m.orderOpportunities([c("n","NOT_VIABLE"),c("u","COMMERCIAL_REALITY_UNRESOLVED")]);assert.equal(r.ordered[0].opportunityId,"u")});
@@ -41,6 +45,7 @@ test("blank target id rejected",()=>assert.throws(()=>m.orderOpportunities([{...
 test("weighted score field rejected",()=>assert.throws(()=>m.assertOpportunityCandidateInvariant({...c("x"),score:.9}),/FORBIDDEN_WEIGHTED_SCORE/));
 test("weight field rejected",()=>assert.throws(()=>m.assertOpportunityCandidateInvariant({...c("x"),weight:.9}),/FORBIDDEN_WEIGHTED_SCORE/));
 test("invalid realisation state rejected",()=>assert.throws(()=>m.assertOpportunityCandidateInvariant({...c("x"),realisation:{...c("x").realisation,state:"MAGIC"}}),/REALISATION_STATE/));
+test("forged actionable state over eliminated commercial reality is rejected",()=>{const forged={...c("x","ACTIONABLE"),realisation:{...c("x","ACTIONABLE").realisation,commercial:{...c("x","ACTIONABLE").realisation.commercial,viability:"ELIMINATED",commercialCoherence:0,commercialStability:0}}};assert.throws(()=>m.orderOpportunities([forged]),/ELIMINATED_REALISATION_MISMATCH/)});
 test("top helper returns requested number",()=>{const r=m.orderOpportunities([c("a"),c("b"),c("c"),c("d")]);assert.equal(m.topOrderedOpportunities(r,3).length,3)});
 test("top helper zero allowed",()=>{const r=m.orderOpportunities([c("a")]);assert.equal(m.topOrderedOpportunities(r,0).length,0)});
 test("top helper rejects negative",()=>{const r=m.orderOpportunities([c("a")]);assert.throws(()=>m.topOrderedOpportunities(r,-1),/TOP_LIMIT/)});
@@ -49,5 +54,5 @@ test("summary counts states correctly",()=>{const r=m.orderOpportunities([c("a",
 test("rank is contiguous from one",()=>{const r=m.orderOpportunities([c("a"),c("b"),c("c")]);assert.deepEqual(r.ordered.map(x=>x.rank),[1,2,3])});
 test("candidate input remains unmutated",()=>{const x=c("x");const before=JSON.stringify(x);m.orderOpportunities([x]);assert.equal(JSON.stringify(x),before)});
 
-console.log(`\nGenesis T8 CE-R2 R5 adversarial runtime: ${pass}/33 passed.`);
+console.log(`\nGenesis T8 CE-R2 R5 adversarial runtime: ${pass}/34 passed.`);
 if(process.exitCode) process.exit(process.exitCode);

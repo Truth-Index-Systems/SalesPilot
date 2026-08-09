@@ -1,0 +1,26 @@
+import fs from "node:fs";
+import crypto from "node:crypto";
+const read=p=>fs.readFileSync(p,"utf8"); let pass=0,fail=0; const check=(n,c)=>{if(c){pass++;console.log("PASS",n)}else{fail++;console.error("FAIL",n)}};
+for(const f of ["GENESIS-T8-CE-R2-R8-CONSTITUTIONAL-HARDENING.md","lib/genesis-t8/mathematics/constraint-propagation.ts","lib/genesis-t8/mathematics/commercial-coherence.ts","lib/genesis-t8/mathematics/opportunity-mathematics.ts","lib/genesis-t8/mathematics/research-intelligence.ts","lib/genesis-t8/mathematics/explainable-reasoning.ts"])check(`exists ${f}`,fs.existsSync(f));
+const r3=read("lib/genesis-t8/mathematics/constraint-propagation.ts"),r4=read("lib/genesis-t8/mathematics/commercial-coherence.ts"),r5=read("lib/genesis-t8/mathematics/opportunity-mathematics.ts"),r6=read("lib/genesis-t8/mathematics/research-intelligence.ts"),r7=read("lib/genesis-t8/mathematics/explainable-reasoning.ts");
+check("required survival propagation removed",r3.includes("boundarySurvival: 0")&&r3.includes("MAY_NOT_RESCUE_ANOTHER_BOUNDARY"));
+check("required failure remains",r3.includes("boundaryElimination: source.effectiveBoundaryEliminationSupport"));
+check("R3 runtime invariant",r3.includes("assertCommercialRealityPropagationInvariant"));
+check("decision-local knowledge channels",r4.includes("GenesisT8CommercialKnowledgeChannels")&&r4.includes("viabilityKnowledge")&&r4.includes("enrichmentKnowledge"));
+check("optional support law",r4.includes("OPTIONAL_SUPPORTING_UNKNOWNS_AFFECT_ENRICHMENT"));
+check("R4 commercial invariant",r4.includes("assertCommercialCoherenceStateInvariant"));
+check("R4 realisation invariant",r4.includes("assertOpportunityRealisationInvariant"));
+check("R5 consumes realisation invariant",r5.includes("assertOpportunityRealisationInvariant(candidate.realisation)"));
+check("actionable tiers equal",/ACTIONABLE_WITHOUT_NAMED_CONTACT:\s*4[\s\S]*ACTIONABLE:\s*4/.test(r5));
+check("Pareto groups actionable tier",r5.includes("const byTier = new Map<number"));
+check("R5 order invariant",r5.includes("assertOpportunityOrderStateInvariant"));
+check("R6 validates opportunity",r6.includes("assertOpportunityCandidateInvariant(opportunity)"));
+check("R6 validates propagation",r6.includes("assertCommercialRealityPropagationInvariant(propagation)"));
+check("portfolio impact precedes rank",r6.includes("PORTFOLIO_RESEARCH_IMPACT_CLASS_PRECEDES_CURRENT_R5_RANK"));
+check("rank only tie break",r6.includes("CURRENT_R5_RANK_BREAKS_TIES_ONLY_INSIDE_EQUAL_RESEARCH_PRIORITY"));
+check("R7 validates order state",r7.includes("assertOpportunityOrderStateInvariant(opportunity, orderState)"));
+check("R7 validates propagation",r7.includes("assertCommercialRealityPropagationInvariant(propagation)"));
+check("no weighted ranking introduced",!/(rankingWeight|priorityWeight)\s*:\s*number/.test(r5+r6));
+check("no OpenAI in mathematics",![r3,r4,r5,r6,r7].some(s=>/from\s+["']openai["']/.test(s)));
+for(const manifest of ["docs/genesis-t8/GENESIS-T8-CE-R1-CKR-1.0.0-FREEZE-MANIFEST.json","docs/genesis-t8/TI-2.1.8-FREEZE-MANIFEST.json"]){const m=JSON.parse(read(manifest));const entries=m.kernelFiles??m.files??{};const bad=[];for(const [f,h] of Object.entries(entries)){if(!fs.existsSync(f)||crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex")!==h)bad.push(f)}check(`${manifest} matches`,bad.length===0)}
+console.log(`\nGenesis T8 CE-R2 R8 hardening static: ${pass}/${pass+fail} passed.`);if(fail)process.exit(1);
