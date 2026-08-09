@@ -13,7 +13,7 @@ import type { TruthEntityType } from "./truth";
 import { persistMrTi2EvidenceAssessment } from "./truth-v2/ai/sidecar-repository";
 import { getMrTi2ClaimDefinition } from "./truth-v2/contracts";
 
-export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-R7-AUTONOMOUS-EXPANSION-1.5" as const;
+export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-MRTI2-B8.2-AUTONOMOUS-EXPANSION-1.6" as const;
 
 type ExpansionJob={
   id:string; target_id:string; industry_key:string; industry_name:string; attempt_count:number; lease_token:string; excluded_domains:unknown;
@@ -119,8 +119,43 @@ async function runJob(job:ExpansionJob){
   }
 }
 
+const GENESIS_G82_CANONICAL_EXPANSION_TARGETS = [
+  {industry_key:"software",display_name:"Software & SaaS",priority:100,target_company_count:10000,enabled:true},
+  {industry_key:"professional-services",display_name:"Professional Services",priority:95,target_company_count:8000,enabled:true},
+  {industry_key:"marketing",display_name:"Marketing & Advertising",priority:90,target_company_count:7000,enabled:true},
+  {industry_key:"recruitment",display_name:"Recruitment & HR",priority:90,target_company_count:7000,enabled:true},
+  {industry_key:"finance",display_name:"Finance & FinTech",priority:85,target_company_count:7000,enabled:true},
+  {industry_key:"healthcare",display_name:"Healthcare & HealthTech",priority:85,target_company_count:7000,enabled:true},
+  {industry_key:"retail",display_name:"Retail & E-commerce",priority:80,target_company_count:7000,enabled:true},
+  {industry_key:"manufacturing",display_name:"Manufacturing",priority:80,target_company_count:7000,enabled:true},
+  {industry_key:"logistics",display_name:"Logistics & Supply Chain",priority:80,target_company_count:7000,enabled:true},
+  {industry_key:"construction",display_name:"Construction & PropTech",priority:75,target_company_count:6000,enabled:true},
+] as const;
+
+async function ensureGenesisG82ExpansionTargets(){
+  const existing=await databaseRequest<Array<{id:string}>>("genesis_g82_expansion_targets?select=id&limit=1").catch(()=>[]);
+  if(existing.length>0)return false;
+  await databaseRequest("genesis_g82_expansion_targets?on_conflict=industry_key",{
+    method:"POST",
+    headers:{Prefer:"resolution=ignore-duplicates,return=minimal"},
+    body:JSON.stringify(GENESIS_G82_CANONICAL_EXPANSION_TARGETS),
+  });
+  return true;
+}
+
 export async function ensureGenesisG82ExpansionBacklog(limit=1){
-  return databaseRequest<Array<{job_id:string;industry_key:string;industry_name:string}>>("rpc/ensure_genesis_g82_expansion_backlog",{method:"POST",body:JSON.stringify({p_limit:Math.max(1,Math.min(4,Math.trunc(limit)))})});
+  const bounded=Math.max(1,Math.min(4,Math.trunc(limit)));
+  let jobs=await databaseRequest<Array<{job_id:string;industry_key:string;industry_name:string}>>("rpc/ensure_genesis_g82_expansion_backlog",{method:"POST",body:JSON.stringify({p_limit:bounded})});
+  if(jobs.length>0)return jobs;
+
+  // MR-TI-2 Build 8.2 cold-start recovery. Expansion targets are bootstrap
+  // configuration, but older reset scripts may have removed them. Heal that
+  // zero-state in application code as well as in migration 0130 so a deploy
+  // recovers even before an operator manually applies the SQL migration.
+  const seeded=await ensureGenesisG82ExpansionTargets();
+  if(!seeded)return jobs;
+  jobs=await databaseRequest<Array<{job_id:string;industry_key:string;industry_name:string}>>("rpc/ensure_genesis_g82_expansion_backlog",{method:"POST",body:JSON.stringify({p_limit:bounded})});
+  return jobs;
 }
 
 export async function runGenesisG82AutonomousExpansionWorker(limit=1){
