@@ -9,7 +9,7 @@ function pass(name, condition){ if(!condition) throw new Error(`FAIL: ${name}`);
 
 pass('replaces backlog RPC', migration.includes('create or replace function public.ensure_genesis_g82_expansion_backlog'));
 pass('self-heals expansion targets', migration.includes('insert into public.genesis_g82_expansion_targets'));
-pass('uses idempotent seed', migration.includes('on conflict(industry_key) do nothing'));
+pass('uses idempotent seed', migration.includes('on conflict on constraint genesis_g82_expansion_targets_industry_key_key do nothing'));
 pass('seeds software', migration.includes("('software','Software & SaaS',100,10000,true)"));
 pass('seeds logistics', migration.includes("('logistics','Logistics & Supply Chain',80,7000,true)"));
 pass('seeds ten canonical targets', (migration.match(/true\)/g) ?? []).length >= 10);

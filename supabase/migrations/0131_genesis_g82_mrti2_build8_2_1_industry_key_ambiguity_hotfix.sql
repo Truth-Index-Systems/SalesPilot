@@ -1,4 +1,8 @@
--- MR-TI-2 Build 8.2 — Genesis Cold-Start Bootstrap
+-- MR-TI-2 Build 8.2.1 — Cold-Start industry_key ambiguity hotfix
+-- Replaces the Build 8.2 backlog RPC with an ambiguity-safe ON CONFLICT target.
+-- 0130 may already be recorded as applied in production, so this migration is required
+-- to force CREATE OR REPLACE on existing environments.
+
 -- Makes autonomous expansion self-healing after a complete generated-intelligence reset.
 -- Expansion targets are bootstrap configuration, not disposable intelligence.
 
@@ -97,6 +101,6 @@ revoke all on function public.ensure_genesis_g82_expansion_backlog(integer) from
 grant execute on function public.ensure_genesis_g82_expansion_backlog(integer) to service_role;
 
 comment on function public.ensure_genesis_g82_expansion_backlog(integer) is
-  'MR-TI-2 Build 8.2: self-heals canonical expansion targets and replenishes autonomous expansion jobs after cold start or intelligence reset.';
+  'MR-TI-2 Build 8.2.1: self-heals canonical expansion targets using an ambiguity-safe industry-key conflict target and replenishes autonomous expansion jobs after cold start or intelligence reset.';
 
 notify pgrst, 'reload schema';
