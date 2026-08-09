@@ -1,6 +1,7 @@
 import "server-only";
 
 import { z } from "zod";
+import { databaseRequest } from "@/lib/database/postgrest";
 import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending, isOpenAIBackgroundTerminal } from "@/lib/ai/background-response";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
@@ -10,7 +11,7 @@ import { stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import type { EvidenceSourceClass } from "./truth";
 
-export const GENESIS_G82_EXPANSION_RESEARCH_VERSION = "G8.2-R5-THREE-COMPANY-RECOVERY-1.3" as const;
+export const GENESIS_G82_EXPANSION_RESEARCH_VERSION = "G8.2-R7-STABLE-BACKGROUND-RESUME-1.4" as const;
 
 export const GENESIS_G82_EXPANSION_COMPANIES_PER_CALL = 3 as const;
 
@@ -80,6 +81,47 @@ const expansionJsonSchema = {
   },
 } as const;
 
+const LegacyCompanySchema = CompanySchema;
+const LegacyExpansionResultSchema = z.object({
+  schemaVersion: z.literal("genesis-g82-expansion/v1"),
+  summary: z.string().max(800),
+  companies: z.array(LegacyCompanySchema).max(6),
+});
+
+type CompletedExpansionCheckpoint = {
+  response_id:string;
+  ledger_id:string;
+  response_json:unknown;
+  request_scope:string;
+  created_at:string;
+};
+
+type LedgerStatusRow = { id:string; status:string };
+
+async function recoverCompletedExpansionResponse(params:{
+  jobId:string; apiKey:string; model:string;
+}):Promise<GenesisG82ExpansionResult|null>{
+  const rows=await databaseRequest<CompletedExpansionCheckpoint[]>(
+    `ai_background_responses?job_type=eq.GENESIS_G8_REPAIR&job_id=eq.${encodeURIComponent(params.jobId)}&status=eq.completed&response_json=not.is.null&select=response_id,ledger_id,response_json,request_scope,created_at&order=created_at.asc&limit=12`,
+  ).catch(()=>[]);
+  let recovered:GenesisG82ExpansionResult|null=null;
+  for(const row of rows){
+    const ledger=await databaseRequest<LedgerStatusRow[]>(`ai_usage_ledger?id=eq.${encodeURIComponent(row.ledger_id)}&select=id,status&limit=1`).catch(()=>[]);
+    if(ledger[0]?.status!=="RESERVED") continue;
+    try{
+      const gateway=await parseStructuredAiResponse({response:row.response_json,schema:LegacyExpansionResultSchema,jsonSchema:{...expansionJsonSchema,properties:{...expansionJsonSchema.properties,companies:{...expansionJsonSchema.properties.companies,maxItems:6}}},schemaName:"genesis_g82_expansion_v1",apiKey:params.apiKey,model:params.model});
+      await completeAiRequest({ledgerId:row.ledger_id,ok:true,usage:responseUsage(row.response_json),webSearchCalls:1,durationMs:0,responseId:row.response_id});
+      if(!recovered&&gateway.value.companies.length>0){
+        recovered={...gateway.value,companies:gateway.value.companies.slice(0,GENESIS_G82_EXPANSION_COMPANIES_PER_CALL)};
+      }
+    }catch(error){
+      const safe=safeStructuredAiError(error);
+      await completeAiRequest({ledgerId:row.ledger_id,ok:false,usage:responseUsage(row.response_json),webSearchCalls:1,durationMs:0,responseId:row.response_id,errorCode:`EXPANSION_RECOVERY_${safe.code}`,errorMessage:safe.message}).catch(()=>undefined);
+    }
+  }
+  return recovered;
+}
+
 export type GenesisG82ExpansionEvidence = { claimKey:string; sourceClass:EvidenceSourceClass; sourceUrl:string; sourceTitle:string|null; excerpt:string; directness:number };
 export type GenesisG82ExpansionResult = z.infer<typeof ExpansionResultSchema>;
 
@@ -89,6 +131,8 @@ export async function researchGenesisG82IndustryExpansion(input:{
   const apiKey=process.env.OPENAI_API_KEY?.trim(); if(!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
   const organisationId=process.env.MARKETROUTE_G8_SYSTEM_ORGANISATION_ID?.trim()??null;
   const model=resolveOpenAIModel("analysis").model;
+  const recovered=await recoverCompletedExpansionResponse({jobId:input.jobId,apiKey,model});
+  if(recovered) return recovered;
   // G8.2 R1 deliberately reuses the governed G8 repair lane. It is background intelligence spend,
   // so R17 sees it inside the same protected allowance instead of creating an ungoverned AI lane.
   const profile=aiWorkloadProfile("GENESIS_G8_REPAIR");
@@ -96,7 +140,7 @@ export async function researchGenesisG82IndustryExpansion(input:{
   const attemptNumber=Math.max(0,Math.trunc(input.attemptNumber??0));
   const searchAngles=["emerging and recently funded operators","established scale-ups","regional specialists","B2B category operators","independent growth companies"] as const;
   const searchAngle=searchAngles[attemptNumber%searchAngles.length];
-  const fingerprint=stableFingerprint({version:GENESIS_G82_EXPANSION_RESEARCH_VERSION,industryKey:input.industryKey,attemptNumber,searchAngle,excluded:input.excludedDomains.slice(0,180)});
+  const fingerprint=stableFingerprint({version:GENESIS_G82_EXPANSION_RESEARCH_VERSION,jobId:input.jobId,industryKey:input.industryKey,attemptNumber,searchAngle});
   const baseScope=`genesis-g82-expansion:${fingerprint}`;
   let requestScope=baseScope; let lastTerminalError:Error|null=null;
   const estimatedCostUsd=Math.max(0.01,Number(process.env.MARKETROUTE_G82_EXPANSION_ESTIMATED_COST_USD??"0.08")||0.08);

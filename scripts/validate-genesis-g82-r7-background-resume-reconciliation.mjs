@@ -1,0 +1,21 @@
+import fs from 'node:fs';
+const openai=fs.readFileSync(new URL('../lib/genesis-g8/autonomous-expansion-openai.ts',import.meta.url),'utf8');
+const worker=fs.readFileSync(new URL('../lib/genesis-g8/autonomous-expansion-worker.ts',import.meta.url),'utf8');
+const migration=fs.readFileSync(new URL('../supabase/migrations/0127_genesis_g82_r7_expansion_background_resume_reconciliation.sql',import.meta.url),'utf8');
+let passed=0; const checks=[];
+function check(name,condition){checks.push({name,condition}); if(condition) passed++; else console.error('FAIL',name);}
+check('r7 research version',openai.includes('G8.2-R7-STABLE-BACKGROUND-RESUME-1.4'));
+check('worker version',worker.includes('G8.2-R7-AUTONOMOUS-EXPANSION-1.5'));
+check('checkpoint fingerprint includes durable job id',openai.includes('jobId:input.jobId'));
+check('checkpoint fingerprint excludes mutable domain list',!openai.includes('excluded:input.excludedDomains'));
+check('legacy completed response lookup',openai.includes('status=eq.completed&response_json=not.is.null'));
+check('legacy lookup scoped to job id',openai.includes('job_id=eq.${encodeURIComponent(params.jobId)}'));
+check('only reserved ledgers reconciled',openai.includes('status!=="RESERVED"'));
+check('completed legacy ledger settled successful',openai.includes('ledgerId:row.ledger_id,ok:true'));
+check('malformed legacy response closes ledger failed',openai.includes('EXPANSION_RECOVERY_${safe.code}'));
+check('already-paid positive legacy response reused',openai.includes('companies.slice(0,GENESIS_G82_EXPANSION_COMPANIES_PER_CALL)'));
+check('three-company envelope retained',openai.includes('GENESIS_G82_EXPANSION_COMPANIES_PER_CALL = 3'));
+check('pending attempts restored',migration.includes("like 'OPENAI_BACKGROUND_PENDING:%'")&&migration.includes('greatest(attempt_count-1,0)'));
+check('truth engine untouched',!openai.includes('truth_index')&&!migration.includes('genesis_g8_truth'));
+console.log(`${passed}/${checks.length} R7 checks passed`);
+if(passed!==checks.length) process.exit(1);

@@ -11,7 +11,7 @@ import { researchGenesisG82IndustryExpansion, type GenesisG82ExpansionEvidence }
 import type { GenesisG8PersistedClaim } from "./persistence/types";
 import type { TruthEntityType } from "./truth";
 
-export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-R4-AUTONOMOUS-EXPANSION-1.2" as const;
+export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-R7-AUTONOMOUS-EXPANSION-1.5" as const;
 
 type ExpansionJob={
   id:string; target_id:string; industry_key:string; industry_name:string; attempt_count:number; lease_token:string; excluded_domains:unknown;

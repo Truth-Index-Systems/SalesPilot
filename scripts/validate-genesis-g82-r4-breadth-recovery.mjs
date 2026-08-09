@@ -13,7 +13,7 @@ const checks=[
  ['recovery asks bounded companies',ai.includes('Return up to three distinct companies when verifiable companies exist')],
  ['excluded domains retained',ai.includes('excludedDomains')],
  ['worker passes attempt number',worker.includes('attemptNumber:job.attempt_count')],
- ['worker version',worker.includes('G8.2-R4-AUTONOMOUS-EXPANSION-1.2')],
+ ['worker version remains R4-compatible or stronger',worker.includes('G8.2-R4-AUTONOMOUS-EXPANSION-1.2')||worker.includes('G8.2-R7-AUTONOMOUS-EXPANSION-1.5')],
 ];
 let failed=0;for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)failed++;}
 console.log(`${checks.length-failed}/${checks.length} passed`);if(failed)process.exit(1);
