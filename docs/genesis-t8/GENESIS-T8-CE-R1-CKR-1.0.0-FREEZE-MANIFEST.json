@@ -1,0 +1,22 @@
+{
+  "platform": "Genesis T8",
+  "release": "CE-R1",
+  "freeze": "CKR-1.0.0",
+  "status": "FROZEN",
+  "truthAuthority": "truth-index:ti-2.1.8",
+  "kernelFiles": {
+    "lib/genesis-t8/constitution.ts": "edf32c01ac37b555d52347db7c86f5aca5d2ec45bd6e7a22bf0c6fc9da213c49",
+    "lib/genesis-t8/authority-registry.ts": "dc80f7681acace0c6553b4d9bfd4dcee84d6868e511a710ef8dffd5376239459",
+    "lib/genesis-t8/canonical-runtime.ts": "0f43f857c1e92bff49c1afd7137ad0e35ec40c056a759beff055522c47a46a4c",
+    "lib/genesis-t8/token-theory.ts": "16bb6212523357c4db456527e36a8e9ee0c35079e6740021322250c6985528e4",
+    "lib/genesis-t8/relationship-catalogue.ts": "786de53c4b4ffb33bb02682545de555661b899ba8e528efb3079855ccf6973f1",
+    "lib/genesis-t8/commercial-graph-9d.ts": "21eadb075937485a942efbdb8fbd040d5225814061cbb8133adbb70a689289ce",
+    "lib/genesis-t8/commercial-genome-ontology.ts": "2fa702c678c304fe80250f256a02f72e0d856a61117ed314cf5571ea629180c5",
+    "lib/genesis-t8/commercial-genome-completeness.ts": "282165b7c44a16c1bf8de7fccae86cd2505f35ba7975b84ea2a00b90b1932644",
+    "lib/genesis-t8/ai-research-contract.ts": "7c6e556abbdd4f88ae9f9ff6b1cccc0d4c04e473cb31048dff179c4075f4bd12",
+    "lib/genesis-t8/reasoning-contract.ts": "86d3a52d47961a6e4dffc39278af2d0d65af9a1b915447df79c7951af18609e7",
+    "lib/genesis-t8/platform-contracts.ts": "36b1a8fc0f237394d3d12b5543831551bab295be52cc6c32e88ceb0bb7d264e4",
+    "lib/genesis-t8/freeze-kernel.ts": "32c5c7ad559fe11afd83938a23effd632944c5bc7ced7bac652ea476ad233eef"
+  },
+  "tiFreezeManifestSha256": "ca31f5569b96c2d7840cb498f224a1f286bd08fe012b3fb6070d9d9ab85e7959"
+}

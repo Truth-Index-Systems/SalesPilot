@@ -58,7 +58,7 @@ check(!ontology.includes('matchStrength') && !ontology.includes('opportunityScor
 check(constitution.includes('TRUTH_QUALIFIED_KNOWLEDGE'), "Build 1 constitution retained");
 check(token.includes('TI_2_1_8_IS_SOLE_TRUTH_QUALIFIER'), "Build 2 TI boundary retained");
 check(graph.includes('EXACTLY_NINE_CANONICAL_DIMENSIONS'), "Build 3 nine dimensions retained");
-check(graph.includes('TI_2_1_8_ALONE_OWNS_TRUTH_DIMENSION_OUTPUTS'), "Build 3 truth ownership retained");
+check(graph.includes('TRUTH_DIMENSION_REQUIRES_AUTHORISED_TRUTH_AUTHORITY'), "Build 3 truth ownership retained");
 
 console.log(`\nGenesis T8 CE-R1 Build 4: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

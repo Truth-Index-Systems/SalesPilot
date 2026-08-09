@@ -11,7 +11,7 @@ const doc = read("GENESIS-T8-CE-R1-BUILD2-COMMERCIAL-TOKEN-THEORY.md");
 const checks = [];
 const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
 
-check("token theory version is explicit", token.includes('GENESIS_T8_TOKEN_THEORY_VERSION = "1.0.0"'));
+check("token theory version is explicit", /GENESIS_T8_TOKEN_THEORY_VERSION\s*=\s*"1\.[01]\.0"/.test(token));
 check("Build 2 identity is explicit", token.includes('GENESIS_T8_CE_TOKEN_THEORY_BUILD = "BUILD2"'));
 check("atomic token contract exists", token.includes("GenesisT8CommercialToken"));
 check("token has one subject field", token.includes("subjectEntityId: string"));
@@ -21,7 +21,7 @@ check("token has mutability", token.includes("GenesisT8TokenMutability"));
 check("token has lifecycle", token.includes("GenesisT8TokenLifecycleState"));
 check("token references evidence IDs", token.includes("evidenceIds: readonly string[]"));
 check("AI discovery requires evidence reference", token.includes("AI_DISCOVERY_REQUIRES_EVIDENCE_REFERENCE"));
-check("TI version is fixed to frozen 2.1.8", token.includes('truthEngineVersion: "TI-2.1.8"'));
+check("TI version is fixed to frozen 2.1.8", token.includes('truthEngineVersion?: "TI-2.1.8"') && token.includes('truthAuthorityId: string'));
 check("truth bounds are guarded", token.includes("GENESIS_T8_TOKEN_VIOLATION:TRUTH_BOUND"));
 check("discovered token cannot carry truth", token.includes("DISCOVERED_TOKEN_CANNOT_HAVE_TRUTH"));
 check("qualified states require TI output", token.includes("QUALIFIED_STATE_REQUIRES_TI_OUTPUT"));

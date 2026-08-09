@@ -164,7 +164,11 @@
     "genesis:t8-ce-r1-build2-check": "npm run genesis:t8-ce-r1-build1-check && node scripts/validate-genesis-t8-ce-r1-build2.mjs",
     "genesis:t8-ce-r1-build3-check": "npm run genesis:t8-ce-r1-build2-check && node scripts/validate-genesis-t8-ce-r1-build3.mjs",
     "genesis:t8-ce-r1-build4-check": "npm run genesis:t8-ce-r1-build3-check && node scripts/validate-genesis-t8-ce-r1-build4.mjs",
-    "genesis:t8-ce-r1-build5-check": "npm run genesis:t8-ce-r1-build4-check && node scripts/validate-genesis-t8-ce-r1-build5.mjs"
+    "genesis:t8-ce-r1-build5-check": "npm run genesis:t8-ce-r1-build4-check && node scripts/validate-genesis-t8-ce-r1-build5.mjs",
+    "genesis:t8-ce-r1-build6-check": "npm run genesis:t8-ce-r1-build5-check && node scripts/validate-genesis-t8-ce-r1-build6.mjs",
+    "genesis:t8-ce-r1-build7-static-check": "npm run genesis:t8-ce-r1-build6-check && node scripts/validate-genesis-t8-ce-r1-build7.mjs",
+    "genesis:t8-ce-r1-build7-runtime-check": "node scripts/test-genesis-t8-ce-r1-build7-runtime.mjs",
+    "genesis:t8-ce-r1-build7-check": "npm run genesis:t8-ce-r1-build7-static-check && npm run genesis:t8-ce-r1-build7-runtime-check"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

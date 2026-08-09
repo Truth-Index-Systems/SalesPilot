@@ -1,0 +1,52 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
+
+const root = process.cwd();
+const out = fs.mkdtempSync(path.join(os.tmpdir(), "genesis-t8-b7-"));
+const files = fs.readdirSync(path.join(root, "lib/genesis-t8")).filter((f)=>f.endsWith(".ts")).map((f)=>path.join(root,"lib/genesis-t8",f));
+const localTsc = path.join(root,"node_modules/.bin/tsc");
+const tsc = fs.existsSync(localTsc) ? localTsc : "tsc";
+const compile = spawnSync(tsc,["--target","ES2022","--module","commonjs","--moduleResolution","node","--strict","--esModuleInterop","--outDir",out,...files],{encoding:"utf8"});
+if (compile.status !== 0) { console.error(compile.stdout, compile.stderr); process.exit(1); }
+const require = createRequire(import.meta.url);
+const ai = require(path.join(out,"ai-research-contract.js"));
+const token = require(path.join(out,"token-theory.js"));
+const graph = require(path.join(out,"commercial-graph-9d.js"));
+const constitution = require(path.join(out,"constitution.js"));
+const freeze = require(path.join(out,"freeze-kernel.js"));
+const ontology = require(path.join(out,"commercial-genome-ontology.js"));
+const reasoning = require(path.join(out,"reasoning-contract.js"));
+
+let pass=0, fail=0;
+const check=(name,fn)=>{try{fn(); console.log("PASS",name); pass++;}catch(e){console.error("FAIL",name,"::",e?.message??e); fail++;}};
+const rejects=(name,fn,needle)=>check(name,()=>{let threw=false;try{fn();}catch(e){threw=true;if(needle&&!String(e.message).includes(needle))throw e;}if(!threw)throw new Error("expected rejection");});
+const evidence={evidenceId:"e1",sourceUrl:"https://example.com/a",sourceClass:"OFFICIAL_COMPANY",observedAt:"2026-08-09T22:00:00Z",excerpt:"Example has 100 employees.",role:"PRIMARY"};
+const candidate={candidateId:"c1",subjectEntityId:"gen:company:example",predicate:"identity.employee_count",disposition:"ASSERTED",value:100,canonicalValue:"100",valueType:"INTEGER",kind:"QUANTITY",observedAt:"2026-08-09T22:00:00Z",evidenceIds:["e1"],proposedDimensions:["STRUCTURAL"]};
+const envelope={schema:ai.GENESIS_T8_AI_RESEARCH_OUTPUT_SCHEMA,contractVersion:ai.GENESIS_T8_AI_RESEARCH_CONTRACT_VERSION,researchRunId:"r1",subjectEntityId:"gen:company:example",requestedPredicates:["identity.employee_count"],evidence:[evidence],candidates:[candidate],relations:[],predicateResults:[{predicate:"identity.employee_count",disposition:"ASSERTED",candidateIds:["c1"]}]};
+rejects("raw envelope cannot bypass branded validation",()=>ai.candidateToDiscoveredToken({...envelope},"c1","gt8:tok:raw"),"ENVELOPE_NOT_VALIDATED");
+check("validated envelope can create discovered token",()=>{const v=ai.validateAIResearchEnvelope(envelope); const t=ai.candidateToDiscoveredToken(v,"c1","gt8:tok:r1:c1"); if(t.lifecycle!=="DISCOVERED")throw new Error("wrong lifecycle");});
+rejects("runtime INTEGER mismatch rejected",()=>ai.assertAIResearchCandidateInvariant({...candidate,value:"HIGH_FIT",canonicalValue:"HIGH_FIT"}),"INTEGER");
+rejects("unknown relation type rejected",()=>ai.assertAIResearchEnvelopeInvariant({...envelope,relations:[{candidateRelationId:"rr",fromCandidateId:"c1",toCandidateId:"c2",edgeClass:"ASSOCIATION",relationType:"high_fit_with",direction:"DIRECTED",evidenceIds:["e1"]}]}),undefined);
+rejects("invalid graph edge enum rejected",()=>graph.assertGraphEdgeInvariant({edgeId:"e",fromTokenId:"a",toTokenId:"b",edgeClass:"MAGIC",relationType:"partners_with",direction:"SIDEWAYS",provenance:{evidenceIds:[],discoveredBy:"HUMAN"}}),"EDGE_CLASS");
+rejects("reversed edge interval rejected",()=>graph.assertGraphEdgeInvariant({edgeId:"e",fromTokenId:"a",toTokenId:"b",edgeClass:"ASSOCIATION",relationType:"supplies",direction:"DIRECTED",validFrom:"2026-08-10T00:00:00Z",validTo:"2026-08-09T00:00:00Z",provenance:{evidenceIds:[],discoveredBy:"HUMAN"}}),"REVERSED_INTERVAL");
+const legalDef=ontology.getGenomePredicateDefinition("identity.legal_name");
+const industryDef=ontology.getGenomePredicateDefinition("commercial.industry");
+const base={tokenId:"gt8:tok:t1",subjectEntityId:"gen:company:example",predicate:"identity.legal_name",predicateDefinitionFingerprint:ontology.predicateDefinitionFingerprint(legalDef),kind:"IDENTITY",valueType:"TEXT",value:"Example Ltd",canonicalValue:"Example Ltd",mutability:"VERY_STABLE",lifecycle:"DISCOVERED",provenance:{evidenceIds:[],discoveredBy:"HUMAN"}};
+rejects("semantic duplicate token IDs rejected",()=>graph.assertCommercialGraphInvariant({graphVersion:graph.GENESIS_T8_9D_GRAPH_VERSION,tokens:[base,{...base,tokenId:"gt8:tok:t2"}],projections:[],edges:[]}),"DUPLICATE_TOKEN_PROPOSITION");
+rejects("malformed embedded token rejected recursively",()=>graph.assertCommercialGraphInvariant({graphVersion:graph.GENESIS_T8_9D_GRAPH_VERSION,tokens:[{...base,kind:"MAGIC"}],projections:[],edges:[]}),"KIND");
+const b={...base,tokenId:"gt8:tok:t2",predicate:"commercial.industry",predicateDefinitionFingerprint:ontology.predicateDefinitionFingerprint(industryDef),kind:"CLASSIFICATION",valueType:"ENUM",value:"software",canonicalValue:"software",mutability:"STABLE"};
+rejects("reversed equivalent undirected edge rejected",()=>graph.assertCommercialGraphInvariant({graphVersion:graph.GENESIS_T8_9D_GRAPH_VERSION,tokens:[base,b],projections:[],edges:[{edgeId:"x1",fromTokenId:"gt8:tok:t1",toTokenId:"gt8:tok:t2",edgeClass:"ASSOCIATION",relationType:"partners_with",direction:"UNDIRECTED",provenance:{evidenceIds:[],discoveredBy:"HUMAN"}},{edgeId:"x2",fromTokenId:"gt8:tok:t2",toTokenId:"gt8:tok:t1",edgeClass:"ASSOCIATION",relationType:"partners_with",direction:"UNDIRECTED",provenance:{evidenceIds:[],discoveredBy:"HUMAN"}}]}),"DUPLICATE_EDGE_SEMANTICS");
+
+const truth={probability:0.9,confidence:0.8,coverage:0.7,assessedAt:"2026-08-09T22:00:00Z",truthAuthorityId:"truth-index:ti-2.1.8",engineVersion:"TI-2.1.8",truthEngineVersion:"TI-2.1.8"};
+const activeA={...base,tokenId:"gt8:tok:a1",lifecycle:"ACTIVE",truth};
+const activeB={...base,tokenId:"gt8:tok:a2",value:"Example Holdings Ltd",canonicalValue:"Example Holdings Ltd",lifecycle:"ACTIVE",truth};
+rejects("multiple active SINGLE_CURRENT values rejected",()=>graph.assertCommercialGraphInvariant({graphVersion:graph.GENESIS_T8_9D_GRAPH_VERSION,tokens:[activeA,activeB],projections:[],edges:[]}),"MULTIPLE_ACTIVE_SINGLE_CURRENT");
+rejects("duplicate semantic projections rejected",()=>graph.assertCommercialGraphInvariant({graphVersion:graph.GENESIS_T8_9D_GRAPH_VERSION,tokens:[base],projections:[{projectionId:"p1",tokenId:"gt8:tok:t1",dimension:"SEMANTIC",coordinates:["company"],source:"AI_CANONICALISATION",provenance:{evidenceIds:[],discoveredBy:"HUMAN"}},{projectionId:"p2",tokenId:"gt8:tok:t1",dimension:"SEMANTIC",coordinates:["company"],source:"AI_CANONICALISATION",provenance:{evidenceIds:[],discoveredBy:"HUMAN"}}],edges:[]}),"DUPLICATE_PROJECTION_SEMANTICS");
+rejects("AI cannot write Truth projection",()=>graph.assertDimensionProjectionInvariant({projectionId:"p",tokenId:"gt8:tok:a1",dimension:"TRUTH",coordinates:["qualified"],source:"AI_CANONICALISATION",provenance:{evidenceIds:[],discoveredBy:"HUMAN"}},activeA),"DIMENSION_OWNER");
+rejects("reasoning rejects unauthorised upstream producer",()=>reasoning.assertReasoningInputInvariant({engineId:"CONTACT",engineVersion:"1",graphSnapshotId:"g",truthAuthorityId:"truth-index:ti-2.1.8",ontologyVersion:"1",temporalScope:"CURRENT_AUTHORITATIVE",upstreamReasoning:[{producerEngineId:"ROUTE",producerEngineVersion:"1",reasoningSnapshotId:"r"}]}),"UNAUTHORISED_UPSTREAM");
+check("future engine registers without Constitution edit",()=>constitution.registerGenesisT8Engine({id:"SUPPLIER",responsibility:"Supplier reasoning",mayConsume:["TRUTH_QUALIFIED_KNOWLEDGE"],mayPersistAuthoritatively:[],consumesDerivedReasoningFrom:[],forbiddenResponsibilities:["semantic interpretation"]}));
+check("CE-R1 freeze aggregate invariant passes",()=>freeze.assertGenesisT8CeR1FreezeInvariant());
+console.log(`\nGenesis T8 CE-R1 Build 7 runtime: ${pass}/${pass+fail} passed.`); if(fail)process.exit(1);

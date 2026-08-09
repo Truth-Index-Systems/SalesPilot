@@ -21,6 +21,7 @@ export const GENESIS_T8_CE_COMMERCIAL_GENOME_BUILD = "BUILD4" as const;
 export const GENESIS_T8_GENOME_FAMILIES = Object.freeze([
   "CORPORATE_IDENTITY",
   "COMMERCIAL_IDENTITY",
+  "COMMERCIAL_CAPABILITY",
   "OPERATIONS",
   "CUSTOMERS_MARKETS",
   "COMMERCIAL_BEHAVIOUR",
@@ -47,6 +48,9 @@ export type GenesisT8EvidenceExpectation =
  * Refresh classes are semantic scheduling hints, not hard cron intervals.
  * Build 6 research orchestration may translate them into operational policy.
  */
+export type GenesisT8PredicateCardinality = "SINGLE_CURRENT" | "MULTI_CURRENT" | "TEMPORAL_SERIES" | "EVENT_SET";
+export type GenesisT8PredicateStateSemantics = "PERSISTENT_STATE" | "EVENT";
+
 export type GenesisT8RefreshClass =
   | "ON_IDENTITY_CHANGE"
   | "VERY_SLOW"
@@ -67,6 +71,9 @@ export type GenesisT8GenomePredicateDefinition = Readonly<{
   evidenceExpectation: GenesisT8EvidenceExpectation;
   dimensions: readonly GenesisT8CommercialDimension[];
   aliases?: readonly string[];
+  /** Optional explicit override; deterministic defaults are derived when absent. */
+  cardinality?: GenesisT8PredicateCardinality;
+  stateSemantics?: GenesisT8PredicateStateSemantics;
 }>;
 
 const p = <T extends GenesisT8GenomePredicateDefinition>(definition: T): T => Object.freeze(definition);
@@ -263,6 +270,20 @@ export const GENESIS_T8_COMMERCIAL_GENOME_PREDICATES = Object.freeze([
   p({ predicate: "ecosystem.logistics_provider", family: "ECOSYSTEM", label: "Logistics provider", meaning: "Third-party logistics provider materially used by the organisation.", kind: "STATE", valueType: "ENTITY_REF", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "INDEPENDENT_CORROBORATION_PREFERRED", dimensions: ["RELATIONAL", "OPERATIONAL", "COMMERCIAL", "TRUTH"] }),
   p({ predicate: "ecosystem.outsourcing_partner", family: "ECOSYSTEM", label: "Outsourcing partner", meaning: "External organisation performing a materially outsourced business capability.", kind: "STATE", valueType: "ENTITY_REF", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "INDEPENDENT_CORROBORATION_PREFERRED", dimensions: ["RELATIONAL", "OPERATIONAL", "COMMERCIAL", "TRUTH"] }),
 
+  // Build 7 freeze-audit refinements — objective knowledge only
+  p({ predicate: "capability.manufacturing", family: "COMMERCIAL_CAPABILITY", label: "Manufacturing capability", meaning: "Organisation has an evidenced capability to manufacture goods or components.", kind: "CAPABILITY", valueType: "BOOLEAN", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "MULTI_SOURCE_PREFERRED", dimensions: ["OPERATIONAL", "COMMERCIAL", "TRUTH"] }),
+  p({ predicate: "capability.distribution", family: "COMMERCIAL_CAPABILITY", label: "Distribution capability", meaning: "Organisation has an evidenced capability to distribute goods or services through a commercial network.", kind: "CAPABILITY", valueType: "BOOLEAN", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "MULTI_SOURCE_PREFERRED", dimensions: ["OPERATIONAL", "COMMERCIAL", "RELATIONAL", "TRUTH"] }),
+  p({ predicate: "capability.integration", family: "COMMERCIAL_CAPABILITY", label: "Integration capability", meaning: "Organisation has an evidenced capability to integrate systems, technology or services.", kind: "CAPABILITY", valueType: "BOOLEAN", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "MULTI_SOURCE_PREFERRED", dimensions: ["TECHNOLOGICAL", "COMMERCIAL", "TRUTH"] }),
+  p({ predicate: "capability.consulting", family: "COMMERCIAL_CAPABILITY", label: "Consulting capability", meaning: "Organisation has an evidenced capability to deliver professional advisory or consulting services.", kind: "CAPABILITY", valueType: "BOOLEAN", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "MULTI_SOURCE_PREFERRED", dimensions: ["COMMERCIAL", "OPERATIONAL", "TRUTH"] }),
+  p({ predicate: "capability.financing", family: "COMMERCIAL_CAPABILITY", label: "Financing capability", meaning: "Organisation has an evidenced capability to provide financing or credit as part of its commercial activity.", kind: "CAPABILITY", valueType: "BOOLEAN", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "AUTHORITATIVE_SOURCE_PREFERRED", dimensions: ["COMMERCIAL", "STRATEGIC", "TRUTH"] }),
+  p({ predicate: "organisation.organisation_unit", family: "ORGANISATION", label: "Organisational unit", meaning: "Canonical organisational unit such as a team, division, business unit or shared-service unit, without identifying a person.", kind: "STATE", valueType: "ENUM", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "MULTI_SOURCE_PREFERRED", dimensions: ["STRUCTURAL", "OPERATIONAL", "TRUTH"] }),
+  p({ predicate: "identity.corporate_hierarchy_role", family: "CORPORATE_IDENTITY", label: "Corporate hierarchy role", meaning: "Canonical structural role of the entity within a corporate hierarchy, such as ultimate parent, intermediate holding entity, operating company, division or business unit.", kind: "CLASSIFICATION", valueType: "ENUM", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "AUTHORITATIVE_SOURCE_PREFERRED", dimensions: ["STRUCTURAL", "RELATIONAL", "TRUTH"] }),
+  p({ predicate: "identity.legal_presence_country", family: "CORPORATE_IDENTITY", label: "Legal presence country", meaning: "Country in which the organisation has an evidenced legal or registered presence, distinct from substantive operating geography.", kind: "STATE", valueType: "COUNTRY", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "AUTHORITATIVE_SOURCE_PREFERRED", dimensions: ["STRUCTURAL", "TRUTH"] }),
+  p({ predicate: "commercial.delivery_country", family: "COMMERCIAL_IDENTITY", label: "Commercial delivery country", meaning: "Country into which the organisation is evidenced to deliver products or services commercially.", kind: "STATE", valueType: "COUNTRY", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "MULTI_SOURCE_PREFERRED", dimensions: ["COMMERCIAL", "OPERATIONAL", "TRUTH"] }),
+  p({ predicate: "risk.mandatory_regulatory_obligation", family: "RISK_COMPLIANCE", label: "Mandatory regulatory obligation", meaning: "Mandatory regulatory or statutory obligation materially applicable to the organisation or activity.", kind: "CONSTRAINT", valueType: "ENUM", mutability: "DYNAMIC", refreshClass: "EVENT_DRIVEN", evidenceExpectation: "AUTHORITATIVE_SOURCE_REQUIRED", dimensions: ["STRUCTURAL", "OPERATIONAL", "STRATEGIC", "TRUTH"] }),
+  p({ predicate: "risk.voluntary_standard", family: "RISK_COMPLIANCE", label: "Voluntary standard", meaning: "Voluntary standard or assurance framework the organisation has evidenced adoption of or certification against.", kind: "STATE", valueType: "ENUM", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "AUTHORITATIVE_SOURCE_PREFERRED", dimensions: ["OPERATIONAL", "TECHNOLOGICAL", "TRUTH"] }),
+  p({ predicate: "commercial.procurement_process", family: "COMMERCIAL_BEHAVIOUR", label: "Procurement process", meaning: "Canonical evidenced procurement process used for commercial purchasing, such as RFP, RFQ, tender, framework, direct award, auction or negotiation.", kind: "BEHAVIOUR", valueType: "ENUM", mutability: "DYNAMIC", refreshClass: "MEDIUM", evidenceExpectation: "AUTHORITATIVE_SOURCE_PREFERRED", dimensions: ["COMMERCIAL", "STRUCTURAL", "TRUTH"] }),
+
 ] as const);
 
 export type GenesisT8CommercialGenomePredicate =
@@ -293,6 +314,27 @@ const FORBIDDEN_PREDICATE_TERMS = Object.freeze([
   "recommendation",
   "attractiveness",
 ] as const);
+
+export function predicateDefinitionFingerprint(definition: GenesisT8GenomePredicateDefinition): string {
+  const aliases = [...(definition.aliases ?? [])].sort().join(",");
+  return [GENESIS_T8_COMMERCIAL_GENOME_VERSION, definition.predicate, definition.family, definition.meaning, definition.kind, definition.valueType, definition.mutability, definition.refreshClass, definition.evidenceExpectation, [...definition.dimensions].sort().join(","), aliases].join("|");
+}
+
+const MULTI_CURRENT_PREDICATES = new Set([
+  "identity.operating_country", "identity.legal_presence_country", "commercial.delivery_country", "commercial.product_category", "commercial.service_category", "commercial.core_capability", "organisation.business_function", "organisation.organisation_unit", "risk.regulatory_regime", "risk.mandatory_regulatory_obligation", "risk.voluntary_standard", "risk.certification"
+]);
+
+export function getPredicateCardinality(definition: GenesisT8GenomePredicateDefinition): GenesisT8PredicateCardinality {
+  if (definition.cardinality) return definition.cardinality;
+  if (definition.kind === "EVENT" || definition.mutability === "EVENT_BOUND") return "EVENT_SET";
+  if (MULTI_CURRENT_PREDICATES.has(definition.predicate) || definition.valueType === "ENTITY_REF") return "MULTI_CURRENT";
+  if (definition.kind === "QUANTITY" && definition.mutability !== "IMMUTABLE") return "TEMPORAL_SERIES";
+  return "SINGLE_CURRENT";
+}
+
+export function getPredicateStateSemantics(definition: GenesisT8GenomePredicateDefinition): GenesisT8PredicateStateSemantics {
+  return definition.stateSemantics ?? ((definition.kind === "EVENT" || definition.mutability === "EVENT_BOUND") ? "EVENT" : "PERSISTENT_STATE");
+}
 
 export function getGenomePredicateDefinition(
   predicate: string,
