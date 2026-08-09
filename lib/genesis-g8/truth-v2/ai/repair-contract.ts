@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { TruthEntityType } from "../../truth/types";
+import type { GenesisG8EntityType as TruthEntityType } from "../../entity-types";
 import { buildMrTi2EvidenceCollectorInstructions } from "./prompt";
 import { MrTi2EvidenceObservationSchema, validateMrTi2EvidenceBatch } from "./evidence-contract";
 

@@ -40,7 +40,7 @@ export interface GenesisG8BusinessDnaKnowledgeMatchSnapshot {
     mayUseKnowledgeImmediately: boolean;
     blocking: boolean;
     nextAction: string;
-    gaps: Array<{ claimKey: string; reason: string; criticality: string; priority: number }>;
+    gaps: Array<{ claimKey: string; reason: string; impactClass: string; priority: number }>;
   }>;
 }
 

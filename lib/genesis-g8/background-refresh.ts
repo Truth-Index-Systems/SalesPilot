@@ -2,7 +2,8 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { databaseRequest } from "@/lib/database/postgrest";
-import type { ClaimCriticality, TruthEntityType } from "./truth";
+import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
+import type { MrTi2ImpactClass } from "./truth-v2/types";
 
 export const GENESIS_G8_BACKGROUND_REFRESH_VERSION = "G8.1-R16-BACKGROUND-REFRESH-1.0" as const;
 
@@ -12,7 +13,7 @@ export interface GenesisG8RefreshCandidate {
   claimId: string;
   claimKey: string;
   claimLabel: string;
-  criticality: ClaimCriticality;
+  impactClass: MrTi2ImpactClass;
   freshnessHalfLifeDays: number;
   latestEvidenceAt: string | null;
   freshness: number;
@@ -42,7 +43,7 @@ type DbCandidate = {
   claim_id: string;
   claim_key: string;
   claim_label: string;
-  criticality: ClaimCriticality;
+  impact_class: MrTi2ImpactClass;
   freshness_half_life_days: number;
   latest_evidence_at: string | null;
   freshness: number;
@@ -63,7 +64,7 @@ function mapCandidate(row: DbCandidate): GenesisG8RefreshCandidate {
     claimId: row.claim_id,
     claimKey: row.claim_key,
     claimLabel: row.claim_label,
-    criticality: row.criticality,
+    impactClass: row.impact_class,
     freshnessHalfLifeDays: Number(row.freshness_half_life_days),
     latestEvidenceAt: row.latest_evidence_at,
     freshness: Number(row.freshness),
@@ -135,7 +136,7 @@ export async function runGenesisG8IntelligentBackgroundRefresh(options: {
         p_claim_id: candidate.claimId,
         p_claim_key: candidate.claimKey,
         p_claim_label: candidate.claimLabel,
-        p_criticality: candidate.criticality,
+        p_impact_class: candidate.impactClass,
         p_priority_score: candidate.priorityScore,
         p_freshness: candidate.freshness,
       }),

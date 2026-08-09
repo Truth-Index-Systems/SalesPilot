@@ -2,11 +2,12 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { databaseRequest } from "@/lib/database/postgrest";
-import { getIntelligenceContract } from "./contracts";
+import { getMrTi2ClaimContract } from "./truth-v2/contracts";
 import { hydrateGenesisG8EntityTruth } from "./hydration";
 import { ensureGenesisG8ContractClaims, insertGenesisG8Evidence, upsertGenesisG8Entity } from "./persistence/repository";
 import type { GenesisG8PersistedClaim } from "./persistence/types";
-import type { EvidenceSourceClass, TruthEntityType } from "./truth";
+import type { GenesisG8EvidenceSourceClass as EvidenceSourceClass } from "./evidence-types";
+import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
 import { persistMrTi2EvidenceAssessment } from "./truth-v2/ai/sidecar-repository";
 import { getMrTi2ClaimDefinition } from "./truth-v2/contracts";
 
@@ -85,7 +86,7 @@ function companyClaimKeys(row:Row,e:Row):string[]{
 async function acquireCompany(sourceId:string){
   const rows=await databaseRequest<Row[]>(`companies?id=eq.${encodeURIComponent(sourceId)}&limit=1`); const row=rows[0]; if(!row) return {skipped:true,reason:"SOURCE_DELETED"};
   const domain=clean(row.canonical_domain).toLowerCase(); if(!domain||row.verification_status!=="VERIFIED") return {skipped:true,reason:"UNVERIFIED_COMPANY"};
-  const entity=await upsertGenesisG8Entity({entityType:"company",canonicalKey:domain,displayName:clean(row.company_name)||domain,contractVersion:getIntelligenceContract("company").version});
+  const entity=await upsertGenesisG8Entity({entityType:"company",canonicalKey:domain,displayName:clean(row.company_name)||domain,contractVersion:getMrTi2ClaimContract("company").version});
   const ev=await databaseRequest<Row[]>(`company_evidence?company_id=eq.${encodeURIComponent(sourceId)}&verified=eq.true&order=created_at.asc`);
   const items=ev.map(e=>({claimKeys:companyClaimKeys(row,e),sourceUrl:clean(e.source_url),sourceTitle:e.source_title,excerpt:e.excerpt,sourceDomain:e.source_domain,observedAt:e.retrieved_at||e.created_at,excerptMatched:e.excerpt_matched})).filter(x=>x.claimKeys.length);
   return {entityId:entity.id,evidenceInserted:await persistEvidence(entity.id,"company",items,domain)};
@@ -108,7 +109,7 @@ async function acquireContact(sourceId:string){
   const companies=await databaseRequest<Row[]>(`companies?id=eq.${encodeURIComponent(row.company_id)}&limit=1`); const company=companies[0]; if(!company) return {skipped:true,reason:"COMPANY_MISSING"};
   const domain=clean(company.canonical_domain).toLowerCase(); const linkedin=clean(row.linkedin_profile_url).toLowerCase();
   const key=linkedin||`${domain}::person::${slug(clean(row.normalised_name)||clean(row.full_name))}`; if(!key) return {skipped:true,reason:"CONTACT_KEY_MISSING"};
-  const entity=await upsertGenesisG8Entity({entityType:"contact",canonicalKey:key,displayName:clean(row.full_name)||null,contractVersion:getIntelligenceContract("contact").version});
+  const entity=await upsertGenesisG8Entity({entityType:"contact",canonicalKey:key,displayName:clean(row.full_name)||null,contractVersion:getMrTi2ClaimContract("contact").version});
   const ev=await databaseRequest<Row[]>(`contact_evidence?contact_id=eq.${encodeURIComponent(sourceId)}&verified=eq.true&order=quality_score.desc,created_at.asc`);
   const items=ev.map(e=>({claimKeys:contactKeys(e),sourceUrl:clean(e.source_url),sourceTitle:e.source_title,excerpt:e.excerpt,sourceKind:e.source_kind,sourceDomain:e.source_domain,observedAt:e.retrieved_at||e.created_at,quality:e.quality_score,excerptMatched:e.excerpt_matched})).filter(x=>x.claimKeys.length);
   return {entityId:entity.id,evidenceInserted:await persistEvidence(entity.id,"contact",items,domain)};
@@ -126,7 +127,7 @@ async function acquireRoute(sourceId:string){
   const companies=await databaseRequest<Row[]>(`companies?id=eq.${encodeURIComponent(row.company_id)}&limit=1`); const company=companies[0]; if(!company) return {skipped:true,reason:"COMPANY_MISSING"};
   const domain=clean(company.canonical_domain).toLowerCase(); const channel=clean(row.channel_value).toLowerCase();
   const key=`${domain}::route::${slug(clean(row.target_role))}::${clean(row.channel_type).toLowerCase()}::${channel||slug(clean(row.entry_role))}`;
-  const entity=await upsertGenesisG8Entity({entityType:"route",canonicalKey:key,displayName:clean(row.label)||`${company.company_name} route`,contractVersion:getIntelligenceContract("route").version});
+  const entity=await upsertGenesisG8Entity({entityType:"route",canonicalKey:key,displayName:clean(row.label)||`${company.company_name} route`,contractVersion:getMrTi2ClaimContract("route").version});
   const ev=await databaseRequest<Row[]>(`commercial_route_evidence?route_id=eq.${encodeURIComponent(sourceId)}&verified=eq.true&order=quality_score.desc,created_at.asc`);
   const items=ev.map(e=>({claimKeys:routeKeys(e),sourceUrl:clean(e.source_url),sourceTitle:e.source_title,excerpt:e.excerpt,sourceKind:e.source_kind,sourceDomain:e.source_domain,observedAt:e.retrieved_at||e.created_at,quality:e.quality_score,excerptMatched:e.excerpt_matched}));
   return {entityId:entity.id,evidenceInserted:await persistEvidence(entity.id,"route",items,domain)};

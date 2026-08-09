@@ -1,4 +1,4 @@
-import type { TruthEntityType } from "../../truth/types";
+import type { GenesisG8EntityType as TruthEntityType } from "../../entity-types";
 import { getMrTi2ClaimContract } from "../contracts";
 
 export const MR_TI_2_AI_EVIDENCE_PROMPT_VERSION = "mr-ti-2/evidence-contract/1.0" as const;

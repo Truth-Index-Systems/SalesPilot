@@ -7,7 +7,7 @@ import { aiWorkloadProfile } from "@/lib/ai/workload-profile";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 import { stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
-import type { TruthEntityType } from "./truth";
+import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
 import { MrTi2ClaimRepairResultSchema, buildMrTi2ClaimRepairInstructions, mrTi2ClaimRepairJsonSchema, validateMrTi2ClaimRepairResult, type MrTi2ClaimRepairResult } from "./truth-v2/ai/repair-contract";
 
 export const GENESIS_G8_MRTI2_REPAIR_RESEARCH_VERSION="G8-MRTI2-B7-REPAIR-1.0" as const;

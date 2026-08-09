@@ -1,4 +1,4 @@
-import type { TruthEntityType } from "../truth/types";
+import type { GenesisG8EntityType as TruthEntityType } from "../entity-types";
 
 export const MR_TI_2_ENGINE_VERSION = "MR-TI-2.0" as const;
 export const MR_TI_2_CONTRACT_VERSION = "MR-TI-2-CONTRACTS-1.0" as const;

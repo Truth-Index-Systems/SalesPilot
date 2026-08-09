@@ -4,12 +4,12 @@ import { randomUUID } from "node:crypto";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { isAiGovernanceDeferred, aiParallelCapacityReason } from "@/lib/ai/governance";
 import { isOpenAIBackgroundPending } from "@/lib/ai/background-response";
-import { getIntelligenceContract } from "./contracts";
+import { getMrTi2ClaimContract } from "./truth-v2/contracts";
 import { hydrateGenesisG8EntityTruth } from "./hydration";
 import { ensureGenesisG8ContractClaims, insertGenesisG8Evidence, upsertGenesisG8Entity } from "./persistence/repository";
 import { researchGenesisG82IndustryExpansion, type GenesisG82ExpansionEvidence } from "./autonomous-expansion-openai";
 import type { GenesisG8PersistedClaim } from "./persistence/types";
-import type { TruthEntityType } from "./truth";
+import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
 import { persistMrTi2EvidenceAssessment } from "./truth-v2/ai/sidecar-repository";
 import { getMrTi2ClaimDefinition } from "./truth-v2/contracts";
 
@@ -68,14 +68,14 @@ async function persistEvidence(params:{entityId:string;entityType:TruthEntityTyp
 async function persistCompany(job:ExpansionJob,c:any,seenDomains:Set<string>):Promise<PersistCounts>{
   const canonicalDomain=domain(c.domain); if(!canonicalDomain||seenDomains.has(canonicalDomain))return {companies:0,contacts:0,routes:0};
   seenDomains.add(canonicalDomain);
-  const entity=await upsertGenesisG8Entity({entityType:"company",canonicalKey:canonicalDomain,displayName:clean(c.name)||canonicalDomain,contractVersion:getIntelligenceContract("company").version});
+  const entity=await upsertGenesisG8Entity({entityType:"company",canonicalKey:canonicalDomain,displayName:clean(c.name)||canonicalDomain,contractVersion:getMrTi2ClaimContract("company").version});
   await persistEvidence({entityId:entity.id,entityType:"company",evidence:Array.isArray(c.evidence)?c.evidence:[],sourceRef:`g82-expansion:${job.id}:${job.industry_key}`});
   await membership(job.target_id,entity.id,"company",canonicalDomain);
   let contacts=0,routes=0;
   for(const person of Array.isArray(c.contacts)?c.contacts:[]){
     const identity=clean(person.linkedinUrl)||slug(clean(person.name)); if(!identity)continue;
     const key=`${canonicalDomain}::contact::${identity.toLowerCase()}`;
-    const contact=await upsertGenesisG8Entity({entityType:"contact",canonicalKey:key,displayName:clean(person.name)||null,contractVersion:getIntelligenceContract("contact").version});
+    const contact=await upsertGenesisG8Entity({entityType:"contact",canonicalKey:key,displayName:clean(person.name)||null,contractVersion:getMrTi2ClaimContract("contact").version});
     const evidence=Array.isArray(person.evidence)?person.evidence:[];
     if(evidence.length===0)continue;
     await persistEvidence({entityId:contact.id,entityType:"contact",evidence,sourceRef:`g82-expansion:${job.id}:${job.industry_key}`});
@@ -85,7 +85,7 @@ async function persistCompany(job:ExpansionJob,c:any,seenDomains:Set<string>):Pr
     const evidence=Array.isArray(route.evidence)?route.evidence:[]; if(evidence.length===0)continue;
     const channelType=slug(clean(route.channelType)||"public"); const channelValue=clean(route.channelValue)||clean(route.routePath)||clean(route.label);
     const key=`${canonicalDomain}::route::${slug(clean(route.targetRole)||"general")}::${channelType}::${slug(channelValue)}`;
-    const r=await upsertGenesisG8Entity({entityType:"route",canonicalKey:key,displayName:clean(route.label)||`${clean(c.name)||canonicalDomain} route`,contractVersion:getIntelligenceContract("route").version});
+    const r=await upsertGenesisG8Entity({entityType:"route",canonicalKey:key,displayName:clean(route.label)||`${clean(c.name)||canonicalDomain} route`,contractVersion:getMrTi2ClaimContract("route").version});
     await persistEvidence({entityId:r.id,entityType:"route",evidence,sourceRef:`g82-expansion:${job.id}:${job.industry_key}`});
     await membership(job.target_id,r.id,"route",canonicalDomain); routes++;
   }

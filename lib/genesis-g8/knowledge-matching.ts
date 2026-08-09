@@ -32,7 +32,6 @@ export interface GenesisG8CompanySearchProjection {
   truthIndex: number;
   confidence: number;
   coverage: number;
-  criticalClaimCeiling: number;
   identityConfidence: number;
   contactCount: number;
   routeCount: number;
@@ -213,8 +212,8 @@ export function rankGenesisG8CompanyCandidate(
       ? clamp100(candidate.contactTruthScore * 0.65)
       : 0;
 
-  // Freshness is deliberately not weighted again here. MR-TI-1.0 already
-  // decays evidence by age; adding it again would double-penalise stale data.
+  // Freshness is already represented deterministically inside MR-TI-2 evidence strength;
+  // retrieval must not apply a second freshness penalty.
   const retrievalScore = clamp100(
     businessFit * 0.62
       + clamp100(candidate.truthIndex) * 0.25
@@ -235,7 +234,7 @@ export function rankGenesisG8CompanyCandidate(
     ...candidate,
     businessFit: round2(businessFit),
     retrievalScore: round2(retrievalScore),
-    retrievalConfidence: round2(clamp100(candidate.identityConfidence || candidate.criticalClaimCeiling)),
+    retrievalConfidence: round2(clamp100(candidate.identityConfidence || candidate.confidence)),
     routeReadiness: round2(routeReadiness),
     dimensions,
     matchedTerms,

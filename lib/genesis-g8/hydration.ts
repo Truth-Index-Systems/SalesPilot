@@ -8,13 +8,11 @@ import { prioritiseMrTi2Research } from "./truth-v2/research-priority";
 import type { MrTi2EntityTruthResult } from "./truth-v2/entity";
 
 export type GenesisG8GapReason = "MISSING_EVIDENCE" | "INSUFFICIENT_EVIDENCE" | "LOW_CONFIDENCE" | "CONTRADICTED" | "STALE_EVIDENCE";
-export type GenesisG8CompatibilityCriticality = "CRITICAL" | "REQUIRED" | "SUPPORTING" | "OPTIONAL";
 
 export interface GenesisG8IntelligenceGap {
   claimId: string;
   claimKey: string;
   label: string;
-  criticality: GenesisG8CompatibilityCriticality;
   impactClass: "FOUNDATIONAL" | "COMMERCIAL" | "SUPPORTING" | "OPTIONAL";
   reason: GenesisG8GapReason;
   priority: number;
@@ -42,9 +40,6 @@ export interface GenesisG8HydratedKnowledge {
   needsRecalculation: false;
   hydratedAt: string;
 }
-
-const compatibilityCriticality = (impact: GenesisG8IntelligenceGap["impactClass"]): GenesisG8CompatibilityCriticality =>
-  impact === "FOUNDATIONAL" ? "CRITICAL" : impact === "COMMERCIAL" ? "REQUIRED" : impact;
 
 export async function hydrateGenesisG8EntityTruth(
   entityId: string,
@@ -83,7 +78,6 @@ export async function hydrateGenesisG8EntityTruth(
       claimId,
       claimKey,
       label: definition.label,
-      criticality: compatibilityCriticality(definition.impactClass),
       impactClass: definition.impactClass,
       reason,
       priority: priorities.get(claimKey)?.priority ?? definition.weight * 100,

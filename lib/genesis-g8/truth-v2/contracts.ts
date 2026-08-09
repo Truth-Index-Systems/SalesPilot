@@ -1,4 +1,4 @@
-import type { TruthEntityType } from "../truth/types";
+import type { GenesisG8EntityType as TruthEntityType } from "../entity-types";
 import { MR_TI_2_CONTRACT_VERSION, type MrTi2ClaimContract, type MrTi2ClaimDefinition, type MrTi2ImpactClass } from "./types";
 
 const relationshipTypes = ["DEPENDS_ON", "CONTRADICTS"] as const;

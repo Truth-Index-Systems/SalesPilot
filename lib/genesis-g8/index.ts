@@ -1,4 +1,4 @@
-export * from "./contracts";
+export type { GenesisG8EntityType } from "./entity-types";
 export {
   GENESIS_G8_DEFAULT_CHANNEL_STRATEGY,
   GENESIS_G8_INTELLIGENCE_CHANNELS,
@@ -18,7 +18,6 @@ export type {
   GenesisG8PersistedEntity,
   GenesisG8PersistedEvidence,
   GenesisG8ReviewState,
-  GenesisG8TruthSnapshot,
 } from "./persistence/types";
 export * from "./hydration";
 export * from "./truth-v2";
@@ -29,7 +28,6 @@ export * from "./planning";
 
 export * from "./orchestration-boundary";
 export * from "./production-dispatch";
-export * from "./discovery-repair-openai";
 export * from "./discovery-repair-worker";
 
 export * from "./repair-replanning";

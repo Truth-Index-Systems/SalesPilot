@@ -108,6 +108,10 @@ async function dispatchKnowledge(
   };
 }
 
+function persistenceCriticality(impactClass: GenesisG8DiscoveryRepairInstruction["impactClass"]): "CRITICAL" | "REQUIRED" | "SUPPORTING" | "OPTIONAL" {
+  return impactClass === "FOUNDATIONAL" ? "CRITICAL" : impactClass === "COMMERCIAL" ? "REQUIRED" : impactClass;
+}
+
 async function dispatchRepair(
   instruction: GenesisG8DiscoveryRepairInstruction,
   workflow: GenesisG8PrivateWorkflowContext,
@@ -125,7 +129,7 @@ async function dispatchRepair(
       p_claim_key: instruction.claimKey,
       p_repair_mode: instruction.repairMode,
       p_objective: instruction.objective,
-      p_criticality: instruction.criticality,
+      p_criticality: persistenceCriticality(instruction.impactClass),
       p_minimum_evidence: instruction.minimumEvidence,
       p_additional_evidence_needed: instruction.additionalEvidenceNeeded,
       p_blocking_mode: instruction.blockingMode,

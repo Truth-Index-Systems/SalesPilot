@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { TruthEntityType } from "../../truth/types";
+import type { GenesisG8EntityType as TruthEntityType } from "../../entity-types";
 import { getMrTi2ClaimContract } from "../contracts";
 
 export const MrTi2EvidenceDirectionSchema = z.enum(["SUPPORT","CONTRADICT"]);

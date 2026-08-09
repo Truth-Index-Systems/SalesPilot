@@ -1,6 +1,6 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
-import type { TruthEntityType } from "@/lib/genesis-g8/truth";
+import type { GenesisG8EntityType as TruthEntityType } from "@/lib/genesis-g8/entity-types";
 import type { GenesisG8PersistedClaim, GenesisG8PersistedEntity, GenesisG8PersistedEvidence } from "./types";
 
 export interface GenesisG8PersistedKnowledgeBundle {
@@ -17,7 +17,7 @@ const nullableString = (value: unknown): string | null => value == null ? null :
 const esc = (value: string) => encodeURIComponent(value);
 
 const mapEntity = (row: DbRow): GenesisG8PersistedEntity => ({ id:s(row.id), entityType:s(row.entity_type) as TruthEntityType, canonicalKey:s(row.canonical_key), displayName:nullableString(row.display_name), contractVersion:s(row.contract_version) as GenesisG8PersistedEntity["contractVersion"], status:s(row.status) as GenesisG8PersistedEntity["status"], reviewState:s(row.review_state) as GenesisG8PersistedEntity["reviewState"], createdAt:s(row.created_at), updatedAt:s(row.updated_at) });
-const mapClaim = (row: DbRow): GenesisG8PersistedClaim => ({ id:s(row.id), entityId:s(row.entity_id), claimKey:s(row.claim_key), label:s(row.label), criticality:s(row.criticality) as GenesisG8PersistedClaim["criticality"], weight:n(row.weight), freshnessHalfLifeDays:n(row.freshness_half_life_days), countsTowardCoverage:b(row.counts_toward_coverage), minimumEvidence:n(row.minimum_evidence), createdAt:s(row.created_at), updatedAt:s(row.updated_at) });
+const mapClaim = (row: DbRow): GenesisG8PersistedClaim => ({ id:s(row.id), entityId:s(row.entity_id), claimKey:s(row.claim_key), label:s(row.label), weight:n(row.weight), freshnessHalfLifeDays:n(row.freshness_half_life_days), countsTowardCoverage:b(row.counts_toward_coverage), minimumEvidence:n(row.minimum_evidence), createdAt:s(row.created_at), updatedAt:s(row.updated_at) });
 const mapEvidence = (row: DbRow): GenesisG8PersistedEvidence => ({ id:s(row.id), claimId:s(row.claim_id), direction:s(row.direction) as GenesisG8PersistedEvidence["direction"], sourceClass:s(row.source_class) as GenesisG8PersistedEvidence["sourceClass"], sourceUri:nullableString(row.source_uri), sourceRef:nullableString(row.source_ref), sourceFamily:nullableString(row.source_family), excerpt:nullableString(row.excerpt), strength:n(row.strength), traceability:n(row.traceability), independence:n(row.independence), observedAt:s(row.observed_at), channel:s(row.intelligence_channel) as GenesisG8PersistedEvidence["channel"], provenance:(row.provenance_json && typeof row.provenance_json === "object" ? row.provenance_json : {}) as GenesisG8PersistedEvidence["provenance"], createdAt:s(row.created_at) });
 export async function getGenesisG8EntityById(entityId: string): Promise<GenesisG8PersistedEntity | null> {
   const rows = await databaseRequest<DbRow[]>(`genesis_g8_intelligence_entities?id=eq.${esc(entityId)}&limit=1`);

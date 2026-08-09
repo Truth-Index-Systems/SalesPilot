@@ -1,4 +1,4 @@
-import type { TruthEntityType } from "../../truth/types";
+import type { GenesisG8EntityType as TruthEntityType } from "../../entity-types";
 import type { MrTi2ClaimDefinition } from "../types";
 import type { MrTi2AdjustedClaimState } from "../matrix-two";
 import type { MrTi2ClaimReviewState } from "../claims";

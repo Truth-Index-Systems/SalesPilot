@@ -7,7 +7,7 @@ import { evaluateMrTi2MatrixTwo, type MrTi2ClaimRelationshipInput } from "./matr
 import { aggregateMrTi2EntityTruth, buildMrTi2SnapshotWrite, type MrTi2EntityTruthResult } from "./entity";
 import { persistMrTi2TruthSnapshot } from "./snapshot-repository";
 import { syncMrTi2ClaimProfiles } from "./profile-sync";
-import type { TruthEntityType } from "../truth/types";
+import type { GenesisG8EntityType as TruthEntityType } from "../entity-types";
 
 type ClaimRow={id:string;claim_key:string};
 type EvidenceRow={id:string;claim_id:string;direction:"SUPPORTS"|"CONTRADICTS";observed_at:string};

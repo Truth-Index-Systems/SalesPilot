@@ -4,7 +4,8 @@ import { databaseRequest } from "@/lib/database/postgrest";
 import { calculateAndPersistMrTi2Truth } from "./production-hydration";
 import { getMrTi2ClaimDefinition } from "./contracts";
 import { persistMrTi2EvidenceAssessment } from "./ai/sidecar-repository";
-import type { EvidenceSourceClass, TruthEntityType } from "../truth";
+import type { GenesisG8EvidenceSourceClass as EvidenceSourceClass } from "../evidence-types";
+import type { GenesisG8EntityType as TruthEntityType } from "../entity-types";
 
 type EntityRow={id:string;entity_type:TruthEntityType;status:string};
 type SnapshotRow={entity_id:string;calculated_at:string};

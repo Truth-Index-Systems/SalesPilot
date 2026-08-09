@@ -1,5 +1,5 @@
 import "server-only";
-import type { TruthEntityType } from "./truth";
+import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
 import { evaluateGenesisG8KnowledgeEligibility, type GenesisG8EligibilityResult } from "./eligibility";
 import { getGenesisG8EntityByCanonicalKey } from "./persistence/read-repository";
 import { hydrateGenesisG8EntityTruth } from "./hydration";

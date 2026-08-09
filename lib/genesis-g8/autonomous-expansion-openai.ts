@@ -9,7 +9,7 @@ import { aiPromptCacheKey, aiWorkloadProfile } from "@/lib/ai/workload-profile";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 import { stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
-import type { EvidenceSourceClass } from "./truth";
+import type { GenesisG8EvidenceSourceClass as EvidenceSourceClass } from "./evidence-types";
 
 export const GENESIS_G82_EXPANSION_RESEARCH_VERSION = "G8.2-R7-STABLE-BACKGROUND-RESUME-1.4" as const;
 

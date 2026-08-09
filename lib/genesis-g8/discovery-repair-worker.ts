@@ -10,7 +10,7 @@ import { hydrateGenesisG8EntityTruth } from "./hydration";
 import { researchGenesisG8ClaimRepairV2 } from "./discovery-repair-openai-v2";
 import { persistMrTi2EvidenceAssessment, persistMrTi2RelationshipHints } from "./truth-v2/ai";
 import { calculateAndPersistMrTi2Truth } from "./truth-v2/production-hydration";
-import type { ClaimCriticality, TruthEntityType } from "./truth";
+import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
 
 export const GENESIS_G8_DISCOVERY_REPAIR_WORKER_VERSION = "G8.1-R9-REPAIR-WORKER-1.0" as const;
 
@@ -24,7 +24,7 @@ type RepairJob = {
   claim_id: string;
   claim_key: string;
   claim_label: string;
-  criticality: ClaimCriticality;
+  impact_class: "FOUNDATIONAL" | "COMMERCIAL" | "SUPPORTING" | "OPTIONAL";
   repair_mode: string;
   objective: string;
   minimum_evidence: number;

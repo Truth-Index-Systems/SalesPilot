@@ -11,7 +11,7 @@ type CountRow={id:string;organisation_id?:string;campaign_id?:string;status?:str
 type OutcomeRow={id:string;organisation_id:string;campaign_id:string;engagement_id:string;opportunity_id:string;channel:string;route_quality:number|null;route_confidence:number|null;outcome:string;outcome_value:number|null;occurred_at:string};
 type G8ReviewRow={id:string;entity_id:string;entity_type:string;truth_index:number;confidence:number;coverage:number;reasons_json:unknown;claim_keys_json:unknown;status:string;created_at:string};
 type G8EntityRow={id:string;display_name:string|null;canonical_key:string;review_state:string;status:string};
-type G8ClaimRow={id:string;entity_id:string;claim_key:string;label:string;criticality:string;minimum_evidence:number};
+type G8ClaimRow={id:string;entity_id:string;claim_key:string;label:string;minimum_evidence:number};
 type G8EvidenceRow={id:string;claim_id:string;direction:string;source_class:string;source_uri:string|null;excerpt:string|null;strength:number;traceability:number;independence:number;observed_at:string;intelligence_channel:string};
 type G8ReviewReceiptRow={id:string;action:string;reviewed_at:string};
 type LearningRow={id:string;organisation_id:string;campaign_id:string;engagement_id:string;opportunity_id:string;queue_outcome:string;engagement_score:number|null;confidence:number|null;human_action:string|null;edit_distance:number|null;actual_cost_usd:number;estimated_cost_usd:number;total_input_tokens:number;total_output_tokens:number;total_latency_ms:number;commercial_prompt_version:string|null;generation_prompt_version:string|null;review_prompt_version:string|null;commercial_model:string|null;generation_model:string|null;review_model:string|null;created_at:string};
@@ -44,7 +44,7 @@ export async function getFounderDashboard(rangeDays=7){
   ]);
   const g8CommandCentre=await g8CommandCentrePromise;
   const openEntityIds=[...new Set(g8Reviews.map(row=>row.entity_id))];
-  const g8Claims=openEntityIds.length?await databaseRequest<G8ClaimRow[]>(`genesis_g8_intelligence_claims?select=id,entity_id,claim_key,label,criticality,minimum_evidence&entity_id=in.(${openEntityIds.join(",")})&limit=5000`).catch(()=>[]):[];
+  const g8Claims=openEntityIds.length?await databaseRequest<G8ClaimRow[]>(`genesis_g8_intelligence_claims?select=id,entity_id,claim_key,label,minimum_evidence&entity_id=in.(${openEntityIds.join(",")})&limit=5000`).catch(()=>[]):[];
   const claimIds=g8Claims.map(row=>row.id);
   const g8Evidence=claimIds.length?await databaseRequest<G8EvidenceRow[]>(`genesis_g8_intelligence_evidence?select=id,claim_id,direction,source_class,source_uri,excerpt,strength,traceability,independence,observed_at,intelligence_channel&claim_id=in.(${claimIds.join(",")})&order=observed_at.desc&limit=10000`).catch(()=>[]):[];
   const campaignMap=new Map(campaigns.map(r=>[r.id,r]));

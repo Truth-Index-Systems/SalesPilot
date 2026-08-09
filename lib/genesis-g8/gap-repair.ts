@@ -15,7 +15,7 @@ export interface GenesisG8GapRepairContract {
   claimId: string;
   claimKey: string;
   label: string;
-  criticality: GenesisG8IntelligenceGap["criticality"];
+  impactClass: GenesisG8IntelligenceGap["impactClass"];
   reason: GenesisG8IntelligenceGap["reason"];
   mode: GenesisG8GapRepairMode;
   disposition: GenesisG8GapRepairDisposition;
@@ -39,9 +39,7 @@ const modeForGap = (gap: GenesisG8IntelligenceGap): GenesisG8GapRepairMode => {
 };
 
 const dispositionForGap = (gap: GenesisG8IntelligenceGap): GenesisG8GapRepairDisposition =>
-  gap.reason === "CONTRADICTED" && (gap.criticality === "CRITICAL" || gap.criticality === "REQUIRED")
-    ? "HUMAN_REVIEW"
-    : "DISCOVERY_INTELLIGENCE";
+  gap.reason === "CONTRADICTED" ? "HUMAN_REVIEW" : "DISCOVERY_INTELLIGENCE";
 
 const objectiveForGap = (gap: GenesisG8IntelligenceGap, mode: GenesisG8GapRepairMode) => {
   switch (mode) {
@@ -64,7 +62,7 @@ export function createGenesisG8GapRepairContract(gap: GenesisG8IntelligenceGap):
     claimId: gap.claimId,
     claimKey: gap.claimKey,
     label: gap.label,
-    criticality: gap.criticality,
+    impactClass: gap.impactClass,
     reason: gap.reason,
     mode,
     disposition: dispositionForGap(gap),

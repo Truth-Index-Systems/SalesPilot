@@ -1,13 +1,6 @@
 import type { GenesisG8ChannelProvenance, GenesisG8IntelligenceChannel } from "../channels";
-import type { IntelligenceContractVersion } from "../contracts";
-import type {
-  ClaimCriticality,
-  EvidenceDirection,
-  EvidenceSourceClass,
-  TruthEntityType,
-  TruthIndexResult,
-  TruthReviewReason,
-} from "../truth";
+import type { GenesisG8EntityType as TruthEntityType } from "../entity-types";
+import type { GenesisG8EvidenceDirection as EvidenceDirection, GenesisG8EvidenceSourceClass as EvidenceSourceClass } from "../evidence-types";
 
 export type GenesisG8EntityStatus = "ACTIVE" | "SUPPRESSED" | "SUPERSEDED";
 export type GenesisG8ReviewState =
@@ -22,7 +15,7 @@ export interface GenesisG8PersistedEntity {
   entityType: TruthEntityType;
   canonicalKey: string;
   displayName?: string | null;
-  contractVersion: IntelligenceContractVersion;
+  contractVersion: string;
   status: GenesisG8EntityStatus;
   reviewState: GenesisG8ReviewState;
   createdAt: string;
@@ -34,7 +27,6 @@ export interface GenesisG8PersistedClaim {
   entityId: string;
   claimKey: string;
   label: string;
-  criticality: ClaimCriticality;
   weight: number;
   freshnessHalfLifeDays: number;
   countsTowardCoverage: boolean;
@@ -61,22 +53,6 @@ export interface GenesisG8PersistedEvidence {
   createdAt: string;
 }
 
-export interface GenesisG8TruthSnapshot {
-  id: string;
-  entityId: string;
-  equationVersion: string;
-  contractVersion: IntelligenceContractVersion;
-  confidence: number;
-  coverage: number;
-  truthIndex: number;
-  criticalClaimCeiling: number;
-  reviewRequired: boolean;
-  reviewPriorityScore: number;
-  reviewReasons: TruthReviewReason[];
-  result: TruthIndexResult;
-  calculatedAt: string;
-}
-
 export type GenesisG8HumanReviewAction = "APPROVE" | "CORRECT" | "REJECT" | "MORE_RESEARCH";
 
 export interface GenesisG8HumanReviewReceipt {
@@ -89,13 +65,14 @@ export interface GenesisG8HumanReviewReceipt {
   reviewerUserId?: string | null;
   reviewedAt: string;
   truthSnapshotId?: string | null;
+  truthV2SnapshotId?: string | null;
 }
 
 export interface GenesisG8EntityWrite {
   entityType: TruthEntityType;
   canonicalKey: string;
   displayName?: string | null;
-  contractVersion: IntelligenceContractVersion;
+  contractVersion: string;
 }
 
 export interface GenesisG8EvidenceWrite {

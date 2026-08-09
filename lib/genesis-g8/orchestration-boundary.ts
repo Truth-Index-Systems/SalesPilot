@@ -1,6 +1,6 @@
 import type { GenesisG8DualChannelPlan } from "./planning";
 import type { GenesisG8GapRepairContract } from "./gap-repair";
-import type { TruthEntityType } from "./truth/types";
+import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
 
 export const GENESIS_G8_ORCHESTRATION_BOUNDARY_VERSION = "G8.1-R7-ORCHESTRATION-1.0" as const;
 
@@ -46,7 +46,7 @@ export interface GenesisG8DiscoveryRepairInstruction {
   claimKey: string;
   repairMode: GenesisG8GapRepairContract["mode"];
   objective: string;
-  criticality: GenesisG8GapRepairContract["criticality"];
+  impactClass: GenesisG8GapRepairContract["impactClass"];
   minimumEvidence: number;
   additionalEvidenceNeeded: number;
   /**
@@ -147,7 +147,7 @@ function repairInstruction(
     claimKey: repair.claimKey,
     repairMode: repair.mode,
     objective: repair.objective,
-    criticality: repair.criticality,
+    impactClass: repair.impactClass,
     minimumEvidence: repair.minimumEvidence,
     additionalEvidenceNeeded: repair.additionalEvidenceNeeded,
     executionTarget: "EXISTING_DISCOVERY_INTELLIGENCE",

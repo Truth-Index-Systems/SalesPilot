@@ -6,7 +6,7 @@ import { createGenesisG8GapRepairContracts } from "./gap-repair";
 import { dispatchGenesisG8ExecutionEnvelope, type GenesisG8PrivateWorkflowContext } from "./production-dispatch";
 import { buildGenesisG8ExecutionEnvelope, type GenesisG8ExecutionEnvelope, type GenesisG8DiscoveryRepairInstruction } from "./orchestration-boundary";
 import { planGenesisG8DualChannelWork } from "./planning";
-import type { TruthEntityType } from "./truth/types";
+import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
 import type { GenesisG8HumanReviewAction } from "./persistence/types";
 
 export const GENESIS_G8_FOUNDER_REVIEW_VERSION = "G8.1-R11-FOUNDER-REVIEW-1.0" as const;
@@ -110,12 +110,12 @@ function founderResearchEnvelope(input: {
       dispatchKey: `g8:founder:${input.entityId}:${scope}`,
       entityId: input.entityId,
       entityType: input.entityType,
-      blockingMode: repair.criticality === "CRITICAL" || repair.criticality === "REQUIRED" ? "BLOCKING_BEFORE_USE" : "NON_BLOCKING",
+      blockingMode: repair.disposition === "HUMAN_REVIEW" ? "BLOCKING_BEFORE_USE" : "NON_BLOCKING",
       claimId: repair.claimId,
       claimKey: repair.claimKey,
       repairMode: repair.mode,
       objective: input.note ? `${repair.objective} Founder context: ${input.note}` : repair.objective,
-      criticality: repair.criticality,
+      impactClass: repair.impactClass,
       minimumEvidence: repair.minimumEvidence,
       additionalEvidenceNeeded: repair.additionalEvidenceNeeded,
       executionTarget: "EXISTING_DISCOVERY_INTELLIGENCE",

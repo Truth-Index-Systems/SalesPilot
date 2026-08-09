@@ -34,7 +34,6 @@ function mapProjection(row: DbRow): GenesisG8CompanySearchProjection {
     truthIndex: n(row.truth_index),
     confidence: n(row.confidence),
     coverage: n(row.coverage),
-    criticalClaimCeiling: n(row.critical_claim_ceiling),
     identityConfidence: n(row.identity_confidence),
     contactCount: n(row.contact_count),
     routeCount: n(row.route_count),
@@ -49,7 +48,7 @@ function mapProjection(row: DbRow): GenesisG8CompanySearchProjection {
 
 export interface GenesisG8KnowledgeCandidateResult extends GenesisG8RankedCompanyCandidate {
   plan: GenesisG8DualChannelPlan;
-  gaps: { claimKey: string; reason: string; criticality: string; priority: number }[];
+  gaps: { claimKey: string; reason: string; impactClass: string; priority: number }[];
 }
 
 export interface GenesisG8KnowledgeCandidateRetrievalResult {
@@ -81,7 +80,7 @@ async function hydrateRankedCandidate(candidate: GenesisG8RankedCompanyCandidate
     coverage: knowledge.hydrated.truth.coverage,
     eligibility: knowledge.eligibility.status,
     plan,
-    gaps: knowledge.hydrated.gaps.map((gap) => ({ claimKey: gap.claimKey, reason: gap.reason, criticality: gap.criticality, priority: gap.priority })),
+    gaps: knowledge.hydrated.gaps.map((gap) => ({ claimKey: gap.claimKey, reason: gap.reason, impactClass: gap.impactClass, priority: gap.priority })),
   };
 }
 
