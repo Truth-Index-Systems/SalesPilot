@@ -7,10 +7,10 @@ const page=read('app/dashboard/page.tsx');
 const route=read('app/dashboard/genesis-g8/reviews/[id]/resolve/route.ts');
 const migration=read('supabase/migrations/0125_genesis_g82_r3_review_resolver_and_expansion_throughput.sql');
 const checks=[
- ['six-company expansion ceiling', ai.includes('GENESIS_G82_EXPANSION_COMPANIES_PER_CALL = 6') && ai.includes('max(GENESIS_G82_EXPANSION_COMPANIES_PER_CALL)')],
+ ['post-R5 expansion ceiling remains schema-bound', ai.includes('GENESIS_G82_EXPANSION_COMPANIES_PER_CALL = 3') && ai.includes('max(GENESIS_G82_EXPANSION_COMPANIES_PER_CALL)')],
  ['prompt asks model to use batch efficiently', ai.includes('Use the web-search context efficiently across the whole batch')],
  ['weak companies must not pad batch', ai.includes('Never pad the batch with weak or duplicate companies')],
- ['larger output ceiling protects structured batch', ai.includes('Math.max(profile.maxOutputTokens,10000)')],
+ ['post-R5 output ceiling remains bounded', ai.includes('Math.max(profile.maxOutputTokens,6000)')],
  ['existing canonical domain dedupe retained', worker.includes('seenDomains.has(canonicalDomain)') && worker.includes('loadKnownCompanyDomains')],
  ['Truth rehydration still owns scoring', worker.includes('hydrateGenesisG8EntityTruth')],
  ['hydration-safe relative clock', ui.includes('relative=(iso:string,referenceMs:number)') && !ui.includes('Date.now()')],

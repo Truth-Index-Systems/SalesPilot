@@ -18,7 +18,7 @@ pass('R17 snapshot extended for expansion',migration.includes('left join public.
 pass('customer repairs outrank background repairs',migration.includes("case when q.organisation_id is not null or q.campaign_id is not null or q.company_id is not null then 0 else 1 end"));
 pass('expansion shares governed G8 budget lane',ai.includes('jobType:"GENESIS_G8_REPAIR"'));
 pass('AI cannot assign Truth Index',ai.includes('never assign Truth Index'));
-pass('bounded multi-company output',ai.includes('GENESIS_G82_EXPANSION_COMPANIES_PER_CALL = 6')&&ai.includes('up to six distinct companies'));
+pass('bounded multi-company output',ai.includes('GENESIS_G82_EXPANSION_COMPANIES_PER_CALL = 3')&&ai.includes('up to three distinct companies'));
 pass('known domains excluded',ai.includes('excludedDomains'));
 pass('global known company domains loaded before research',worker.includes('loadKnownCompanyDomains'));
 pass('company claim keys bounded',ai.includes('COMPANY CLAIM KEYS'));
