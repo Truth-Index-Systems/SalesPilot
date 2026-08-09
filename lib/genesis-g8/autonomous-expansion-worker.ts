@@ -13,7 +13,7 @@ import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
 import { persistMrTi2EvidenceAssessment } from "./truth-v2/ai/sidecar-repository";
 import { getMrTi2ClaimDefinition } from "./truth-v2/contracts";
 
-export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-MRTI2-B8.2-AUTONOMOUS-EXPANSION-1.6" as const;
+export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-MRTI2-B8.3.3-BREADTH-DECOMPOSED-1.7" as const;
 
 type ExpansionJob={
   id:string; target_id:string; industry_key:string; industry_name:string; attempt_count:number; lease_token:string; excluded_domains:unknown;
@@ -26,7 +26,6 @@ function domain(value:string){
   try{return new URL(raw.includes("://")?raw:`https://${raw}`).hostname.replace(/^www\./,"");}catch{return raw.replace(/^https?:\/\//,"").split("/")[0].replace(/^www\./,"");}
 }
 function sourceFamily(url:string){try{return new URL(url).hostname.toLowerCase().replace(/^www\./,"");}catch{return "unknown";}}
-function slug(value:string){return clean(value).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,120);}
 function excluded(job:ExpansionJob):string[]{return Array.isArray(job.excluded_domains)?job.excluded_domains.map(clean).map(domain).filter(Boolean):[];}
 
 async function loadKnownCompanyDomains(limit=300):Promise<string[]>{
@@ -71,25 +70,10 @@ async function persistCompany(job:ExpansionJob,c:any,seenDomains:Set<string>):Pr
   const entity=await upsertGenesisG8Entity({entityType:"company",canonicalKey:canonicalDomain,displayName:clean(c.name)||canonicalDomain,contractVersion:getMrTi2ClaimContract("company").version});
   await persistEvidence({entityId:entity.id,entityType:"company",evidence:Array.isArray(c.evidence)?c.evidence:[],sourceRef:`g82-expansion:${job.id}:${job.industry_key}`});
   await membership(job.target_id,entity.id,"company",canonicalDomain);
-  let contacts=0,routes=0;
-  for(const person of Array.isArray(c.contacts)?c.contacts:[]){
-    const identity=clean(person.linkedinUrl)||slug(clean(person.name)); if(!identity)continue;
-    const key=`${canonicalDomain}::contact::${identity.toLowerCase()}`;
-    const contact=await upsertGenesisG8Entity({entityType:"contact",canonicalKey:key,displayName:clean(person.name)||null,contractVersion:getMrTi2ClaimContract("contact").version});
-    const evidence=Array.isArray(person.evidence)?person.evidence:[];
-    if(evidence.length===0)continue;
-    await persistEvidence({entityId:contact.id,entityType:"contact",evidence,sourceRef:`g82-expansion:${job.id}:${job.industry_key}`});
-    await membership(job.target_id,contact.id,"contact",canonicalDomain); contacts++;
-  }
-  for(const route of Array.isArray(c.routes)?c.routes:[]){
-    const evidence=Array.isArray(route.evidence)?route.evidence:[]; if(evidence.length===0)continue;
-    const channelType=slug(clean(route.channelType)||"public"); const channelValue=clean(route.channelValue)||clean(route.routePath)||clean(route.label);
-    const key=`${canonicalDomain}::route::${slug(clean(route.targetRole)||"general")}::${channelType}::${slug(channelValue)}`;
-    const r=await upsertGenesisG8Entity({entityType:"route",canonicalKey:key,displayName:clean(route.label)||`${clean(c.name)||canonicalDomain} route`,contractVersion:getMrTi2ClaimContract("route").version});
-    await persistEvidence({entityId:r.id,entityType:"route",evidence,sourceRef:`g82-expansion:${job.id}:${job.industry_key}`});
-    await membership(job.target_id,r.id,"route",canonicalDomain); routes++;
-  }
-  return {companies:1,contacts,routes};
+  // Build 8.3.3: expansion owns breadth only. Contact and route depth is deliberately
+  // delegated to downstream MR-TI-2 repair/research workers so expansion output remains
+  // compact and cannot be truncated by nested enrichment payloads.
+  return {companies:1,contacts:0,routes:0};
 }
 
 async function settle(job:ExpansionJob,status:"QUEUED"|"COMPLETED"|"FAILED",counts:PersistCounts,found:number,error?:string|null){

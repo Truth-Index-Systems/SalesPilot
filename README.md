@@ -98,3 +98,11 @@ Keep the platform variable unset or false until the migration is applied and wor
 - Added GENESIS_G82_EXPANSION job/task/workload/governance identity.
 - Added migration 0133 for Supabase ledger constraint and reserve_ai_request support.
 - Expansion scopes now use genesis-g82-expansion-v2 and cannot reuse repair-typed historical checkpoints.
+
+## Build 8.3.3
+- Decomposed autonomous expansion into a breadth-only company-foundation pass.
+- Expansion returns up to 3 companies with only 2–4 high-value company evidence items each.
+- Removed contacts and routes from the expansion Structured Output schema and persistence path; MR-TI-2 repair owns depth.
+- Reduced expansion workload target to 4,500 output tokens, evidence limit 4 and context depth 4.
+- Added `genesis-g82-expansion-v3` request/checkpoint fencing so oversized 8.3.2 responses cannot be reused.
+- No new Supabase migration required.

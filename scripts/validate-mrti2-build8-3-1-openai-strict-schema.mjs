@@ -30,7 +30,7 @@ check("expansion Zod published date is required nullable", evidenceSchemaBlock.i
 check("expansion Zod derivative parent is required nullable", evidenceSchemaBlock.includes('derivativeOfLineageKey: z.string().min(1).max(240).nullable()'));
 check("expansion runtime strict-schema guard installed", expansion.includes('assertOpenAiStrictJsonSchema(expansionJsonSchema, "genesis_g82_expansion_v1")'));
 check("expansion request remains strict", expansion.includes('strict:true,schema:expansionJsonSchema'));
-check("expansion schema version bumped", expansion.includes('B8.3.2-NAMESPACE-ISOLATION-2.0'));
+check("expansion schema version current", expansion.includes('B8.3.3-BREADTH-DECOMPOSED-3.0'));
 
 const repairObservationRequired = ["claimKey","direction","proposition","evidenceText","sourceUrl","sourceTitle","sourceClass","authority","directness","traceability","sourcePublishedAt","observedAt","sourceLineageKey","derivativeOfLineageKey","derivativeDepth","relationshipHints"];
 check("repair strict observation requires every field", repair.includes(`required:[${repairObservationRequired.map(v=>`\"${v}\"`).join(",")}]`));

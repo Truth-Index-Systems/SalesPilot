@@ -94,11 +94,11 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
   },
   GENESIS_G82_EXPANSION: {
     reasoningEffort: "low",
-    maxOutputTokens: 6_000,
-    evidenceLimit: 10,
-    depth: 5,
-    promptVersion: "genesis-g82-expansion/v2-namespace-isolated",
-    cacheKey: "marketroute:genesis-g82:expansion:v2",
+    maxOutputTokens: 4_500,
+    evidenceLimit: 4,
+    depth: 4,
+    promptVersion: "genesis-g82-expansion/v3-breadth-decomposed",
+    cacheKey: "marketroute:genesis-g82:expansion:v3",
   },
 };
 

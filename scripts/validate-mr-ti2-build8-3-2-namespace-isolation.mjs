@@ -13,8 +13,8 @@ check("expansion uses isolated task", expansion.includes('task:"GENESIS_G82_EXPA
 check("expansion recovery lookup isolated", expansion.includes('job_type=eq.GENESIS_G82_EXPANSION'));
 check("expansion never uses repair job type", !expansion.includes('jobType:"GENESIS_G8_REPAIR"'));
 check("expansion never uses repair task", !expansion.includes('task:"GENESIS_G8_REPAIR"'));
-check("expansion has fresh v2 request scope", expansion.includes('genesis-g82-expansion-v2:'));
-check("expansion version bumped", expansion.includes('B8.3.2-NAMESPACE-ISOLATION'));
+check("expansion has fresh version-fenced request scope", expansion.includes('genesis-g82-expansion-v3:'));
+check("expansion version current", expansion.includes('B8.3.3-BREADTH-DECOMPOSED'));
 check("repair remains isolated repair type", repair.includes('jobType:"GENESIS_G8_REPAIR"')&&!repair.includes('GENESIS_G82_EXPANSION'));
 check("governance type includes expansion", governance.includes('GENESIS_G82_EXPANSION'));
 check("request policy includes expansion", policy.includes('| "GENESIS_G82_EXPANSION"'));

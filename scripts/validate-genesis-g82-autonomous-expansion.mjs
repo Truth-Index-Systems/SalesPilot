@@ -22,12 +22,12 @@ pass('bounded multi-company output',ai.includes('GENESIS_G82_EXPANSION_COMPANIES
 pass('known domains excluded',ai.includes('excludedDomains'));
 pass('global known company domains loaded before research',worker.includes('loadKnownCompanyDomains'));
 pass('company claim keys bounded',ai.includes('COMPANY CLAIM KEYS'));
-pass('contact claim keys bounded',ai.includes('CONTACT CLAIM KEYS'));
-pass('route claim keys bounded',ai.includes('ROUTE CLAIM KEYS'));
-pass('empty contact route results valid',ai.includes('empty nested arrays are valid'));
+pass('contact and route depth delegated downstream',ai.includes('Do not research or return contacts, people, email addresses, LinkedIn profiles, routes, forms, outreach paths or decision makers'));
+pass('expansion evidence bounded to foundation claims',ai.includes('identity, canonical_domain, current_operation, industry, sector or geography'));
+pass('compact evidence boundary enforced',ai.includes('Exactly 2-4 high-value company-level evidence items per company'));
 pass('company persistence uses canonical G8 entity',worker.includes('upsertGenesisG8Entity({entityType:"company"'));
-pass('contacts persist to G8 graph',worker.includes('entityType:"contact"'));
-pass('routes persist to G8 graph',worker.includes('entityType:"route"'));
+pass('expansion does not persist contacts',!worker.includes('entityType:"contact"'));
+pass('expansion does not persist routes',!worker.includes('entityType:"route"'));
 pass('expansion evidence is Discovery provenance',worker.includes('channel:"DISCOVERY_INTELLIGENCE"'));
 pass('Truth rehydrated after evidence',worker.includes('hydrateGenesisG8EntityTruth'));
 pass('operations drains acquisition first',ops.indexOf('runGenesisG8DiscoveryAcquisitionWorker')<ops.indexOf('readGenesisG8CapacitySnapshot'));
