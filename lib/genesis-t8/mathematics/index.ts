@@ -15,3 +15,4 @@ export * from "./constraint-propagation";
 export * from "./commercial-coherence";
 
 export * from "./opportunity-mathematics";
+export * from "./research-intelligence";
