@@ -7,7 +7,9 @@ import { isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { insertGenesisG8Evidence } from "./persistence/repository";
 import { readGenesisG8KnowledgeBundle } from "./persistence/read-repository";
 import { hydrateGenesisG8EntityTruth } from "./hydration";
-import { researchGenesisG8ClaimRepair } from "./discovery-repair-openai";
+import { researchGenesisG8ClaimRepairV2 } from "./discovery-repair-openai-v2";
+import { persistMrTi2EvidenceAssessment, persistMrTi2RelationshipHints } from "./truth-v2/ai";
+import { calculateAndPersistMrTi2Shadow } from "./truth-v2/shadow-hydration";
 import type { ClaimCriticality, TruthEntityType } from "./truth";
 
 export const GENESIS_G8_DISCOVERY_REPAIR_WORKER_VERSION = "G8.1-R9-REPAIR-WORKER-1.0" as const;
@@ -81,7 +83,7 @@ async function settleRepair(job: RepairJob, status: "COMPLETED" | "QUEUED" | "FA
 
 async function runRepair(job: RepairJob): Promise<GenesisG8RepairWorkerReceipt> {
   try {
-    const result = await researchGenesisG8ClaimRepair({
+    const result = await researchGenesisG8ClaimRepairV2({
       repairId: job.id,
       entityId: job.entity_id,
       entityType: job.entity_type,
@@ -103,22 +105,22 @@ async function runRepair(job: RepairJob): Promise<GenesisG8RepairWorkerReceipt> 
       familyCounts.set(existing.sourceFamily, (familyCounts.get(existing.sourceFamily) ?? 0) + 1);
     }
     let evidenceInserted = 0;
-    for (const evidence of result.evidence) {
+    for (const evidence of result.observations) {
       const family = sourceFamily(evidence.sourceUrl);
       const seen = familyCounts.get(family) ?? 0;
       familyCounts.set(family, seen + 1);
-      await insertGenesisG8Evidence({
+      const insertedEvidence = await insertGenesisG8Evidence({
         claimId: job.claim_id,
-        direction: evidence.direction,
+        direction: evidence.direction === "SUPPORT" ? "SUPPORTS" : "CONTRADICTS",
         sourceClass: evidence.sourceClass,
         sourceUri: evidence.sourceUrl,
         sourceRef: evidence.sourceTitle,
         sourceFamily: family,
-        excerpt: evidence.excerpt,
-        strength: Math.max(0, Math.min(1, evidence.directness / 100)),
-        traceability: 1,
+        excerpt: evidence.evidenceText,
+        strength: evidence.directness,
+        traceability: evidence.traceability,
         independence: seen === 0 ? 1 : 0.25,
-        observedAt: new Date().toISOString(),
+        observedAt: evidence.observedAt,
         channel: "DISCOVERY_INTELLIGENCE",
         provenance: {
           channel: "DISCOVERY_INTELLIGENCE",
@@ -126,16 +128,27 @@ async function runRepair(job: RepairJob): Promise<GenesisG8RepairWorkerReceipt> 
           sourceRef: `g8-repair:${job.id}`,
         },
       });
+      await persistMrTi2EvidenceAssessment({ evidenceId: insertedEvidence.id, observation: evidence });
+      await persistMrTi2RelationshipHints({
+        entityId: job.entity_id,
+        fromClaimId: job.claim_id,
+        claims: (existingBundle?.claims ?? []).map((claim) => ({ id: claim.id, claimKey: claim.claimKey })),
+        observation: evidence,
+      });
       evidenceInserted += 1;
     }
 
+    const mrTi2Shadow = await calculateAndPersistMrTi2Shadow(job.entity_id).catch((error) => {
+      console.warn("MR-TI-2 shadow calculation unavailable", error instanceof Error ? error.message : "unknown");
+      return null;
+    });
     const hydrated = await hydrateGenesisG8EntityTruth(job.entity_id, { persistIfChanged: true });
     await databaseRequest("rpc/complete_genesis_g8_repair_and_enqueue_replan", {
       method: "POST",
       body: JSON.stringify({
         p_repair_id: job.id,
         p_lease_token: job.lease_token,
-        p_evidence_found: result.evidence.length > 0,
+        p_evidence_found: result.observations.length > 0,
         p_requested_by_user_id: null,
       }),
     });
@@ -146,7 +159,7 @@ async function runRepair(job: RepairJob): Promise<GenesisG8RepairWorkerReceipt> 
       outcome: "COMPLETED",
       evidenceInserted,
       truthIndex: hydrated?.truth.truthIndex,
-      reviewRequired: hydrated?.truth.review.required,
+      reviewRequired: hydrated?.truth.review.required ?? (mrTi2Shadow?.state.reviewState === "HUMAN_REVIEW_REQUIRED"),
     };
   } catch (error) {
     if (isOpenAIBackgroundPending(error)) {

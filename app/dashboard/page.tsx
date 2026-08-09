@@ -3,6 +3,7 @@ import { hasFounderDashboardSession } from "@/lib/founder-dashboard/auth";
 import { getFounderDashboard } from "@/lib/founder-dashboard/repository";
 import { TimelineBox } from "@/components/timeline-box";
 import { GenesisG8ReviewWorkspace } from "@/components/genesis-g8-review-workspace";
+import { readMrTi2FounderPreview } from "@/lib/genesis-g8/truth-v2/founder-preview";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
   if(!(await hasFounderDashboardSession())) redirect("/dashboard/login");
   const params=await searchParams;
   const range=[7,14,30].includes(Number(params.range))?Number(params.range):7;
-  const data=await getFounderDashboard(range);
+  const [data,mrTi2]=await Promise.all([getFounderDashboard(range),readMrTi2FounderPreview().catch(()=>null)]);
   const maxDaily=Math.max(...data.daily.map(d=>d.cost),0.000001);
   const maxStage=Math.max(...data.stages.map(d=>d.cost),0.000001);
   const g8=data.g8CommandCentre;
@@ -29,6 +30,19 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
         <div><span className="founder-kicker">Production command centre</span><h1>Founder Dashboard</h1><p>AI economics, autonomous pipeline health and operational learning across MarketRoute.</p></div>
         <nav className="founder-range" aria-label="Dashboard period"><a className={range===7?"active":""} href="/dashboard?range=7">7 days</a><a className={range===14?"active":""} href="/dashboard?range=14">14 days</a><a className={range===30?"active":""} href="/dashboard?range=30">30 days</a></nav>
       </section>
+
+      {mrTi2?<section className="founder-panel founder-intelligence-hero">
+        <div className="founder-panel-head"><div><span>MR-TI-2 shadow intelligence</span><h2>Truth Index 2 explainability</h2></div><b className="founder-live-badge">Build 7 · Shadow</b></div>
+        <div className="founder-intelligence-metrics">
+          <div><span>MR-TI-2 Truth</span><strong>{mrTi2.averageTruthIndex.toFixed(1)}</strong><small>{number(mrTi2.entities)} V2 snapshot entities</small></div>
+          <div><span>Represented confidence</span><strong>{mrTi2.averageConfidence.toFixed(1)}%</strong><small>confidence in represented claims</small></div>
+          <div><span>Weighted coverage</span><strong>{mrTi2.averageCoverage.toFixed(1)}%</strong><small>weighted claim contract represented</small></div>
+          <div><span>Verify</span><strong>{mrTi2.verifyRequired}</strong><small>claims needing independent verification</small></div>
+          <div><span>Human review</span><strong>{mrTi2.humanReviewRequired}</strong><small>strong two-sided contradictions</small></div>
+        </div>
+        {mrTi2.items.length?<div className="founder-stage-list">{mrTi2.items.slice(0,6).map(item=><div key={item.entityId} className="founder-stage-row"><div className="founder-stage-copy"><strong>{item.displayName}</strong><small>{item.entityType.replaceAll("_"," ")} · {item.reviewState.replaceAll("_"," ")} · {item.nextAction??"No research action required"}</small></div><div className="founder-stage-meter"><i style={{width:`${Math.max(3,item.truthIndex)}%`}}/></div><b>{item.truthIndex.toFixed(1)}</b></div>)}</div>:<p className="founder-method-note">MR-TI-2 has no persisted snapshots yet. Build 7 is collecting V2 evidence primitives while TI-1 remains the active calculation path.</p>}
+        <p className="founder-method-note">Shadow only: this panel does not change production eligibility. Build 8 performs the final TI-1 → MR-TI-2 calculation-path switch after regression hardening.</p>
+      </section>:null}
 
       {g8?<>
       <section className="founder-panel founder-intelligence-hero">
