@@ -31,7 +31,7 @@ check("Opportunity Engine contract exists", /OPPORTUNITY:\s*Object\.freeze/.test
 check("truth-before-reasoning runtime guard exists", /assertTruthPrecedesReasoning/.test(constitution));
 check("authoritative reasoning persistence guard exists", /assertNoAuthoritativeReasoningPersistence/.test(constitution));
 check("non-truth engines do not consume discovered knowledge by contract", !/(COMMERCIAL|CONTACT|ROUTE|OPPORTUNITY):[\s\S]{0,900}mayConsume:\s*Object\.freeze\(\[[^\]]*"DISCOVERED_KNOWLEDGE"/.test(constitution));
-check("Truth Engine cannot persist derived reasoning", /TRUTH:[\s\S]{0,800}mayPersistAuthoritatively:\s*Object\.freeze\(\["TRUTH_QUALIFIED_KNOWLEDGE"\]\)/.test(constitution));
+check("Truth Engine cannot persist derived reasoning", /TRUTH:[\s\S]{0,800}mayPersistAuthoritatively:\s*Object\.freeze\(\["TRUTH_QUALIFIED_KNOWLEDGE"\](?:\s+as const)?\)/.test(constitution));
 check("commercial desirability is explicitly forbidden to Truth Engine", /TRUTH:[\s\S]{0,1200}"commercial desirability"/.test(constitution));
 check("constitution preserves token graph without prematurely freezing dimensions", /multidimensional token graph will be specified in CE-R1 Build 3/i.test(docs));
 check("Build 1 explicitly prohibits production runtime changes", /does \*\*not\*\* change the production G8 pipeline/i.test(docs));

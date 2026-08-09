@@ -44,8 +44,8 @@ export const GENESIS_T8_ENGINE_CONTRACTS = Object.freeze({
   TRUTH: Object.freeze({
     id: "TRUTH",
     responsibility: "Qualify evidence-backed knowledge for truth, confidence, coverage, dependency, contradiction and freshness.",
-    mayConsume: Object.freeze(["DISCOVERED_KNOWLEDGE"]),
-    mayPersistAuthoritatively: Object.freeze(["TRUTH_QUALIFIED_KNOWLEDGE"]),
+    mayConsume: Object.freeze(["DISCOVERED_KNOWLEDGE"] as const),
+    mayPersistAuthoritatively: Object.freeze(["TRUTH_QUALIFIED_KNOWLEDGE"] as const),
     forbiddenResponsibilities: Object.freeze([
       "commercial desirability",
       "contact suitability",
@@ -56,28 +56,28 @@ export const GENESIS_T8_ENGINE_CONTRACTS = Object.freeze({
   COMMERCIAL: Object.freeze({
     id: "COMMERCIAL",
     responsibility: "Reason deterministically about commercial compatibility and viability from truth-qualified knowledge.",
-    mayConsume: Object.freeze(["TRUTH_QUALIFIED_KNOWLEDGE"]),
+    mayConsume: Object.freeze(["TRUTH_QUALIFIED_KNOWLEDGE"] as const),
     mayPersistAuthoritatively: Object.freeze([]),
     forbiddenResponsibilities: Object.freeze(["web research", "truth calculation", "contact discovery", "route discovery"]),
   }),
   CONTACT: Object.freeze({
     id: "CONTACT",
     responsibility: "Reason deterministically about contact suitability from truth-qualified contact knowledge and upstream commercial reasoning.",
-    mayConsume: Object.freeze(["TRUTH_QUALIFIED_KNOWLEDGE", "DERIVED_REASONING"]),
+    mayConsume: Object.freeze(["TRUTH_QUALIFIED_KNOWLEDGE", "DERIVED_REASONING"] as const),
     mayPersistAuthoritatively: Object.freeze([]),
     forbiddenResponsibilities: Object.freeze(["web research", "truth calculation", "route quality"]),
   }),
   ROUTE: Object.freeze({
     id: "ROUTE",
     responsibility: "Reason deterministically about route suitability from truth-qualified route knowledge and upstream reasoning.",
-    mayConsume: Object.freeze(["TRUTH_QUALIFIED_KNOWLEDGE", "DERIVED_REASONING"]),
+    mayConsume: Object.freeze(["TRUTH_QUALIFIED_KNOWLEDGE", "DERIVED_REASONING"] as const),
     mayPersistAuthoritatively: Object.freeze([]),
     forbiddenResponsibilities: Object.freeze(["web research", "truth calculation", "contact identity discovery"]),
   }),
   OPPORTUNITY: Object.freeze({
     id: "OPPORTUNITY",
     responsibility: "Aggregate independent reasoning-engine outputs into an explainable opportunity conclusion.",
-    mayConsume: Object.freeze(["TRUTH_QUALIFIED_KNOWLEDGE", "DERIVED_REASONING"]),
+    mayConsume: Object.freeze(["TRUTH_QUALIFIED_KNOWLEDGE", "DERIVED_REASONING"] as const),
     mayPersistAuthoritatively: Object.freeze([]),
     forbiddenResponsibilities: Object.freeze(["web research", "truth calculation", "semantic canonicalisation"]),
   }),
