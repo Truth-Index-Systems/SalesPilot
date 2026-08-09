@@ -1,8 +1,13 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import type { TruthEntityType } from "@/lib/genesis-g8/truth";
-import type { GenesisG8PersistedKnowledgeBundle } from "../read-model";
-import type { GenesisG8PersistedClaim, GenesisG8PersistedEntity, GenesisG8PersistedEvidence, GenesisG8TruthSnapshot } from "./types";
+import type { GenesisG8PersistedClaim, GenesisG8PersistedEntity, GenesisG8PersistedEvidence } from "./types";
+
+export interface GenesisG8PersistedKnowledgeBundle {
+  entity: GenesisG8PersistedEntity;
+  claims: GenesisG8PersistedClaim[];
+  evidence: GenesisG8PersistedEvidence[];
+}
 
 type DbRow = Record<string, unknown>;
 const s = (value: unknown): string => (typeof value === "string" ? value : String(value ?? ""));
@@ -14,8 +19,6 @@ const esc = (value: string) => encodeURIComponent(value);
 const mapEntity = (row: DbRow): GenesisG8PersistedEntity => ({ id:s(row.id), entityType:s(row.entity_type) as TruthEntityType, canonicalKey:s(row.canonical_key), displayName:nullableString(row.display_name), contractVersion:s(row.contract_version) as GenesisG8PersistedEntity["contractVersion"], status:s(row.status) as GenesisG8PersistedEntity["status"], reviewState:s(row.review_state) as GenesisG8PersistedEntity["reviewState"], createdAt:s(row.created_at), updatedAt:s(row.updated_at) });
 const mapClaim = (row: DbRow): GenesisG8PersistedClaim => ({ id:s(row.id), entityId:s(row.entity_id), claimKey:s(row.claim_key), label:s(row.label), criticality:s(row.criticality) as GenesisG8PersistedClaim["criticality"], weight:n(row.weight), freshnessHalfLifeDays:n(row.freshness_half_life_days), countsTowardCoverage:b(row.counts_toward_coverage), minimumEvidence:n(row.minimum_evidence), createdAt:s(row.created_at), updatedAt:s(row.updated_at) });
 const mapEvidence = (row: DbRow): GenesisG8PersistedEvidence => ({ id:s(row.id), claimId:s(row.claim_id), direction:s(row.direction) as GenesisG8PersistedEvidence["direction"], sourceClass:s(row.source_class) as GenesisG8PersistedEvidence["sourceClass"], sourceUri:nullableString(row.source_uri), sourceRef:nullableString(row.source_ref), sourceFamily:nullableString(row.source_family), excerpt:nullableString(row.excerpt), strength:n(row.strength), traceability:n(row.traceability), independence:n(row.independence), observedAt:s(row.observed_at), channel:s(row.intelligence_channel) as GenesisG8PersistedEvidence["channel"], provenance:(row.provenance_json && typeof row.provenance_json === "object" ? row.provenance_json : {}) as GenesisG8PersistedEvidence["provenance"], createdAt:s(row.created_at) });
-const mapSnapshot = (row: DbRow): GenesisG8TruthSnapshot => ({ id:s(row.id), entityId:s(row.entity_id), equationVersion:s(row.equation_version), contractVersion:s(row.contract_version) as GenesisG8TruthSnapshot["contractVersion"], confidence:n(row.confidence), coverage:n(row.coverage), truthIndex:n(row.truth_index), criticalClaimCeiling:n(row.critical_claim_ceiling), reviewRequired:b(row.review_required), reviewPriorityScore:n(row.review_priority_score), reviewReasons:(Array.isArray(row.review_reasons_json)?row.review_reasons_json:[]) as GenesisG8TruthSnapshot["reviewReasons"], result:row.result_json as GenesisG8TruthSnapshot["result"], calculatedAt:s(row.calculated_at) });
-
 export async function getGenesisG8EntityById(entityId: string): Promise<GenesisG8PersistedEntity | null> {
   const rows = await databaseRequest<DbRow[]>(`genesis_g8_intelligence_entities?id=eq.${esc(entityId)}&limit=1`);
   return rows[0] ? mapEntity(rows[0]) : null;
@@ -34,6 +37,6 @@ export async function readGenesisG8KnowledgeBundle(entityId: string): Promise<Ge
   const evidence = claimIds.length
     ? (await databaseRequest<DbRow[]>(`genesis_g8_intelligence_evidence?claim_id=in.(${claimIds.map(esc).join(",")})&order=observed_at.desc`)).map(mapEvidence)
     : [];
-  const snapshots = await databaseRequest<DbRow[]>(`genesis_g8_truth_snapshots?entity_id=eq.${esc(entityId)}&order=calculated_at.desc&limit=1`);
-  return { entity, claims, evidence, latestSnapshot: snapshots[0] ? mapSnapshot(snapshots[0]) : null };
+  // MR-TI-2 production hydration deliberately does not read legacy TI-1 snapshots.
+  return { entity, claims, evidence };
 }

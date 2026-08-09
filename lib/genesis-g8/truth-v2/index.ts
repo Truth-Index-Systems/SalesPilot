@@ -12,3 +12,5 @@ export * from "./research-priority";
 export * from "./explainability";
 export * from "./founder-preview";
 export * from "./shadow-hydration";
+
+export * from "./reconciliation";

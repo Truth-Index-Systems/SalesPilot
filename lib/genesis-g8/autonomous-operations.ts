@@ -7,6 +7,7 @@ import { runGenesisG8DiscoveryRepairWorker } from "./discovery-repair-worker";
 import { runGenesisG8IntelligentBackgroundRefresh } from "./background-refresh";
 import { decideGenesisG8Capacity, readGenesisG8CapacitySnapshot, GENESIS_G8_CAPACITY_BUDGET_VERSION } from "./capacity-budget";
 import { runGenesisG82AutonomousExpansionWorker } from "./autonomous-expansion-worker";
+import { reconcileMissingMrTi2Snapshots } from "./truth-v2/reconciliation";
 
 export const GENESIS_G82_AUTONOMOUS_OPERATIONS_VERSION="G8.2-R1-OPERATIONS-1.0" as const;
 
@@ -19,6 +20,9 @@ export async function runGenesisG82AutonomousOperations(){
   // reaches Knowledge and completed repairs are replanned even when AI capacity is tight.
   const acquisition=await safe("acquisition",()=>runGenesisG8DiscoveryAcquisitionWorker(10));
   const replans=await safe("replans",()=>runGenesisG8RepairReplanWorker(4));
+  // Build 8.1: reconcile active entities created by an earlier deployment/run that have no MR-TI-2 snapshot.
+  // This is bounded, deterministic and performs no AI calls; it also backfills V2 primitive assessments from persisted evidence.
+  const truthV2Reconciliation=await safe("truthV2Reconciliation",()=>reconcileMissingMrTi2Snapshots(8));
 
   const snapshot=await readGenesisG8CapacitySnapshot();
   const capacity=decideGenesisG8Capacity(snapshot);
@@ -49,11 +53,11 @@ export async function runGenesisG82AutonomousOperations(){
       p_detail:{
         operationsVersion:GENESIS_G82_AUTONOMOUS_OPERATIONS_VERSION,
         allocation:capacity.allocation,reasons:capacity.reasons,mayGrow,
-        acquisitionOk:acquisition.ok,replansOk:replans.ok,repairsOk:repairs.ok,refreshOk:refresh?.ok??null,expansionOk:expansion?.ok??null,
+        acquisitionOk:acquisition.ok,replansOk:replans.ok,truthV2ReconciliationOk:truthV2Reconciliation.ok,repairsOk:repairs.ok,refreshOk:refresh?.ok??null,expansionOk:expansion?.ok??null,
       },
     }),
   }).catch(()=>undefined);
 
-  const failures=[acquisition,replans,repairs,refresh,expansion].filter(Boolean).filter((x:any)=>x.ok===false);
-  return {operationsVersion:GENESIS_G82_AUTONOMOUS_OPERATIONS_VERSION,capacity,mayGrow,acquisition,replans,repairs,refresh,expansion,ok:failures.length===0,failures};
+  const failures=[acquisition,replans,truthV2Reconciliation,repairs,refresh,expansion].filter(Boolean).filter((x:any)=>x.ok===false);
+  return {operationsVersion:GENESIS_G82_AUTONOMOUS_OPERATIONS_VERSION,capacity,mayGrow,acquisition,replans,truthV2Reconciliation,repairs,refresh,expansion,ok:failures.length===0,failures};
 }
