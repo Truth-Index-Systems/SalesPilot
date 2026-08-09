@@ -137,7 +137,7 @@ async function recoverCompletedExpansionResponse(params:{
       if(!recovered&&canonical.companies.length>0)recovered=canonical;
     }catch(error){
       console.warn("Expansion AI canonicalisation pending or failed",error instanceof Error?error.message:String(error));
-      if(isOpenAIBackgroundPending(error)){expansionDecision("CANONICALISATION_PENDING",{jobId:input.jobId,requestScope,error:error instanceof Error?error.message:String(error)});throw error;}
+      if(isOpenAIBackgroundPending(error)){expansionDecision("CANONICALISATION_PENDING",{jobId:params.jobId,requestScope:row.request_scope,error:error instanceof Error?error.message:String(error)});throw error;}
     }
   }
   return recovered;
