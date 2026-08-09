@@ -89,16 +89,16 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
     maxOutputTokens: 4_000,
     evidenceLimit: 5,
     depth: 4,
-    promptVersion: "genesis-g8-repair/v1",
-    cacheKey: "marketroute:genesis-g8:repair:v1",
+    promptVersion: "genesis-g8-repair/v2-ai-canonical-first",
+    cacheKey: "marketroute:genesis-g8:repair:v2",
   },
   GENESIS_G82_EXPANSION: {
     reasoningEffort: "low",
     maxOutputTokens: 4_500,
     evidenceLimit: 4,
     depth: 4,
-    promptVersion: "genesis-g82-expansion/v3-breadth-decomposed",
-    cacheKey: "marketroute:genesis-g82:expansion:v3",
+    promptVersion: "genesis-g82-expansion/v4-ai-canonical-first",
+    cacheKey: "marketroute:genesis-g82:expansion:v4",
   },
 };
 

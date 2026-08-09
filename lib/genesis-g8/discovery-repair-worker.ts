@@ -106,36 +106,40 @@ async function runRepair(job: RepairJob): Promise<GenesisG8RepairWorkerReceipt> 
     }
     let evidenceInserted = 0;
     for (const evidence of result.observations) {
-      const family = sourceFamily(evidence.sourceUrl);
-      const seen = familyCounts.get(family) ?? 0;
-      familyCounts.set(family, seen + 1);
-      const insertedEvidence = await insertGenesisG8Evidence({
-        claimId: job.claim_id,
-        direction: evidence.direction === "SUPPORT" ? "SUPPORTS" : "CONTRADICTS",
-        sourceClass: evidence.sourceClass,
-        sourceUri: evidence.sourceUrl,
-        sourceRef: evidence.sourceTitle,
-        sourceFamily: family,
-        excerpt: evidence.evidenceText,
-        strength: evidence.directness,
-        traceability: evidence.traceability,
-        independence: seen === 0 ? 1 : 0.25,
-        observedAt: evidence.observedAt,
-        channel: "DISCOVERY_INTELLIGENCE",
-        provenance: {
+      try {
+        const family = sourceFamily(evidence.sourceUrl);
+        const seen = familyCounts.get(family) ?? 0;
+        familyCounts.set(family, seen + 1);
+        const insertedEvidence = await insertGenesisG8Evidence({
+          claimId: job.claim_id,
+          direction: evidence.direction === "SUPPORT" ? "SUPPORTS" : "CONTRADICTS",
+          sourceClass: evidence.sourceClass,
+          sourceUri: evidence.sourceUrl,
+          sourceRef: evidence.sourceTitle,
+          sourceFamily: family,
+          excerpt: evidence.evidenceText,
+          strength: evidence.directness,
+          traceability: evidence.traceability,
+          independence: seen === 0 ? 1 : 0.25,
+          observedAt: evidence.observedAt,
           channel: "DISCOVERY_INTELLIGENCE",
-          discoveredAt: new Date().toISOString(),
-          sourceRef: `g8-repair:${job.id}`,
-        },
-      });
-      await persistMrTi2EvidenceAssessment({ evidenceId: insertedEvidence.id, observation: evidence });
-      await persistMrTi2RelationshipHints({
-        entityId: job.entity_id,
-        fromClaimId: job.claim_id,
-        claims: (existingBundle?.claims ?? []).map((claim) => ({ id: claim.id, claimKey: claim.claimKey })),
-        observation: evidence,
-      });
-      evidenceInserted += 1;
+          provenance: {
+            channel: "DISCOVERY_INTELLIGENCE",
+            discoveredAt: new Date().toISOString(),
+            sourceRef: `g8-repair:${job.id}`,
+          },
+        });
+        await persistMrTi2EvidenceAssessment({ evidenceId: insertedEvidence.id, observation: evidence });
+        await persistMrTi2RelationshipHints({
+          entityId: job.entity_id,
+          fromClaimId: job.claim_id,
+          claims: (existingBundle?.claims ?? []).map((claim) => ({ id: claim.id, claimKey: claim.claimKey })),
+          observation: evidence,
+        });
+        evidenceInserted += 1;
+      } catch (error) {
+        console.warn("Repair evidence skipped at hard persistence boundary", { repairId: job.id, claimKey: job.claim_key, sourceUrl: evidence.sourceUrl, error: error instanceof Error ? error.message : String(error) });
+      }
     }
 
     const mrTi2Truth = await calculateAndPersistMrTi2Truth(job.entity_id).catch((error) => {

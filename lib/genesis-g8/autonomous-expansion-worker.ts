@@ -13,7 +13,7 @@ import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
 import { persistMrTi2EvidenceAssessment } from "./truth-v2/ai/sidecar-repository";
 import { getMrTi2ClaimDefinition } from "./truth-v2/contracts";
 
-export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-MRTI2-B8.3.3-BREADTH-DECOMPOSED-1.7" as const;
+export const GENESIS_G82_AUTONOMOUS_EXPANSION_WORKER_VERSION = "G8.2-MRTI2-B8.3.4-AI-CANONICALISATION-1.8" as const;
 
 type ExpansionJob={
   id:string; target_id:string; industry_key:string; industry_name:string; attempt_count:number; lease_token:string; excluded_domains:unknown;
@@ -43,22 +43,24 @@ async function persistEvidence(params:{entityId:string;entityType:TruthEntityTyp
   const familyCounts=new Map<string,number>(); let inserted=0;
   for(const e of params.evidence){
     const claim=byKey.get(e.claimKey); if(!claim)continue;
-    const family=sourceFamily(e.sourceUrl); const seen=familyCounts.get(family)??0; familyCounts.set(family,seen+1);
-    const observedAt=new Date().toISOString();
-    const insertedEvidence=await insertGenesisG8Evidence({
-      claimId:claim.id,direction:e.direction==="CONTRADICT"?"CONTRADICTS":"SUPPORTS",sourceClass:e.sourceClass,sourceUri:e.sourceUrl,sourceRef:e.sourceTitle,
-      sourceFamily:family,excerpt:e.excerpt,strength:Math.max(0,Math.min(1,e.directness/100)),traceability:Math.max(0,Math.min(1,e.traceability/100)),independence:seen===0?1:0.25,
-      observedAt,channel:"DISCOVERY_INTELLIGENCE",provenance:{channel:"DISCOVERY_INTELLIGENCE",discoveredAt:observedAt,sourceRef:params.sourceRef},
-    });
-    const definition=getMrTi2ClaimDefinition(params.entityType,e.claimKey);
-    if(definition){
-      await persistMrTi2EvidenceAssessment({evidenceId:insertedEvidence.id,observation:{
-        claimKey:e.claimKey,direction:e.direction,proposition:definition.proposition,evidenceText:e.excerpt,sourceUrl:e.sourceUrl,sourceTitle:e.sourceTitle,sourceClass:e.sourceClass,
-        authority:Math.max(0,Math.min(1,e.authority/100)),directness:Math.max(0,Math.min(1,e.directness/100)),traceability:Math.max(0,Math.min(1,e.traceability/100)),
-        sourcePublishedAt:e.sourcePublishedAt,observedAt,sourceLineageKey:e.sourceLineageKey,derivativeOfLineageKey:e.derivativeOfLineageKey,derivativeDepth:Math.max(0,Math.trunc(e.derivativeDepth)),relationshipHints:[],
-      }});
-    }
-    inserted++;
+    try{
+      const family=sourceFamily(e.sourceUrl); const seen=familyCounts.get(family)??0; familyCounts.set(family,seen+1);
+      const observedAt=new Date().toISOString();
+      const insertedEvidence=await insertGenesisG8Evidence({
+        claimId:claim.id,direction:e.direction==="CONTRADICT"?"CONTRADICTS":"SUPPORTS",sourceClass:e.sourceClass,sourceUri:e.sourceUrl,sourceRef:e.sourceTitle,
+        sourceFamily:family,excerpt:e.excerpt,strength:Math.max(0,Math.min(1,e.directness/100)),traceability:Math.max(0,Math.min(1,e.traceability/100)),independence:seen===0?1:0.25,
+        observedAt,channel:"DISCOVERY_INTELLIGENCE",provenance:{channel:"DISCOVERY_INTELLIGENCE",discoveredAt:observedAt,sourceRef:params.sourceRef},
+      });
+      const definition=getMrTi2ClaimDefinition(params.entityType,e.claimKey);
+      if(definition){
+        await persistMrTi2EvidenceAssessment({evidenceId:insertedEvidence.id,observation:{
+          claimKey:e.claimKey,direction:e.direction,proposition:definition.proposition,evidenceText:e.excerpt,sourceUrl:e.sourceUrl,sourceTitle:e.sourceTitle,sourceClass:e.sourceClass,
+          authority:Math.max(0,Math.min(1,e.authority/100)),directness:Math.max(0,Math.min(1,e.directness/100)),traceability:Math.max(0,Math.min(1,e.traceability/100)),
+          sourcePublishedAt:e.sourcePublishedAt,observedAt,sourceLineageKey:e.sourceLineageKey,derivativeOfLineageKey:e.derivativeOfLineageKey,derivativeDepth:Math.max(0,Math.trunc(e.derivativeDepth)),relationshipHints:[],
+        }});
+      }
+      inserted++;
+    }catch(error){console.warn("Expansion evidence skipped at hard persistence boundary",{entityId:params.entityId,claimKey:e.claimKey,error:error instanceof Error?error.message:String(error)});}
   }
   await hydrateGenesisG8EntityTruth(params.entityId,{persistIfChanged:true});
   return inserted;
@@ -89,7 +91,11 @@ async function runJob(job:ExpansionJob){
     const known=[...new Set([...excluded(job),...(await loadKnownCompanyDomains())])];
     const result=await researchGenesisG82IndustryExpansion({jobId:job.id,industryKey:job.industry_key,industryName:job.industry_name,excludedDomains:known,attemptNumber:job.attempt_count});
     found=result.companies.length; const seen=new Set(known);
-    for(const company of result.companies){const p=await persistCompany(job,company,seen);counts.companies+=p.companies;counts.contacts+=p.contacts;counts.routes+=p.routes;}
+    for(const company of result.companies){
+      try{const p=await persistCompany(job,company,seen);counts.companies+=p.companies;counts.contacts+=p.contacts;counts.routes+=p.routes;}
+      catch(error){console.warn("Expansion company skipped at hard persistence boundary",{jobId:job.id,company:typeof company?.name==="string"?company.name:"unknown",error:error instanceof Error?error.message:String(error)});}
+    }
+    if(found>0&&counts.companies===0)throw new Error("GENESIS_G82_EXPANSION_NOTHING_SAFE_TO_PERSIST");
     await settle(job,"COMPLETED",counts,found);
     return {jobId:job.id,industry:job.industry_name,outcome:"COMPLETED" as const,companiesFound:found,...counts};
   }catch(error){

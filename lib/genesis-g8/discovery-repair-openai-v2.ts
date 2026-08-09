@@ -2,15 +2,15 @@ import "server-only";
 
 import { discardOpenAIBackgroundResponse, fetchResumableOpenAIResponse, isOpenAIBackgroundPending, isOpenAIBackgroundTerminal } from "@/lib/ai/background-response";
 import { completeAiRequest, reserveAiRequest, responseUsage } from "@/lib/ai/governance";
-import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
+import { canonicaliseWithAi, decodeAiJson, type HardAcceptance } from "./ai-canonicalisation";
 import { aiWorkloadProfile } from "@/lib/ai/workload-profile";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 import { stableFingerprint } from "@/lib/ai/cost-optimisation";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
-import { MrTi2ClaimRepairResultSchema, buildMrTi2ClaimRepairInstructions, mrTi2ClaimRepairJsonSchema, validateMrTi2ClaimRepairResult, type MrTi2ClaimRepairResult } from "./truth-v2/ai/repair-contract";
+import { buildMrTi2ClaimRepairInstructions, hardAcceptMrTi2ClaimRepairResult, mrTi2ClaimRepairJsonSchema, type MrTi2ClaimRepairResult } from "./truth-v2/ai/repair-contract";
 
-export const GENESIS_G8_MRTI2_REPAIR_RESEARCH_VERSION="G8-MRTI2-B8.3.1-REPAIR-STRICT-SCHEMA-1.1" as const;
+export const GENESIS_G8_MRTI2_REPAIR_RESEARCH_VERSION="G8-MRTI2-B8.3.4-AI-CANONICALISATION-1.2" as const;
 
 export interface GenesisG8MrTi2RepairInput {
   repairId:string; entityId:string; entityType:TruthEntityType; entityCanonicalKey:string; entityDisplayName?:string|null;
@@ -55,13 +55,18 @@ export async function researchGenesisG8ClaimRepairV2(input:GenesisG8MrTi2RepairI
       await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId,errorCode:"INCOMPLETE_RESPONSE",errorMessage:reason}).catch(()=>undefined);
       if(responseId){lastTerminalError=new Error(`GENESIS_G8_MRTI2_REPAIR_INCOMPLETE:${reason}`);requestScope=`${baseScope}:retry:${stableFingerprint({previousScope:requestScope,responseId})}`;continue;} throw lastTerminalError??new Error(`GENESIS_G8_MRTI2_REPAIR_INCOMPLETE:${reason}`);
     }
+    await completeAiRequest({ledgerId:reservation.ledgerId,ok:true,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId});
+    let accepted:HardAcceptance<MrTi2ClaimRepairResult>;
+    try{accepted=hardAcceptMrTi2ClaimRepairResult(input.entityType,input.claimKey,decodeAiJson(json));}catch(error){accepted={value:null,issues:[error instanceof Error?error.message:"AI_OUTPUT_JSON_INVALID"]};}
+    if(accepted.value&&accepted.issues.length===0)return accepted.value;
     try{
-      const parsed=await parseStructuredAiResponse({response:json,schema:MrTi2ClaimRepairResultSchema,jsonSchema:mrTi2ClaimRepairJsonSchema,schemaName:"mr_ti_2_claim_repair_v1",apiKey,model});
-      const validated=validateMrTi2ClaimRepairResult(input.entityType,input.claimKey,parsed.value);
-      await completeAiRequest({ledgerId:reservation.ledgerId,ok:true,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId}); return validated;
+      return await canonicaliseWithAi({apiKey,model,organisationId,campaignId:input.campaignId??null,jobType:"GENESIS_G8_REPAIR",task:"GENESIS_G8_REPAIR",jobId:input.repairId,parentScope:requestScope,rawResponse:json,schemaName:"mr_ti_2_claim_repair_v1",jsonSchema:mrTi2ClaimRepairJsonSchema,instructions:`Canonicalise exactly one ${input.entityType} claim (${input.claimKey}). Preserve only evidence already present in the supplied research. Do not widen to another claim. Ensure missing=true iff observations is empty. Preserve provenance and MR-TI-2 primitive scales.`,accept:(value)=>hardAcceptMrTi2ClaimRepairResult(input.entityType,input.claimKey,value),estimatedCostUsd:0.008});
     }catch(error){
+      if(isOpenAIBackgroundPending(error))throw error;
+      console.warn("Repair AI canonicalisation failed",{issues:accepted.issues.slice(0,8),error:error instanceof Error?error.message:String(error)});
+      if(accepted.value)return accepted.value;
       await discardOpenAIBackgroundResponse({organisationId,campaignId:input.campaignId??null,jobType:"GENESIS_G8_REPAIR",jobId:input.repairId,requestScope}).catch(()=>undefined);
-      const safe=safeStructuredAiError(error); await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId,errorCode:safe.code,errorMessage:safe.message}).catch(()=>undefined); throw new Error(`GENESIS_G8_MRTI2_REPAIR_RESPONSE_${safe.code}`);
+      throw new Error(`GENESIS_G8_MRTI2_REPAIR_HARD_GATE:${accepted.issues.slice(0,8).join("|")}`);
     }
   }
   throw lastTerminalError??new Error("GENESIS_G8_MRTI2_REPAIR_TERMINAL_RETRY_LIMIT");
