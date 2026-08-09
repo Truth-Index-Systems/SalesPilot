@@ -10,7 +10,7 @@ import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import type { GenesisG8EntityType as TruthEntityType } from "./entity-types";
 import { MrTi2ClaimRepairResultSchema, buildMrTi2ClaimRepairInstructions, mrTi2ClaimRepairJsonSchema, validateMrTi2ClaimRepairResult, type MrTi2ClaimRepairResult } from "./truth-v2/ai/repair-contract";
 
-export const GENESIS_G8_MRTI2_REPAIR_RESEARCH_VERSION="G8-MRTI2-B7-REPAIR-1.0" as const;
+export const GENESIS_G8_MRTI2_REPAIR_RESEARCH_VERSION="G8-MRTI2-B8.3.1-REPAIR-STRICT-SCHEMA-1.1" as const;
 
 export interface GenesisG8MrTi2RepairInput {
   repairId:string; entityId:string; entityType:TruthEntityType; entityCanonicalKey:string; entityDisplayName?:string|null;

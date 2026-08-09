@@ -48,15 +48,15 @@ async function persistEvidence(params:{entityId:string;entityType:TruthEntityTyp
     const observedAt=new Date().toISOString();
     const insertedEvidence=await insertGenesisG8Evidence({
       claimId:claim.id,direction:e.direction==="CONTRADICT"?"CONTRADICTS":"SUPPORTS",sourceClass:e.sourceClass,sourceUri:e.sourceUrl,sourceRef:e.sourceTitle,
-      sourceFamily:family,excerpt:e.excerpt,strength:Math.max(0,Math.min(1,e.directness/100)),traceability:Math.max(0,Math.min(1,(e.traceability??100)/100)),independence:seen===0?1:0.25,
+      sourceFamily:family,excerpt:e.excerpt,strength:Math.max(0,Math.min(1,e.directness/100)),traceability:Math.max(0,Math.min(1,e.traceability/100)),independence:seen===0?1:0.25,
       observedAt,channel:"DISCOVERY_INTELLIGENCE",provenance:{channel:"DISCOVERY_INTELLIGENCE",discoveredAt:observedAt,sourceRef:params.sourceRef},
     });
     const definition=getMrTi2ClaimDefinition(params.entityType,e.claimKey);
     if(definition){
       await persistMrTi2EvidenceAssessment({evidenceId:insertedEvidence.id,observation:{
-        claimKey:e.claimKey,direction:e.direction??"SUPPORT",proposition:definition.proposition,evidenceText:e.excerpt,sourceUrl:e.sourceUrl,sourceTitle:e.sourceTitle,sourceClass:e.sourceClass,
-        authority:Math.max(0,Math.min(1,(e.authority??75)/100)),directness:Math.max(0,Math.min(1,e.directness/100)),traceability:Math.max(0,Math.min(1,(e.traceability??100)/100)),
-        sourcePublishedAt:e.sourcePublishedAt??null,observedAt,sourceLineageKey:e.sourceLineageKey??family,derivativeOfLineageKey:e.derivativeOfLineageKey??null,derivativeDepth:Math.max(0,Math.trunc(e.derivativeDepth??seen)),relationshipHints:[],
+        claimKey:e.claimKey,direction:e.direction,proposition:definition.proposition,evidenceText:e.excerpt,sourceUrl:e.sourceUrl,sourceTitle:e.sourceTitle,sourceClass:e.sourceClass,
+        authority:Math.max(0,Math.min(1,e.authority/100)),directness:Math.max(0,Math.min(1,e.directness/100)),traceability:Math.max(0,Math.min(1,e.traceability/100)),
+        sourcePublishedAt:e.sourcePublishedAt,observedAt,sourceLineageKey:e.sourceLineageKey,derivativeOfLineageKey:e.derivativeOfLineageKey,derivativeDepth:Math.max(0,Math.trunc(e.derivativeDepth)),relationshipHints:[],
       }});
     }
     inserted++;

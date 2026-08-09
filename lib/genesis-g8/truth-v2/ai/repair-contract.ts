@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { assertOpenAiStrictJsonSchema } from "@/lib/ai/strict-json-schema";
 import type { GenesisG8EntityType as TruthEntityType } from "../../entity-types";
 import { buildMrTi2EvidenceCollectorInstructions } from "./prompt";
 import { MrTi2EvidenceObservationSchema, validateMrTi2EvidenceBatch } from "./evidence-contract";
 
-export const MR_TI_2_REPAIR_PROMPT_VERSION = "mr-ti-2/claim-repair/1.0" as const;
+export const MR_TI_2_REPAIR_PROMPT_VERSION = "mr-ti-2/claim-repair/1.1-strict-schema" as const;
 
 export const MrTi2ClaimRepairResultSchema = z.object({
   engineContract: z.literal("MR-TI-2.0"),
@@ -22,27 +23,29 @@ export const mrTi2ClaimRepairJsonSchema = {
   properties:{
     engineContract:{type:"string",enum:["MR-TI-2.0"]},
     entityType:{type:"string",enum:["industry","sector","company","contact","route","opportunity"]},
-    claimKey:{type:"string",minLength:1,maxLength:80},
-    summary:{type:"string",maxLength:800},
+    claimKey:{type:"string"},
+    summary:{type:"string"},
     observations:{type:"array",maxItems:8,items:{
       type:"object", additionalProperties:false,
       required:["claimKey","direction","proposition","evidenceText","sourceUrl","sourceTitle","sourceClass","authority","directness","traceability","sourcePublishedAt","observedAt","sourceLineageKey","derivativeOfLineageKey","derivativeDepth","relationshipHints"],
       properties:{
-        claimKey:{type:"string",minLength:1,maxLength:80}, direction:{type:"string",enum:["SUPPORT","CONTRADICT"]},
-        proposition:{type:"string",minLength:1,maxLength:500}, evidenceText:{type:"string",minLength:1,maxLength:1200},
-        sourceUrl:{type:"string",format:"uri"}, sourceTitle:{type:["string","null"],maxLength:300},
+        claimKey:{type:"string"}, direction:{type:"string",enum:["SUPPORT","CONTRADICT"]},
+        proposition:{type:"string"}, evidenceText:{type:"string"},
+        sourceUrl:{type:"string"}, sourceTitle:{type:["string","null"]},
         sourceClass:{type:"string",enum:["REGULATORY_OR_GOVERNMENT","OFFICIAL_PRIMARY","OFFICIAL_PROFILE","MAJOR_REPUTABLE_MEDIA","INDUSTRY_PUBLICATION","COMMERCIAL_DATABASE","BUSINESS_DIRECTORY","SOCIAL_OR_COMMUNITY","SEARCH_SNIPPET","UNKNOWN"]},
         authority:{type:"number",minimum:0,maximum:1}, directness:{type:"number",minimum:0,maximum:1}, traceability:{type:"number",minimum:0,maximum:1},
-        sourcePublishedAt:{type:["string","null"]}, observedAt:{type:"string"}, sourceLineageKey:{type:"string",minLength:1,maxLength:240},
-        derivativeOfLineageKey:{type:["string","null"],minLength:1,maxLength:240}, derivativeDepth:{type:"integer",minimum:0,maximum:20},
+        sourcePublishedAt:{type:["string","null"]}, observedAt:{type:"string"}, sourceLineageKey:{type:"string"},
+        derivativeOfLineageKey:{type:["string","null"]}, derivativeDepth:{type:"integer",minimum:0,maximum:20},
         relationshipHints:{type:"array",maxItems:12,items:{type:"object",additionalProperties:false,required:["type","targetClaimKey","strength","rationale"],properties:{
-          type:{type:"string",enum:["DEPENDS_ON","CONTRADICTS"]}, targetClaimKey:{type:"string",minLength:1,maxLength:80}, strength:{type:"number",minimum:0,maximum:1}, rationale:{type:"string",minLength:1,maxLength:500},
+          type:{type:"string",enum:["DEPENDS_ON","CONTRADICTS"]}, targetClaimKey:{type:"string"}, strength:{type:"number",minimum:0,maximum:1}, rationale:{type:"string"},
         }}},
       },
     }},
     missing:{type:"boolean"},
   },
 } as const;
+
+assertOpenAiStrictJsonSchema(mrTi2ClaimRepairJsonSchema, "mr_ti_2_claim_repair_v1");
 
 export function buildMrTi2ClaimRepairInstructions(entityType:TruthEntityType, claimKey:string):string {
   return [

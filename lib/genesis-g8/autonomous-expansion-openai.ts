@@ -8,10 +8,11 @@ import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/struc
 import { aiPromptCacheKey, aiWorkloadProfile } from "@/lib/ai/workload-profile";
 import { aiRequestTimeoutMs, classifyOpenAITransportError } from "@/lib/ai/request-policy";
 import { stableFingerprint } from "@/lib/ai/cost-optimisation";
+import { assertOpenAiStrictJsonSchema } from "@/lib/ai/strict-json-schema";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import type { GenesisG8EvidenceSourceClass as EvidenceSourceClass } from "./evidence-types";
 
-export const GENESIS_G82_EXPANSION_RESEARCH_VERSION = "G8.2-R7-STABLE-BACKGROUND-RESUME-1.4" as const;
+export const GENESIS_G82_EXPANSION_RESEARCH_VERSION = "G8.2-MRTI2-B8.3.1-STRICT-SCHEMA-1.5" as const;
 
 export const GENESIS_G82_EXPANSION_COMPANIES_PER_CALL = 3 as const;
 
@@ -27,13 +28,13 @@ const EvidenceSchema = z.object({
   sourceTitle: z.string().max(240).nullable(),
   excerpt: z.string().min(1).max(700),
   directness: z.number().int().min(0).max(100),
-  authority: z.number().int().min(0).max(100).optional(),
-  traceability: z.number().int().min(0).max(100).optional(),
-  direction: z.enum(["SUPPORT","CONTRADICT"]).optional(),
-  sourcePublishedAt: z.string().datetime({offset:true}).nullable().optional(),
-  sourceLineageKey: z.string().min(1).max(240).optional(),
-  derivativeOfLineageKey: z.string().min(1).max(240).nullable().optional(),
-  derivativeDepth: z.number().int().min(0).max(20).optional(),
+  authority: z.number().int().min(0).max(100),
+  traceability: z.number().int().min(0).max(100),
+  direction: z.enum(["SUPPORT","CONTRADICT"]),
+  sourcePublishedAt: z.string().datetime({offset:true}).nullable(),
+  sourceLineageKey: z.string().min(1).max(240),
+  derivativeOfLineageKey: z.string().min(1).max(240).nullable(),
+  derivativeDepth: z.number().int().min(0).max(20),
 });
 const ContactSchema = z.object({
   name: z.string().min(1).max(180), role: z.string().max(180).nullable(), seniority: z.string().max(120).nullable(),
@@ -55,7 +56,8 @@ const ExpansionResultSchema = z.object({
 });
 
 const evidenceJson = {
-  type: "object", additionalProperties: false, required: ["claimKey","sourceClass","sourceUrl","sourceTitle","excerpt","directness"],
+  type: "object", additionalProperties: false,
+  required: ["claimKey","sourceClass","sourceUrl","sourceTitle","excerpt","directness","authority","traceability","direction","sourcePublishedAt","sourceLineageKey","derivativeOfLineageKey","derivativeDepth"],
   properties: {
     claimKey: { type: "string" },
     sourceClass: { type: "string", enum: SourceClassSchema.options },
@@ -94,6 +96,8 @@ const expansionJsonSchema = {
     } },
   },
 } as const;
+
+assertOpenAiStrictJsonSchema(expansionJsonSchema, "genesis_g82_expansion_v1");
 
 const LegacyCompanySchema = CompanySchema;
 const LegacyExpansionResultSchema = z.object({
@@ -136,7 +140,7 @@ async function recoverCompletedExpansionResponse(params:{
   return recovered;
 }
 
-export type GenesisG82ExpansionEvidence = { claimKey:string; sourceClass:EvidenceSourceClass; sourceUrl:string; sourceTitle:string|null; excerpt:string; directness:number; authority?:number; traceability?:number; direction?:"SUPPORT"|"CONTRADICT"; sourcePublishedAt?:string|null; sourceLineageKey?:string; derivativeOfLineageKey?:string|null; derivativeDepth?:number };
+export type GenesisG82ExpansionEvidence = { claimKey:string; sourceClass:EvidenceSourceClass; sourceUrl:string; sourceTitle:string|null; excerpt:string; directness:number; authority:number; traceability:number; direction:"SUPPORT"|"CONTRADICT"; sourcePublishedAt:string|null; sourceLineageKey:string; derivativeOfLineageKey:string|null; derivativeDepth:number };
 export type GenesisG82ExpansionResult = z.infer<typeof ExpansionResultSchema>;
 
 export async function researchGenesisG82IndustryExpansion(input:{
