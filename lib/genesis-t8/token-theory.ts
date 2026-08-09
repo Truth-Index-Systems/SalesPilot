@@ -10,7 +10,7 @@
  */
 
 export const GENESIS_T8_TOKEN_THEORY_VERSION = "1.0.0" as const;
-export const GENESIS_T8_CE_BUILD = "BUILD2" as const;
+export const GENESIS_T8_CE_TOKEN_THEORY_BUILD = "BUILD2" as const;
 
 /** A token is always an atomic assertion about one subject. */
 export type GenesisT8TokenKind =

@@ -12,7 +12,7 @@ const checks = [];
 const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
 
 check("token theory version is explicit", token.includes('GENESIS_T8_TOKEN_THEORY_VERSION = "1.0.0"'));
-check("Build 2 identity is explicit", token.includes('GENESIS_T8_CE_BUILD = "BUILD2"'));
+check("Build 2 identity is explicit", token.includes('GENESIS_T8_CE_TOKEN_THEORY_BUILD = "BUILD2"'));
 check("atomic token contract exists", token.includes("GenesisT8CommercialToken"));
 check("token has one subject field", token.includes("subjectEntityId: string"));
 check("token has canonical predicate", token.includes("predicate: string"));
