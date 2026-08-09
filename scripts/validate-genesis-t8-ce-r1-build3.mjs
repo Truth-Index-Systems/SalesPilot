@@ -1,0 +1,50 @@
+import fs from "node:fs";
+import path from "node:path";
+
+const root = process.cwd();
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+const graph = read("lib/genesis-t8/commercial-graph-9d.ts");
+const token = read("lib/genesis-t8/token-theory.ts");
+const index = read("lib/genesis-t8/index.ts");
+const doc = read("GENESIS-T8-CE-R1-BUILD3-9D-COMMERCIAL-GRAPH.md");
+
+const checks = [];
+const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
+
+check("9D graph version is explicit", graph.includes('GENESIS_T8_9D_GRAPH_VERSION = "1.0.0"'));
+check("Build 3 identity is explicit", graph.includes('GENESIS_T8_CE_9D_GRAPH_BUILD = "BUILD3"'));
+const dimensions = ["SEMANTIC","STRUCTURAL","OPERATIONAL","COMMERCIAL","TECHNOLOGICAL","STRATEGIC","TEMPORAL","RELATIONAL","TRUTH"];
+for (const dimension of dimensions) check(`dimension ${dimension} exists`, graph.includes(`"${dimension}"`));
+check("exactly nine dimension literals are frozen in canonical list", /GENESIS_T8_COMMERCIAL_DIMENSIONS[\s\S]*?Object\.freeze\(\[[\s\S]*?\] as const\)/.test(graph));
+check("dimension projection is first class", graph.includes("GenesisT8DimensionProjection"));
+check("projection coordinates are canonical labels", graph.includes("coordinates: readonly string[]"));
+check("projection source is explicit", graph.includes("GenesisT8DimensionProjectionSource"));
+check("graph edge is first class", graph.includes("GenesisT8GraphEdge"));
+check("edge endpoints use token IDs", graph.includes("fromTokenId: string") && graph.includes("toTokenId: string"));
+check("edge class includes contradiction", graph.includes('"CONTRADICTION"'));
+check("unknown relationship is absence law", graph.includes("UNKNOWN_RELATIONSHIP_IS_ABSENCE_NOT_NEGATIVE_EDGE"));
+check("token identity remains independent of graph position", graph.includes("TOKEN_IDENTITY_IS_INDEPENDENT_OF_GRAPH_POSITION"));
+check("multi-dimensional tokens are explicit", graph.includes("ONE_TOKEN_MAY_PROJECT_INTO_MULTIPLE_DIMENSIONS"));
+check("opaque model embeddings are rejected by law", graph.includes("PROJECTIONS_USE_CANONICAL_COORDINATES_NOT_MODEL_EMBEDDINGS"));
+check("AI cannot write truth dimension", graph.includes("AI_MAY_NOT_WRITE_TRUTH_DIMENSION_OUTPUTS"));
+check("TI alone owns truth dimension", graph.includes("TI_2_1_8_ALONE_OWNS_TRUTH_DIMENSION_OUTPUTS"));
+check("truth ownership table is TI-only", /TRUTH:\s*Object\.freeze\(\["TI_2_1_8"\]/.test(graph));
+check("truth projection requires qualified token", graph.includes("TRUTH_PROJECTION_REQUIRES_TI_TOKEN"));
+check("graph scores are forbidden as canonical knowledge", graph.includes("GRAPH_NEVER_STORES_MATCH_OR_OPPORTUNITY_SCORES_AS_KNOWLEDGE"));
+check("graph invariant validates referential integrity", graph.includes("EDGE_TOKEN_MISSING") && graph.includes("PROJECTION_TOKEN_MISSING"));
+check("duplicate graph IDs are rejected", graph.includes("DUPLICATE_TOKEN_ID") && graph.includes("DUPLICATE_PROJECTION_ID") && graph.includes("DUPLICATE_EDGE_ID"));
+check("self edges are rejected", graph.includes("SELF_EDGE_FORBIDDEN"));
+check("deterministic traversal helper exists", graph.includes("deterministicAdjacentTokenIds"));
+check("deterministic traversal sorts stable IDs", graph.includes("localeCompare"));
+check("Build 2 still separates graph position from token identity", token.includes("DIMENSIONAL_POSITION_BELONGS_TO_THE_GRAPH_NOT_TOKEN_IDENTITY"));
+check("9D graph is exported", index.includes('export * from "./commercial-graph-9d"'));
+check("documentation says dimensions are lenses not buckets", doc.includes("lenses, not buckets"));
+check("documentation preserves TI freeze", doc.includes("does not change TI mathematics"));
+check("documentation forbids opaque embeddings", doc.includes("not opaque model embeddings"));
+check("documentation defers Commercial Fit maths", doc.includes("does **not** freeze") && doc.includes("Commercial Fit mathematics"));
+check("documentation states no active pipeline change", doc.includes("does **not** change the active MarketRoute production pipeline"));
+
+const failed = checks.filter((c) => !c.ok);
+for (const c of checks) console.log(`${c.ok ? "PASS" : "FAIL"} ${c.name}`);
+console.log(`\nGenesis T8 CE-R1 Build 3: ${checks.length - failed.length}/${checks.length} checks passed.`);
+if (failed.length) process.exit(1);

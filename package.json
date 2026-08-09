@@ -161,7 +161,8 @@
     "mrti2:build8-3-1-openai-schema-check": "node scripts/validate-mrti2-build8-3-1-openai-strict-schema.mjs",
     "mrti2:build8-3-3-expansion-check": "node scripts/validate-mr-ti2-build8-3-3-expansion-decomposition.mjs",
     "genesis:t8-ce-r1-build1-check": "node scripts/validate-genesis-t8-ce-r1-build1.mjs",
-    "genesis:t8-ce-r1-build2-check": "npm run genesis:t8-ce-r1-build1-check && node scripts/validate-genesis-t8-ce-r1-build2.mjs"
+    "genesis:t8-ce-r1-build2-check": "npm run genesis:t8-ce-r1-build1-check && node scripts/validate-genesis-t8-ce-r1-build2.mjs",
+    "genesis:t8-ce-r1-build3-check": "npm run genesis:t8-ce-r1-build2-check && node scripts/validate-genesis-t8-ce-r1-build3.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
