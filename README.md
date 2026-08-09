@@ -92,3 +92,9 @@ AI calls are disabled unless both gates are enabled:
 2. Workspace autonomy enabled at `/internal/autonomy`
 
 Keep the platform variable unset or false until the migration is applied and workspace limits have been reviewed.
+
+## Build 8.3.2
+- Isolated autonomous expansion from discovery repair AI background namespace.
+- Added GENESIS_G82_EXPANSION job/task/workload/governance identity.
+- Added migration 0133 for Supabase ledger constraint and reserve_ai_request support.
+- Expansion scopes now use genesis-g82-expansion-v2 and cannot reuse repair-typed historical checkpoints.

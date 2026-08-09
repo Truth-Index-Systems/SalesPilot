@@ -12,7 +12,7 @@ import { assertOpenAiStrictJsonSchema } from "@/lib/ai/strict-json-schema";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import type { GenesisG8EvidenceSourceClass as EvidenceSourceClass } from "./evidence-types";
 
-export const GENESIS_G82_EXPANSION_RESEARCH_VERSION = "G8.2-MRTI2-B8.3.1-STRICT-SCHEMA-1.5" as const;
+export const GENESIS_G82_EXPANSION_RESEARCH_VERSION = "G8.2-MRTI2-B8.3.2-NAMESPACE-ISOLATION-2.0" as const;
 
 export const GENESIS_G82_EXPANSION_COMPANIES_PER_CALL = 3 as const;
 
@@ -120,7 +120,7 @@ async function recoverCompletedExpansionResponse(params:{
   jobId:string; apiKey:string; model:string;
 }):Promise<GenesisG82ExpansionResult|null>{
   const rows=await databaseRequest<CompletedExpansionCheckpoint[]>(
-    `ai_background_responses?job_type=eq.GENESIS_G8_REPAIR&job_id=eq.${encodeURIComponent(params.jobId)}&status=eq.completed&response_json=not.is.null&select=response_id,ledger_id,response_json,request_scope,created_at&order=created_at.asc&limit=12`,
+    `ai_background_responses?job_type=eq.GENESIS_G82_EXPANSION&job_id=eq.${encodeURIComponent(params.jobId)}&status=eq.completed&response_json=not.is.null&select=response_id,ledger_id,response_json,request_scope,created_at&order=created_at.asc&limit=12`,
   ).catch(()=>[]);
   let recovered:GenesisG82ExpansionResult|null=null;
   for(const row of rows){
@@ -151,23 +151,23 @@ export async function researchGenesisG82IndustryExpansion(input:{
   const model=resolveOpenAIModel("analysis").model;
   const recovered=await recoverCompletedExpansionResponse({jobId:input.jobId,apiKey,model});
   if(recovered) return recovered;
-  // G8.2 R1 deliberately reuses the governed G8 repair lane. It is background intelligence spend,
-  // so R17 sees it inside the same protected allowance instead of creating an ungoverned AI lane.
-  const profile=aiWorkloadProfile("GENESIS_G8_REPAIR");
-  const timeoutMs=aiRequestTimeoutMs("GENESIS_G8_REPAIR");
+  // Build 8.3.2: expansion has its own background-response identity. Governance still applies
+  // the same workspace spend and parallelism limits, but repair and expansion checkpoints can never collide.
+  const profile=aiWorkloadProfile("GENESIS_G82_EXPANSION");
+  const timeoutMs=aiRequestTimeoutMs("GENESIS_G82_EXPANSION");
   const attemptNumber=Math.max(0,Math.trunc(input.attemptNumber??0));
   const searchAngles=["emerging and recently funded operators","established scale-ups","regional specialists","B2B category operators","independent growth companies"] as const;
   const searchAngle=searchAngles[attemptNumber%searchAngles.length];
   const fingerprint=stableFingerprint({version:GENESIS_G82_EXPANSION_RESEARCH_VERSION,jobId:input.jobId,industryKey:input.industryKey,attemptNumber,searchAngle});
-  const baseScope=`genesis-g82-expansion:${fingerprint}`;
+  const baseScope=`genesis-g82-expansion-v2:${fingerprint}`;
   let requestScope=baseScope; let lastTerminalError:Error|null=null;
   const estimatedCostUsd=Math.max(0.01,Number(process.env.MARKETROUTE_G82_EXPANSION_ESTIMATED_COST_USD??"0.08")||0.08);
   for(let generation=0;generation<3;generation++){
     const recoveryPass=generation>0;
-    const reservation=await reserveAiRequest({organisationId,campaignId:null,jobType:"GENESIS_G8_REPAIR",jobId:input.jobId,requestScope,model,estimatedCostUsd});
+    const reservation=await reserveAiRequest({organisationId,campaignId:null,jobType:"GENESIS_G82_EXPANSION",jobId:input.jobId,requestScope,model,estimatedCostUsd});
     const startedAt=Date.now(); let response:Response;
     try{
-      response=await fetchResumableOpenAIResponse({apiKey,task:"GENESIS_G8_REPAIR",organisationId,campaignId:null,jobType:"GENESIS_G8_REPAIR",jobId:input.jobId,requestScope,model,ledgerId:reservation.ledgerId},{
+      response=await fetchResumableOpenAIResponse({apiKey,task:"GENESIS_G82_EXPANSION",organisationId,campaignId:null,jobType:"GENESIS_G82_EXPANSION",jobId:input.jobId,requestScope,model,ledgerId:reservation.ledgerId},{
         method:"POST",cache:"no-store",signal:AbortSignal.timeout(timeoutMs),headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},
         body:JSON.stringify({
           model,
@@ -186,7 +186,7 @@ export async function researchGenesisG82IndustryExpansion(input:{
             recoveryPass
               ? "BOUNDARY: Return up to three distinct companies when verifiable companies exist; prioritise three strong companies over a larger weak batch. For each company provide at least two company-level evidence items from exact public URLs. Contacts/routes may be empty. Return companies: [] only after genuinely searching multiple queries in the requested search angle and finding no verifiable new domains."
               : "BOUNDARY: Return up to three distinct companies in this single call, prioritising three when evidence quality permits. Maximum two contacts per company and one route per company. Never pad the batch with weak or duplicate companies; empty nested arrays are valid when evidence is unavailable.",
-            "Write concise British English and return exact JSON only. Prompt policy: genesis-g82-expansion/v1.",
+            "Write concise British English and return exact JSON only. Prompt policy: genesis-g82-expansion/v2-namespace-isolated.",
           ].join(" "),
           input:JSON.stringify({industryKey:input.industryKey,industryName:input.industryName,searchAngle,recoveryPass,attemptNumber,excludedDomains:input.excludedDomains.slice(0,180)}),
           tools:[{type:"web_search_preview",search_context_size:"medium"}],reasoning:{effort:profile.reasoningEffort},
@@ -202,7 +202,7 @@ export async function researchGenesisG82IndustryExpansion(input:{
         lastTerminalError=new Error(`GENESIS_G82_EXPANSION_BACKGROUND_TERMINAL:${error.status}:${reason}`);
         requestScope=`${baseScope}:retry:${stableFingerprint({previousScope:requestScope,responseId:error.responseId})}`; continue;
       }
-      const transport=classifyOpenAITransportError(error,"GENESIS_G8_REPAIR",timeoutMs);
+      const transport=classifyOpenAITransportError(error,"GENESIS_G82_EXPANSION",timeoutMs);
       await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:transport.code,errorMessage:transport.error.message}).catch(()=>undefined); throw transport.error;
     }
     const json:unknown=await response.json().catch(()=>null); const responseId=typeof (json as any)?.id==="string"?(json as any).id:null;
@@ -216,7 +216,7 @@ export async function researchGenesisG82IndustryExpansion(input:{
       const gateway=await parseStructuredAiResponse({response:json,schema:ExpansionResultSchema,jsonSchema:expansionJsonSchema,schemaName:"genesis_g82_expansion_v1",apiKey,model});
       await completeAiRequest({ledgerId:reservation.ledgerId,ok:true,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId});
       if(gateway.value.companies.length===0){
-        await discardOpenAIBackgroundResponse({organisationId,campaignId:null,jobType:"GENESIS_G8_REPAIR",jobId:input.jobId,requestScope}).catch(()=>undefined);
+        await discardOpenAIBackgroundResponse({organisationId,campaignId:null,jobType:"GENESIS_G82_EXPANSION",jobId:input.jobId,requestScope}).catch(()=>undefined);
         if(generation===0){
           requestScope=`${baseScope}:breadth-recovery:${attemptNumber}`;
           continue;
@@ -225,7 +225,7 @@ export async function researchGenesisG82IndustryExpansion(input:{
       }
       return gateway.value;
     }catch(error){
-      await discardOpenAIBackgroundResponse({organisationId,campaignId:null,jobType:"GENESIS_G8_REPAIR",jobId:input.jobId,requestScope}).catch(()=>undefined);
+      await discardOpenAIBackgroundResponse({organisationId,campaignId:null,jobType:"GENESIS_G82_EXPANSION",jobId:input.jobId,requestScope}).catch(()=>undefined);
       const safe=safeStructuredAiError(error); await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId,errorCode:safe.code,errorMessage:safe.message}).catch(()=>undefined); throw new Error(`GENESIS_G82_EXPANSION_RESPONSE_${safe.code}`);
     }
   }

@@ -40,7 +40,7 @@ export async function runGenesisG82AutonomousOperations(){
     // Keep refresh cheap: it only schedules exact R9 repairs and does not call AI itself.
     refresh=await safe("refresh",()=>runGenesisG8IntelligentBackgroundRefresh({limit:capacity.mode==="CONSERVATIVE"?1:2}));
     // One bounded expansion call per heartbeat maximum. R17/AI governance is still the
-    // hard spend authority and expansion shares the GENESIS_G8_REPAIR budget lane.
+    // hard spend authority; expansion uses its own AI identity while sharing the same workspace budget envelope.
     expansion=await safe("expansion",()=>runGenesisG82AutonomousExpansionWorker(1));
   }
 

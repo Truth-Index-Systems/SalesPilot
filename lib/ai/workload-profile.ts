@@ -92,6 +92,14 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
     promptVersion: "genesis-g8-repair/v1",
     cacheKey: "marketroute:genesis-g8:repair:v1",
   },
+  GENESIS_G82_EXPANSION: {
+    reasoningEffort: "low",
+    maxOutputTokens: 6_000,
+    evidenceLimit: 10,
+    depth: 5,
+    promptVersion: "genesis-g82-expansion/v2-namespace-isolated",
+    cacheKey: "marketroute:genesis-g82:expansion:v2",
+  },
 };
 
 function envKey(task: AiRequestTask, suffix: string) {

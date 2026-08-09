@@ -1,0 +1,28 @@
+import fs from "node:fs";
+const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),"utf8");
+let passed=0; const checks=[];
+function check(name,ok){checks.push({name,ok}); if(ok){passed++; console.log(`✓ ${name}`);} else console.error(`FAIL ${name}`);}
+const expansion=read("lib/genesis-g8/autonomous-expansion-openai.ts");
+const repair=read("lib/genesis-g8/discovery-repair-openai-v2.ts");
+const governance=read("lib/ai/governance.ts");
+const policy=read("lib/ai/request-policy.ts");
+const workload=read("lib/ai/workload-profile.ts");
+const migration=read("supabase/migrations/0133_genesis_g82_mrti2_build8_3_2_expansion_repair_namespace_isolation.sql");
+check("expansion uses isolated job type", expansion.includes('jobType:"GENESIS_G82_EXPANSION"'));
+check("expansion uses isolated task", expansion.includes('task:"GENESIS_G82_EXPANSION"'));
+check("expansion recovery lookup isolated", expansion.includes('job_type=eq.GENESIS_G82_EXPANSION'));
+check("expansion never uses repair job type", !expansion.includes('jobType:"GENESIS_G8_REPAIR"'));
+check("expansion never uses repair task", !expansion.includes('task:"GENESIS_G8_REPAIR"'));
+check("expansion has fresh v2 request scope", expansion.includes('genesis-g82-expansion-v2:'));
+check("expansion version bumped", expansion.includes('B8.3.2-NAMESPACE-ISOLATION'));
+check("repair remains isolated repair type", repair.includes('jobType:"GENESIS_G8_REPAIR"')&&!repair.includes('GENESIS_G82_EXPANSION'));
+check("governance type includes expansion", governance.includes('GENESIS_G82_EXPANSION'));
+check("request policy includes expansion", policy.includes('| "GENESIS_G82_EXPANSION"'));
+check("workload profile includes expansion", workload.includes('GENESIS_G82_EXPANSION:'));
+check("ledger constraint includes expansion", migration.includes("'GENESIS_G82_EXPANSION'"));
+check("reservation validates expansion", migration.includes("p_job_type not in")&&migration.includes("'GENESIS_G82_EXPANSION'"));
+check("expansion remains globally heavy governed work", migration.includes("v_is_heavy := p_job_type in")&&migration.includes("'GENESIS_G82_EXPANSION'"));
+check("capacity accounts for both repair and expansion", migration.includes("l.job_type in ('GENESIS_G8_REPAIR','GENESIS_G82_EXPANSION')"));
+check("no old expansion response can be recovered", !expansion.includes('job_type=eq.GENESIS_G8_REPAIR'));
+console.log(`\nBuild 8.3.2 namespace isolation: ${passed}/${checks.length} passed`);
+if(passed!==checks.length) process.exit(1);
