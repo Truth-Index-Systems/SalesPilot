@@ -144,7 +144,8 @@
     "genesis:g81-r13-check": "node scripts/validate-genesis-g8-knowledge-retrieval-matching.mjs",
     "genesis:g81-r14-check": "node scripts/validate-genesis-g8-business-dna-knowledge-matching.mjs",
     "genesis:g81-r15-check": "node scripts/validate-genesis-g8-knowledge-discovery-merge.mjs",
-    "genesis:g81-r18-check": "node scripts/validate-genesis-g8-founder-command-centre.mjs"
+    "genesis:g81-r18-check": "node scripts/validate-genesis-g8-founder-command-centre.mjs",
+    "mr-ti2:build1-check": "node scripts/validate-mr-ti2-build1.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
