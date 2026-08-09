@@ -1,6 +1,7 @@
 import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { decideGenesisG8Capacity, readGenesisG8CapacitySnapshot, type GenesisG8CapacityDecision } from "./capacity-budget";
+import { readGenesisG8ActivationRuntime, summariseGenesisG8ActivationRuntime } from "./activation-controller";
 
 export const GENESIS_G8_FOUNDER_COMMAND_CENTRE_VERSION = "G8.1-R18-FOUNDER-COMMAND-CENTRE-1.0" as const;
 
@@ -39,6 +40,7 @@ export interface GenesisG8FounderCommandCentre {
   industries:FounderIndustryHealth[];
   attention:FounderAttentionItem[];
   capacity:GenesisG8CapacityDecision;
+  activation:ReturnType<typeof summariseGenesisG8ActivationRuntime>;
 }
 
 function object(value:unknown):Record<string,unknown>{return value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};}
@@ -46,9 +48,10 @@ function array(value:unknown):unknown[]{return Array.isArray(value)?value:[];}
 
 export async function getGenesisG8FounderCommandCentre(rangeDays=7):Promise<GenesisG8FounderCommandCentre>{
   const since=new Date(Date.now()-Math.max(1,rangeDays)*86400000).toISOString();
-  const [raw,capacitySnapshot]=await Promise.all([
+  const [raw,capacitySnapshot,activationRuntime]=await Promise.all([
     databaseRequest<RawSnapshot>("rpc/genesis_g8_founder_intelligence_snapshot",{method:"POST",body:JSON.stringify({p_since:since})}),
     readGenesisG8CapacitySnapshot(),
+    readGenesisG8ActivationRuntime(),
   ]);
   const snapshot=object(raw);
   const overall=object(snapshot.overall);
@@ -77,5 +80,6 @@ export async function getGenesisG8FounderCommandCentre(rangeDays=7):Promise<Gene
     industries:array(snapshot.industries).map(row=>{const x=object(row);return {id:s(x.id),name:s(x.name),canonicalKey:s(x.canonicalKey),truthIndex:n(x.truthIndex),confidence:n(x.confidence),coverage:n(x.coverage),reviewRequired:b(x.reviewRequired)};}),
     attention:array(snapshot.attention).map(row=>{const x=object(row);return {entityId:s(x.entityId),kind:s(x.kind),label:s(x.label),truthIndex:n(x.truthIndex),priority:n(x.priority),detail:s(x.detail)};}),
     capacity:decideGenesisG8Capacity(capacitySnapshot),
+    activation:summariseGenesisG8ActivationRuntime(activationRuntime),
   };
 }

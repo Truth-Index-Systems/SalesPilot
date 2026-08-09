@@ -2,6 +2,7 @@ import "server-only";
 
 import { databaseRequest } from "@/lib/database/postgrest";
 import type { OrganisationContext } from "@/lib/auth/organisation-context";
+import { decideGenesisG8Activation, readGenesisG8ActivationRuntime, recordGenesisG8ActivationEvent } from "./activation-controller";
 
 export const GENESIS_G8_KNOWLEDGE_DISCOVERY_MERGE_VERSION = "G8.1-R15-KNOWLEDGE-DISCOVERY-MERGE-1.0" as const;
 
@@ -37,8 +38,24 @@ export function sanitiseGenesisG8LaunchKnowledgeMatch(value: unknown): GenesisG8
 export async function mergeGenesisG8KnowledgeIntoCampaign(params:{
   campaignId:string; context:OrganisationContext; knowledgeMatch:GenesisG8LaunchKnowledgeMatch|null;
 }) {
-  if (!isGenesisG8KnowledgeDiscoveryMergeEnabled() || !params.knowledgeMatch?.candidates.length) return { seeded:0, skipped:true };
-  const payload=params.knowledgeMatch.candidates.map(c=>({entityId:c.entityId,businessFit:c.businessFit,retrievalScore:c.retrievalScore}));
+  if (!isGenesisG8KnowledgeDiscoveryMergeEnabled() || !params.knowledgeMatch?.candidates.length) return { seeded:0, skipped:true, activation:null };
+  const started=Date.now();
+  const runtime=await readGenesisG8ActivationRuntime();
+  const strongest=params.knowledgeMatch.candidates[0];
+  const activation=decideGenesisG8Activation({
+    campaignId:params.campaignId,organisationId:params.context.organisationId,runtime,
+    candidateTruth:strongest?.truthIndex,candidateConfidence:strongest?.confidence,candidateCoverage:strongest?.coverage,candidateBlocking:strongest?.blocking
+  });
+  if(!activation.activated){
+    await recordGenesisG8ActivationEvent({organisationId:params.context.organisationId,campaignId:params.campaignId,configuredLevel:activation.configuredLevel,effectiveLevel:activation.effectiveLevel,decision:"FALLBACK",reason:activation.reasons.join(" "),candidateCount:params.knowledgeMatch.candidates.length,seededCount:0,latencyMs:Date.now()-started,fallbackUsed:true,failed:false});
+    return {seeded:0,skipped:true,activation};
+  }
+  const eligible=params.knowledgeMatch.candidates.filter(c=>c.mayUseKnowledgeImmediately&&!c.blocking&&c.truthIndex>=60&&c.confidence>=55&&c.coverage>=20).slice(0,activation.candidateLimit);
+  const payload=eligible.map(c=>({entityId:c.entityId,businessFit:c.businessFit,retrievalScore:c.retrievalScore}));
+  if(!payload.length){
+    await recordGenesisG8ActivationEvent({organisationId:params.context.organisationId,campaignId:params.campaignId,configuredLevel:activation.configuredLevel,effectiveLevel:activation.effectiveLevel,decision:"FALLBACK",reason:"No candidate survived the R19 production quality gate.",candidateCount:params.knowledgeMatch.candidates.length,seededCount:0,latencyMs:Date.now()-started,fallbackUsed:true,failed:false});
+    return {seeded:0,skipped:true,activation};
+  }
   try {
     const rows=await databaseRequest<Array<{seeded_count:number}>>("rpc/merge_genesis_g8_knowledge_candidates_into_campaign",{
       method:"POST", body:JSON.stringify({
@@ -46,10 +63,13 @@ export async function mergeGenesisG8KnowledgeIntoCampaign(params:{
         p_merge_version:GENESIS_G8_KNOWLEDGE_DISCOVERY_MERGE_VERSION, p_candidates:payload
       })
     });
-    return { seeded:Number(rows?.[0]?.seeded_count??0), skipped:false };
+    const seeded=Number(rows?.[0]?.seeded_count??0);
+    await recordGenesisG8ActivationEvent({organisationId:params.context.organisationId,campaignId:params.campaignId,configuredLevel:activation.configuredLevel,effectiveLevel:activation.effectiveLevel,decision:"ACTIVATED",reason:activation.reasons.join(" "),candidateCount:payload.length,seededCount:seeded,latencyMs:Date.now()-started,fallbackUsed:seeded===0,failed:false});
+    return { seeded, skipped:false, activation };
   } catch (error) {
-    // R15 is an acceleration layer. Campaign launch must remain fail-open.
-    console.warn("Genesis G8 knowledge merge failed open", error);
-    return { seeded:0, skipped:true };
+    // R19 remains fail-open. Discovery is the production safety path.
+    console.warn("Genesis G8 controlled activation failed open", error);
+    await recordGenesisG8ActivationEvent({organisationId:params.context.organisationId,campaignId:params.campaignId,configuredLevel:activation.configuredLevel,effectiveLevel:activation.effectiveLevel,decision:"FAILED_OPEN",reason:error instanceof Error?error.message:"UNKNOWN",candidateCount:payload.length,seededCount:0,latencyMs:Date.now()-started,fallbackUsed:true,failed:true});
+    return { seeded:0, skipped:true, activation };
   }
 }

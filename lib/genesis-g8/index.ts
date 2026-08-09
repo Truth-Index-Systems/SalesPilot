@@ -48,3 +48,5 @@ export * from "./background-refresh";
 export * from "./capacity-budget";
 
 export * from "./founder-command-centre";
+
+export * from "./activation-controller";

@@ -47,6 +47,13 @@ export default async function FounderDashboardPage({searchParams}:{searchParams:
           <span>Open reviews <b>{g8.reviews.openReviews}</b></span>
           <span>Blocking repairs <b>{g8.repairs.blocking}</b></span>
         </div>
+        <div className="founder-activation-control">
+          <div><span>Controlled production activation</span><strong>Level {g8.activation.effectiveLevel} · {g8.activation.mode.replaceAll("_"," ")}</strong><small>{g8.activation.rollbackApplied?`Safety rollback active from configured level ${g8.activation.configuredLevel}.`:`Configured level ${g8.activation.configuredLevel}.`} {g8.activation.cohortPercent}% deterministic cohort · up to {g8.activation.candidateLimit} Knowledge candidates.</small></div>
+          <form method="post" action="/dashboard/genesis-g8/activation" className="founder-activation-actions">
+            {[0,1,2,3,4,5].map(level=><button key={level} type="submit" name="level" value={level} className={g8.activation.configuredLevel===level?"active":""}>{level===0?"Off":level===1?"Allowlist":level===2?"10%":level===3?"25%":level===4?"50%":"100%"}</button>)}
+          </form>
+          <div className="founder-activation-stats"><span>Attempts <b>{g8.activation.attempted}</b></span><span>Activated <b>{g8.activation.activated}</b></span><span>Fallbacks <b>{g8.activation.fallback}</b></span><span>Failures <b>{g8.activation.failed}</b></span><span>Repair burden <b>{g8.activation.repairBurden}</b></span><span>Rejected <b>{g8.activation.rejectedEntities}</b></span></div>
+        </div>
       </section>
 
       <section className="founder-grid founder-grid-main founder-intelligence-grid">
