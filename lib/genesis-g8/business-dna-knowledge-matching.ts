@@ -6,16 +6,16 @@ import type { GenesisG8BusinessDnaRetrievalInput } from "./knowledge-matching";
 export const GENESIS_G8_BUSINESS_DNA_MATCHING_VERSION = "G8.1-R14-BUSINESS-DNA-MATCHING-1.0" as const;
 
 export interface GenesisG8BusinessDnaSource {
-  company: { website: string };
-  idealCustomers: Array<{
+  readonly company: Readonly<{ website: string }>;
+  readonly idealCustomers: readonly Readonly<{
     segment: string;
-    industries: string[];
+    industries: readonly string[];
     companySize: string;
-    geographies: string[];
-    buyerRoles: string[];
-    pains: string[];
-  }>;
-  campaigns: Array<{ audience: string; objective: string }>;
+    geographies: readonly string[];
+    buyerRoles: readonly string[];
+    pains: readonly string[];
+  }>[];
+  readonly campaigns: readonly Readonly<{ audience: string; objective: string }>[];
 }
 
 export interface GenesisG8BusinessDnaKnowledgeMatchSnapshot {
