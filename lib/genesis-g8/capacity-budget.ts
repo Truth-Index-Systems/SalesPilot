@@ -3,7 +3,7 @@ import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { runGenesisG8IntelligentBackgroundRefresh, type GenesisG8BackgroundRefreshSummary } from "./background-refresh";
 
-export const GENESIS_G8_CAPACITY_BUDGET_VERSION = "G8.1-R17-CAPACITY-BUDGET-1.0" as const;
+export const GENESIS_G8_CAPACITY_BUDGET_VERSION = "G8.2-DEPTH-PRIORITY-CAPACITY-1.0" as const;
 
 export type GenesisG8CapacityMode = "NORMAL" | "CONSERVATIVE" | "CUSTOMER_ONLY" | "PAUSED";
 
@@ -168,13 +168,24 @@ export function decideGenesisG8Capacity(snapshot: GenesisG8CapacitySnapshot): Ge
   }
 
   const estimatedRepairCostUsd = Math.max(0.005, Number(process.env.MARKETROUTE_G8_REPAIR_ESTIMATED_COST_USD ?? "0.04") || 0.04);
-  const backgroundBudgetUsd = snapshot.dailyCostLimitUsd * (allocation.backgroundGrowthPercent / 100);
-  const backgroundRemainingUsd = Math.max(0, backgroundBudgetUsd - snapshot.backgroundRepairCostTodayUsd);
+  // G8.2 depth-priority hotfix: the historical percentage allocation could leave a
+  // healthy workspace with only a tiny background-intelligence envelope (for example
+  // $15 from a $100 workspace limit). Existing-company depth is reusable knowledge
+  // completion, so use a dedicated daily target while never exceeding the authoritative
+  // workspace governance limit or the actual total dollars remaining today.
+  const configuredBackgroundBudgetUsd = Math.max(0, Number(process.env.MARKETROUTE_G8_BACKGROUND_DAILY_BUDGET_USD ?? "100") || 100);
+  const percentageBudgetUsd = snapshot.dailyCostLimitUsd * (allocation.backgroundGrowthPercent / 100);
+  const backgroundBudgetUsd = allocation.backgroundGrowthPercent > 0
+    ? Math.min(snapshot.dailyCostLimitUsd, Math.max(percentageBudgetUsd, configuredBackgroundBudgetUsd))
+    : 0;
+  const workspaceRemainingUsd = Math.max(0, snapshot.dailyCostLimitUsd - snapshot.costTodayUsd);
+  const backgroundEnvelopeRemainingUsd = Math.max(0, backgroundBudgetUsd - snapshot.backgroundRepairCostTodayUsd);
+  const backgroundRemainingUsd = Math.min(workspaceRemainingUsd, backgroundEnvelopeRemainingUsd);
   const maximumBackgroundRepairs = mode === "NORMAL" || mode === "CONSERVATIVE"
     ? Math.max(0, Math.min(20, Math.floor(backgroundRemainingUsd / estimatedRepairCostUsd)))
     : 0;
 
-  if (maximumBackgroundRepairs === 0 && allocation.backgroundGrowthPercent > 0) reasons.push("The background-growth share has already been consumed for this governance day.");
+  if (maximumBackgroundRepairs === 0 && allocation.backgroundGrowthPercent > 0) reasons.push(workspaceRemainingUsd <= 0 ? "The governed workspace daily cost limit has been consumed." : "The background-intelligence daily envelope has been consumed for this governance day.");
 
   return {
     version: GENESIS_G8_CAPACITY_BUDGET_VERSION,

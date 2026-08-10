@@ -1,0 +1,3 @@
+# Genesis G8.2 Background Depth Enrichment Hotfix
+
+Preserves every existing Genesis company entity and membership. Adds a separate depth queue keyed by the existing `company_entity_id`. Existing companies are backfilled automatically by migration 0136 and enriched one at a time with public contact and route intelligence. Breadth remains company-only to preserve timeout/output hardening. Contact/route entities are persisted into the same Genesis intelligence graph and recorded in `genesis_g82_expansion_membership`, so the Founder dashboard can count them without copying companies into campaign tables.
