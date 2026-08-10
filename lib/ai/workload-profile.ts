@@ -100,6 +100,14 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
     promptVersion: "genesis-g82-expansion/v4-ai-canonical-first",
     cacheKey: "marketroute:genesis-g82:expansion:v4",
   },
+  GENESIS_G82_DEPTH: {
+    reasoningEffort: "low",
+    maxOutputTokens: 4_200,
+    evidenceLimit: 6,
+    depth: 5,
+    promptVersion: "genesis-g82-depth/v1.1-dedicated-ai-identity",
+    cacheKey: "marketroute:genesis-g82:depth:v1.1",
+  },
 };
 
 function envKey(task: AiRequestTask, suffix: string) {
