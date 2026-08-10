@@ -192,7 +192,10 @@
     "genesis:t8-ce-r2-r8-runtime-check": "rm -rf .genesis-t8-r2-r8-runtime && tsc --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --skipLibCheck --esModuleInterop --outDir .genesis-t8-r2-r8-runtime --rootDir . lib/genesis-t8/mathematics/explainable-reasoning.ts lib/genesis-t8/mathematics/research-intelligence.ts lib/genesis-t8/mathematics/opportunity-mathematics.ts lib/genesis-t8/mathematics/commercial-coherence.ts lib/genesis-t8/mathematics/constraint-propagation.ts lib/genesis-t8/mathematics/constraint-mathematics.ts lib/genesis-t8/mathematics/constraints.ts lib/genesis-t8/commercial-graph-9d.ts lib/genesis-t8/token-theory.ts lib/genesis-t8/authority-registry.ts lib/genesis-t8/canonical-runtime.ts lib/genesis-t8/commercial-genome-ontology.ts lib/genesis-t8/relationship-catalogue.ts && node scripts/run-genesis-t8-ce-r2-r8-adversarial.mjs .genesis-t8-r2-r8-runtime/lib/genesis-t8/mathematics && rm -rf .genesis-t8-r2-r8-runtime",
     "genesis:t8-ce-r2-r8-check": "npm run genesis:t8-ce-r2-r8-static-check && npm run genesis:t8-ce-r2-r8-runtime-check",
     "genesis:t8-ce-r2-r8-freeze-check": "npm run genesis:t8-ce-r2-r8-check && npm run genesis:t8-ce-r2-r8-independent-check && node scripts/validate-genesis-t8-ce-r2-r8-freeze.mjs",
-    "genesis:t8-ce-r2-r8-independent-check": "node scripts/validate-mrti2-build8-3-legacy-eradication.mjs && node scripts/validate-mr-ti2-build8-3-4-ai-canonicalisation.mjs && node scripts/validate-mr-ti2-build8-3-5-dispatch-audit.mjs && node scripts/validate-mrti2-build8-3-6-ai-governance-lease-reconciliation.mjs"
+    "genesis:t8-ce-r2-r8-independent-check": "node scripts/validate-mrti2-build8-3-legacy-eradication.mjs && node scripts/validate-mr-ti2-build8-3-4-ai-canonicalisation.mjs && node scripts/validate-mr-ti2-build8-3-5-dispatch-audit.mjs && node scripts/validate-mrti2-build8-3-6-ai-governance-lease-reconciliation.mjs",
+    "marketroute:mr-r1-build1-static-check": "node scripts/validate-marketroute-mr-r1-build1.mjs",
+    "marketroute:mr-r1-build1-runtime-check": "node scripts/run-marketroute-mr-r1-build1-runtime.mjs",
+    "marketroute:mr-r1-build1-check": "npm run genesis:t8-ce-r2-r8-freeze-check && npm run marketroute:mr-r1-build1-static-check && npm run marketroute:mr-r1-build1-runtime-check"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

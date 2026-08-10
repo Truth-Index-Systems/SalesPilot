@@ -7,6 +7,7 @@ import { StructuredAiOutputError } from "@/lib/ai/structured-response-gateway";
 import { isPipelineOwnershipLost } from "@/lib/pipeline/ownership";
 import { isOpenAIBackgroundPending } from "@/lib/ai/background-response";
 import { GENESIS_G8_BUSINESS_DNA_MATCHING_VERSION, isGenesisG8BusinessDnaKnowledgeMatchingEnabled, matchBusinessDnaAgainstGenesisG8, withGenesisG8BusinessDnaMatchBudget } from "@/lib/genesis-g8/business-dna-knowledge-matching";
+import { enterMarketRouteSellerUnderstanding } from "@/lib/integrations/genesis-t8/marketroute-seller-entry";
 
 function classify(error:unknown){
   if(error instanceof WebsiteReadError){
@@ -60,6 +61,15 @@ export async function runBusinessAnalysisJob(id:string,token:string){
     await updateBusinessAnalysisProgress(id,token,workerToken,"PREPARING_RECOMMENDATIONS",92,finalUrl,pagesRead);
     const analysis=assembleBusinessAnalysis(finalCore,growth);
 
+    // MR-R1 Build 1: all completed seller understanding now crosses the Genesis
+    // T8 entry boundary before any downstream MarketRoute stage can consume it.
+    // This build is intentionally compatibility-preserving: Genesis validates
+    // the AI-produced seller understanding and prepares its canonical research
+    // surface, while the legacy Business DNA payload remains byte-for-byte
+    // equivalent for existing discovery/UI consumers.
+    const genesisSellerEntry=enterMarketRouteSellerUnderstanding(analysis);
+    const genesisAnalysis={...analysis,payload:genesisSellerEntry.legacyBusinessDna};
+
     // R14 activation boundary: ask accumulated Knowledge Intelligence before the
     // analysis is exposed, but never make first-time Business DNA depend on it.
     // A completed match is durable and reused across worker retries. The bounded
@@ -67,7 +77,7 @@ export async function runBusinessAnalysisJob(id:string,token:string){
     if (isGenesisG8BusinessDnaKnowledgeMatchingEnabled() && job.genesis_g8_match_status !== "COMPLETED") {
       try {
         await startBusinessAnalysisG8Match(id,token,workerToken,GENESIS_G8_BUSINESS_DNA_MATCHING_VERSION);
-        const match=await withGenesisG8BusinessDnaMatchBudget(matchBusinessDnaAgainstGenesisG8(analysis.payload));
+        const match=await withGenesisG8BusinessDnaMatchBudget(matchBusinessDnaAgainstGenesisG8(genesisAnalysis.payload));
         await completeBusinessAnalysisG8Match(id,token,workerToken,GENESIS_G8_BUSINESS_DNA_MATCHING_VERSION,match);
       } catch (matchError) {
         if (isPipelineOwnershipLost(matchError)) throw matchError;
@@ -82,7 +92,7 @@ export async function runBusinessAnalysisJob(id:string,token:string){
       }
     }
 
-    await completeBusinessAnalysisJob(id,token,workerToken,finalUrl,pagesRead,analysis,Date.now()-started);
+    await completeBusinessAnalysisJob(id,token,workerToken,finalUrl,pagesRead,genesisAnalysis,Date.now()-started);
     return {claimed:true as const,completed:true as const};
   }catch(error){
     if(isOpenAIBackgroundPending(error)){
