@@ -195,7 +195,10 @@
     "genesis:t8-ce-r2-r8-independent-check": "node scripts/validate-mrti2-build8-3-legacy-eradication.mjs && node scripts/validate-mr-ti2-build8-3-4-ai-canonicalisation.mjs && node scripts/validate-mr-ti2-build8-3-5-dispatch-audit.mjs && node scripts/validate-mrti2-build8-3-6-ai-governance-lease-reconciliation.mjs",
     "marketroute:mr-r1-build1-static-check": "node scripts/validate-marketroute-mr-r1-build1.mjs",
     "marketroute:mr-r1-build1-runtime-check": "node scripts/run-marketroute-mr-r1-build1-runtime.mjs",
-    "marketroute:mr-r1-build1-check": "npm run genesis:t8-ce-r2-r8-freeze-check && npm run marketroute:mr-r1-build1-static-check && npm run marketroute:mr-r1-build1-runtime-check"
+    "marketroute:mr-r1-build1-check": "npm run genesis:t8-ce-r2-r8-freeze-check && npm run marketroute:mr-r1-build1-static-check && npm run marketroute:mr-r1-build1-runtime-check",
+    "marketroute:mr-r1-build2-static-check": "npm run marketroute:mr-r1-build1-check && node scripts/validate-marketroute-mr-r1-build2.mjs",
+    "marketroute:mr-r1-build2-runtime-check": "node scripts/run-marketroute-mr-r1-build2-runtime.mjs",
+    "marketroute:mr-r1-build2-check": "npm run marketroute:mr-r1-build2-static-check && npm run marketroute:mr-r1-build2-runtime-check"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
