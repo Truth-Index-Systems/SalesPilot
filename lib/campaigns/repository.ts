@@ -2,6 +2,8 @@ import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { requireOrganisationContext } from "@/lib/auth/organisation-context";
 import { CampaignDetailSchema, CampaignSummarySchema, type CampaignDetail, type CampaignSummary } from "./schemas";
+import { loadGenesisSellerContext } from "@/lib/integrations/genesis-t8/genesis-seller-context";
+import { projectLegacySellerFields } from "@/lib/integrations/genesis-t8/legacy-seller-projection";
 
 function mapSummary(row: Record<string, any>): CampaignSummary {
   return CampaignSummarySchema.parse({ id: row.id, name: row.name, objective: row.objective, status: row.status, automationMode: row.automation_mode, fitScore: row.fit_score, audience: row.audience, createdAt: row.created_at, latestProgress: row.latest_progress ?? null });
@@ -18,5 +20,21 @@ export async function getCampaign(id: string): Promise<CampaignDetail | null> {
   const rows = await databaseRequest<Record<string, any>[]>(`campaign_detail?organisation_id=eq.${encodeURIComponent(context.organisationId)}&id=eq.${encodeURIComponent(id)}&limit=1`);
   if (!rows[0]) return null;
   const row = rows[0];
-  return CampaignDetailSchema.parse({ ...mapSummary(row), buyerRoles: row.buyer_roles ?? [], messageAngle: row.message_angle, why: row.why ?? [], businessName: row.business_name, businessSummary: row.business_summary, websiteUrl: row.website_url, timeline: (row.timeline ?? []).map((entry: Record<string, any>) => ({ id: entry.id, title: entry.title, description: entry.description ?? null, occurredAt: entry.occurred_at })) });
+
+  // MR-R1 Build 4: seller-facing legacy fields are projections of the same
+  // immutable GenesisSellerContext consumed by execution stages. Campaign
+  // configuration remains the approved execution strategy and is not replaced.
+  const genesisSellerContext = await loadGenesisSellerContext(id, context.organisationId);
+  const seller = projectLegacySellerFields(genesisSellerContext);
+
+  return CampaignDetailSchema.parse({
+    ...mapSummary(row),
+    buyerRoles: row.buyer_roles ?? [],
+    messageAngle: row.message_angle,
+    why: row.why ?? [],
+    businessName: seller.businessName,
+    businessSummary: seller.businessSummary,
+    websiteUrl: seller.websiteUrl,
+    timeline: (row.timeline ?? []).map((entry: Record<string, any>) => ({ id: entry.id, title: entry.title, description: entry.description ?? null, occurredAt: entry.occurred_at })),
+  });
 }
