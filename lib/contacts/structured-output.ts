@@ -13,7 +13,7 @@ const EMAIL_STATUSES = new Set(["VERIFIED","LIKELY","UNKNOWN"]);
 const LINKEDIN_STATUSES = new Set(["VERIFIED","HIGH_CONFIDENCE","UNKNOWN"]);
 const CHANNEL_TYPES = new Set(["NAMED","DEPARTMENTAL","GENERAL"]);
 const CHANNEL_VERIFICATION = new Set(["PUBLIC_VERIFIED","PATTERN_LIKELY"]);
-const ROUTE_TYPES = new Set(["PRIMARY","OPERATIONAL","TRANSFORMATION","PROCUREMENT","TECHNICAL","EXECUTIVE","REGIONAL","FALLBACK"]);
+const ROUTE_TYPES = new Set(["OPERATIONAL","TRANSFORMATION","PROCUREMENT","TECHNICAL","EXECUTIVE","REGIONAL"]);
 const ROUTE_CHANNEL_TYPES = new Set(["DIRECT_EMAIL","LINKEDIN","DEPARTMENT_EMAIL","GENERAL_EMAIL","SWITCHBOARD","INTRODUCTION","UNKNOWN"]);
 const ROUTE_DIFFICULTIES = new Set(["LOW","MEDIUM","HIGH"]);
 
@@ -175,7 +175,7 @@ function canonicalBuyingPath(value: unknown, index: number) {
   if (!entryRole || !targetRole || !steps.length) return null;
   return {
     name: text(item.name, 180, `Buying path ${index + 1}`),
-    routeType: enumValue(item.routeType, ROUTE_TYPES, index === 0 ? "PRIMARY" : "FALLBACK"),
+    routeType: enumValue(item.routeType, ROUTE_TYPES, "OPERATIONAL"),
     objective: text(item.objective, 500, "Reach the relevant commercial owner."),
     entryRole, targetRole, steps,
     rationale: text(item.rationale, 900, "Route inferred from the supported organisation and buying structure."),
@@ -191,7 +191,7 @@ function canonicalRoute(value: unknown, index: number) {
   const channelType = enumValue(item.channelType, ROUTE_CHANNEL_TYPES, "UNKNOWN");
   return {
     routeKey: text(item.routeKey, 120, `route-${index + 1}`).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0,120) || `route-${index + 1}`,
-    routeType: enumValue(item.routeType, ROUTE_TYPES, index === 0 ? "PRIMARY" : "FALLBACK"),
+    routeType: enumValue(item.routeType, ROUTE_TYPES, "OPERATIONAL"),
     label: text(item.label, 180, `${entryRole} to ${targetRole}`),
     entryRole, targetRole, department: nullableText(item.department, 180),
     contactName: nullableText(item.contactName, 180), contactRole: nullableText(item.contactRole, 180),

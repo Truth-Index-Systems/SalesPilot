@@ -2,7 +2,7 @@ import fs from 'node:fs';
 const read=(p)=>fs.readFileSync(p,'utf8');
 const checks=[]; const add=(ok,msg)=>checks.push([!!ok,msg]);
 const business=read('lib/intelligence/openai.ts');
-const bizOut=read('lib/intelligence/business-structured-output.ts');
+const bizOut=read('lib/intelligence/business-analysis-decomposition.ts');
 const discovery=read('lib/discovery/openai.ts');
 const contacts=read('lib/contacts/openai.ts');
 const reasoning=read('lib/engagement/g5-commercial-reasoning-openai.ts');
@@ -18,13 +18,17 @@ const oSchema=read('lib/engagement/g5-outreach-generation-schema.ts');
 const sSchema=read('lib/engagement/g5-self-review-schema.ts');
 const sql=read('supabase/migrations/0090_genesis_post_freeze_responsibility_boundary_prompt_pass.sql');
 
-for (const [name,text] of [['business',business],['discovery',discovery],['contacts',contacts],['reasoning',reasoning],['channel',channel],['outreach',outreach],['review',review]]) {
+for (const [name,text] of [['discovery',discovery],['contacts',contacts],['reasoning',reasoning],['channel',channel],['outreach',outreach],['review',review]]) {
   add(text.includes('ACCOUNTABLE FOR'),`${name} has explicit accountable-for boundary`);
   add(text.includes('ADVISES BUT DOES NOT DECIDE'),`${name} has explicit advisory boundary`);
   add(text.includes('OUT OF SCOPE / HAND OFF'),`${name} has explicit hand-off boundary`);
   add(text.includes('deterministic MarketRoute'),`${name} recognises deterministic MarketRoute authority`);
 }
-add(business.includes('do NOT approve campaigns') && business.includes('Company Discovery owns'),'business strategy does not steal discovery/workflow authority');
+add(business.includes('Do NOT design campaigns, ICPs, buyer roles or outreach yet.') && business.includes('Company Discovery chooses real accounts') && business.includes('Route Intelligence chooses account-specific entry routes'),'decomposed business analysis preserves downstream authority');
+add(business.includes('ROLE: MarketRoute Business Understanding executive'),'business has explicit accountable role');
+add(business.includes('Do NOT design campaigns, ICPs, buyer roles or outreach yet.'),'business core has explicit hand-off boundary');
+add(business.includes('Recommend segments and campaigns only.'),'business growth has explicit advisory scope');
+add(business.includes('Company Discovery chooses real accounts') && business.includes('Route Intelligence chooses account-specific entry routes'),'business recognises deterministic/downstream authority');
 add(discovery.includes("'Is this a commercially attractive account under this campaign?' not 'How do we get in?'"),'company discovery is separated from route intelligence');
 add(discovery.includes('Never reject an otherwise strong account merely because an obvious contact or email is unavailable'),'company discovery cannot turn reachability into fit rejection');
 add(contacts.includes('minimum sufficient authority') && contacts.includes('do NOT approve the company'),'account mapping owns access, not company approval');
@@ -42,7 +46,7 @@ add(!safety.includes('OPENAI_API_KEY') && !safety.includes('/v1/responses'),'R5 
 add(scheduler.includes('acquirePipelineSchedulerLease') && scheduler.includes('planContactDiscoveryDispatch'),'scheduler/VP Sales Operations authority remains deterministic');
 add(scheduler.includes('runG5AutopilotApproval') && scheduler.includes('runG5ExecutionCycle'),'approval/execution remain deterministic workers');
 
-add(business.includes('business-discovery/v3-responsibility-boundary') && bizOut.includes('business-discovery/v3-responsibility-boundary'),'business prompt version is canonicalised');
+add(bizOut.includes('business-discovery/v4-decomposed') && business.includes('business-discovery-core/v1') && business.includes('business-discovery-growth/v1'),'decomposed business prompt versions are canonicalised');
 add(discovery.includes('company-discovery/v5-bounded-archetype'),'company discovery fingerprint/version updated');
 add(contacts.includes('contact-discovery/v5-responsibility-boundary'),'contact/route fingerprint/version updated');
 add(reasoning.includes('g5-commercial-reasoning/v3-responsibility-boundary'),'commercial reasoning prompt updated');

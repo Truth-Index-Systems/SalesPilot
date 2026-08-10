@@ -11,7 +11,7 @@ check("projection derives business identity from Genesis Business DNA", projecti
 check("projection derives ICP without AI reinterpretation", projection.includes("icp: dna.idealCustomers") && !projection.includes("openai"));
 check("projection derives industries, buyer roles and pains", projection.includes("industries: unique") && projection.includes("buyerRoles: unique") && projection.includes("painPoints: unique"));
 check("campaign repository loads immutable Genesis seller context", repo.includes("loadGenesisSellerContext(id, context.organisationId)") && repo.includes("projectLegacySellerFields(genesisSellerContext)"));
-check("campaign repository no longer maps seller display fields from row", !repo.includes("businessName: row.business_name") && !repo.includes("businessSummary: row.business_summary") && !repo.includes("websiteUrl: row.website_url"));
+check("campaign repository uses row seller fields only inside explicit historical fallback", repo.includes("GENESIS_SELLER_CONTEXT_NOT_FOUND") && repo.includes("businessName: row.business_name ?? null") && repo.includes("Execution stages remain strict"));
 check("campaign execution strategy remains separate", repo.includes("buyerRoles: row.buyer_roles") && repo.includes("messageAngle: row.message_angle") && repo.includes("why: row.why"));
 check("database compatibility view prefers Genesis seller context", migration.includes("campaign_genesis_t8_seller_contexts") && migration.includes("sellerUnderstanding,legacyBusinessDna,company,name"));
 check("historical fallback is explicit and limited", migration.includes("bp.company_name") && migration.includes("historical fallback only"));

@@ -26,9 +26,9 @@ check("AI cannot choose a different route", openai.includes("G5_OUTREACH_ROUTE_M
 check("G4 route viability and reachability are revalidated", openai.includes("G5_OUTREACH_G4_ROUTE_NOT_VIABLE") && openai.includes("G5_OUTREACH_G4_ROUTE_UNREACHABLE"));
 check("evidence source ids are deterministically checked", openai.includes("G5_OUTREACH_UNKNOWN_EVIDENCE_SOURCE"));
 check("generation is native to four R3 channels", schema.includes('"EMAIL", "LINKEDIN", "SWITCHBOARD", "REFERRAL"'));
-check("scheduler runs only one G5 AI worker per cycle", scheduler.includes("(!commercialReasoning || !commercialReasoning.processed)") && scheduler.includes("(!channelStrategy || !channelStrategy.processed)"));
+check("scheduler uses bounded governed G5 lanes", scheduler.includes("g5DispatchWidth") && scheduler.includes("Promise.all(Array.from({ length: g5DispatchWidth }") && scheduler.includes("AI reservation caps remain authoritative"));
 check("scheduler now executes R4 worker", scheduler.includes("runNextG5OutreachGeneration(runId)"));
-check("R4 stops before self-review execution", scheduler.includes("const engagementSelfReview = null"));
+check("R4 remains state-gated before self-review", scheduler.includes("runNextG5OutreachGeneration(runId)") && scheduler.indexOf("runNextG5OutreachGeneration(runId)") < scheduler.indexOf("runNextG5SelfReview(runId)"));
 check("no G4 domain mutation added", !migration.match(/update\s+public\.(opportunities|companies|contacts|commercial_routes|company_route_intelligence)/i));
 
 for (const c of checks) console.log(`${c.pass ? "PASS" : "FAIL"} ${c.name}`);

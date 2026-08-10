@@ -21,11 +21,26 @@ export async function getCampaign(id: string): Promise<CampaignDetail | null> {
   if (!rows[0]) return null;
   const row = rows[0];
 
-  // MR-R1 Build 4: seller-facing legacy fields are projections of the same
-  // immutable GenesisSellerContext consumed by execution stages. Campaign
-  // configuration remains the approved execution strategy and is not replaced.
-  const genesisSellerContext = await loadGenesisSellerContext(id, context.organisationId);
-  const seller = projectLegacySellerFields(genesisSellerContext);
+  // MR-R1 Build 8: prefer the same immutable GenesisSellerContext consumed by
+  // execution stages. Historical campaigns that predate Build 2 may have no
+  // persisted Genesis context; campaign_detail already exposes the sanctioned
+  // legacy fallback for presentation only. Execution stages remain strict and
+  // still require GenesisSellerContext. Never swallow integrity/DB failures.
+  let seller: ReturnType<typeof projectLegacySellerFields> | {
+    businessName: string | null; businessSummary: string | null; websiteUrl: string | null;
+  };
+  try {
+    const genesisSellerContext = await loadGenesisSellerContext(id, context.organisationId);
+    seller = projectLegacySellerFields(genesisSellerContext);
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== "GENESIS_SELLER_CONTEXT_NOT_FOUND") throw error;
+    if (!row.business_name && !row.business_summary && !row.website_url) throw error;
+    seller = {
+      businessName: row.business_name ?? null,
+      businessSummary: row.business_summary ?? null,
+      websiteUrl: row.website_url ?? null,
+    };
+  }
 
   return CampaignDetailSchema.parse({
     ...mapSummary(row),

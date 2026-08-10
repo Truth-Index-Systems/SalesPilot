@@ -21,7 +21,7 @@ const checks=[
  [api.includes('"TRY_SECONDARY_ROUTE"'),"secondary route API action"],
  [ui.includes("Save edits & recheck"),"edit UX communicates mandatory recheck"],
  [ui.includes("Try secondary route"),"alternative route UX"],
- [ui.includes("Execution is deliberately locked"),"approved UI does not imply queued"],
+ [ui.includes("preparing deterministic execution"),"approved UI does not imply queued"],
  [page.includes("Engagement confidence"),"quality surfaced"],
  [page.includes("Commercial argument"),"reasoning surfaced"],
  [page.includes("Evidence used in this engagement"),"evidence surfaced"],

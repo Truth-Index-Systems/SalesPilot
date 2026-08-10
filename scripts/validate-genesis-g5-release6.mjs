@@ -19,9 +19,9 @@ check("review cannot research or change route",o.includes("Do not research, add 
 check("worker uses fenced R6 RPCs",w.includes("claim_g5_self_review")&&w.includes("complete_g5_self_review_owned"));
 check("worker handles stale ownership",w.includes("SUPERSEDED")&&w.includes("isPipelineOwnershipLost"));
 check("scheduler executes mandatory R6",sched.includes("runNextG5SelfReview(runId)"));
-check("scheduler preserves one-heavy-AI-slot rule",sched.includes("(!outreachGeneration || !outreachGeneration.processed)"));
+check("scheduler preserves governed bounded parallelism",sched.includes("g5DispatchWidth")&&sched.includes("AI reservation caps remain authoritative"));
 check("rewrite feedback reaches R4",m.includes("rewrite_instruction_json")&&gen.includes("rewriteInstruction"));
-check("rewrite prompt is versioned",gen.includes('g5-outreach-generation/v3')&&genSchema.includes('g5-outreach-generation/v3'));
+check("rewrite prompt is versioned",gen.includes('g5-outreach-generation/v5-responsibility-boundary')&&genSchema.includes('g5-outreach-generation/v5-responsibility-boundary'));
 check("no queue or send enabled",!m.includes("state='QUEUED'")&&!m.includes("state='SENT'"));
 check("no G4 truth mutation",!m.match(/update\s+public\.(opportunities|companies|contacts|commercial_routes|company_route_intelligence)/i));
 for(const c of checks) console.log(`${c.pass?"PASS":"FAIL"} ${c.name}`); const failed=checks.filter(c=>!c.pass); console.log(`\n${checks.length-failed.length}/${checks.length} checks passed`); if(failed.length)process.exit(1);
