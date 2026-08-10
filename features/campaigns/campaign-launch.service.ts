@@ -5,6 +5,7 @@ import type { OrganisationContext } from "@/lib/auth/organisation-context";
 import { mergeGenesisG8KnowledgeIntoCampaign, sanitiseGenesisG8LaunchKnowledgeMatch } from "@/lib/genesis-g8/knowledge-discovery-merge";
 import { buildMarketRouteCampaignSellerContext, persistMarketRouteCampaignSellerContext } from "@/lib/integrations/genesis-t8/campaign-seller-context";
 import { buildMarketRouteGenesisSellerConstraintSet, persistMarketRouteGenesisSellerConstraintSet } from "@/lib/integrations/genesis-t8/seller-constraint-contracts";
+import { buildMarketRouteGenesisBusinessDnaCompleteness, persistMarketRouteGenesisBusinessDnaCompleteness } from "@/lib/integrations/genesis-t8/business-dna-completeness";
 
 export async function launchCampaignService(input: LaunchCampaignRequest, context: OrganisationContext): Promise<CampaignSummary> {
   const rows = await databaseRequest<Record<string, unknown>[]>("rpc/launch_campaign", {
@@ -24,6 +25,8 @@ export async function launchCampaignService(input: LaunchCampaignRequest, contex
     await persistMarketRouteCampaignSellerContext(genesisSellerContext);
     const genesisConstraintSet=buildMarketRouteGenesisSellerConstraintSet(genesisSellerContext);
     await persistMarketRouteGenesisSellerConstraintSet(genesisConstraintSet);
+    const genesisCompleteness=buildMarketRouteGenesisBusinessDnaCompleteness(genesisSellerContext,genesisConstraintSet);
+    await persistMarketRouteGenesisBusinessDnaCompleteness(genesisCompleteness);
     await mergeGenesisG8KnowledgeIntoCampaign({ campaignId: String(row.id), context, knowledgeMatch: sanitiseGenesisG8LaunchKnowledgeMatch(input.knowledgeMatch) });
   }
   return CampaignSummarySchema.parse({

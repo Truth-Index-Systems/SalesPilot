@@ -9,6 +9,7 @@ import {
 } from "./campaign-seller-context";
 import type { MarketRouteBusinessDnaSource } from "./marketroute-seller-entry";
 import { loadOrMaterialiseMarketRouteGenesisSellerConstraintSet, type MarketRouteGenesisSellerConstraintSet } from "./seller-constraint-contracts";
+import { loadOrMaterialiseMarketRouteGenesisBusinessDnaCompleteness, type MarketRouteGenesisBusinessDnaCompleteness } from "./business-dna-completeness";
 
 export const MARKETROUTE_GENESIS_SELLER_CONTEXT_API_VERSION = "MR-R1-BUILD3-1.0.0" as const;
 export const MARKETROUTE_GENESIS_SELLER_CONTEXT_API_SCHEMA = "marketroute_genesis_seller_context/v1" as const;
@@ -24,6 +25,7 @@ export type GenesisSellerContext = Readonly<{
   selectedCommercialObjective: MarketRouteBusinessDnaSource["campaigns"][number];
   researchDirectives: readonly GenesisT8PredicateResearchDirective[];
   constraintSet: MarketRouteGenesisSellerConstraintSet;
+  completeness: MarketRouteGenesisBusinessDnaCompleteness;
   provenance: Readonly<{
     sourceFingerprint: string;
     persistedAt: string;
@@ -99,6 +101,7 @@ function deepFreeze<T>(value: T): T {
 export function projectGenesisSellerContext(
   stored: MarketRouteGenesisT8CampaignSellerContext,
   constraintSet: MarketRouteGenesisSellerConstraintSet,
+  completeness: MarketRouteGenesisBusinessDnaCompleteness,
 ): GenesisSellerContext {
   const dna = stored.sellerUnderstanding.legacyBusinessDna;
   const selected = dna.campaigns.find(item => item.id === stored.selectedCommercialObjectiveId);
@@ -115,6 +118,7 @@ export function projectGenesisSellerContext(
     selectedCommercialObjective: selected,
     researchDirectives: stored.sellerUnderstanding.baselineResearchDirectives,
     constraintSet,
+    completeness,
     provenance: {
       sourceFingerprint: stored.sourceFingerprint,
       persistedAt: stored.persistedAt,
@@ -148,5 +152,6 @@ export async function loadGenesisSellerContext(
   if (!row) throw new Error("GENESIS_SELLER_CONTEXT_NOT_FOUND");
   const stored = assertStoredContext(row, campaignId, organisationId);
   const constraintSet = await loadOrMaterialiseMarketRouteGenesisSellerConstraintSet(stored);
-  return projectGenesisSellerContext(stored, constraintSet);
+  const completeness = await loadOrMaterialiseMarketRouteGenesisBusinessDnaCompleteness(stored, constraintSet);
+  return projectGenesisSellerContext(stored, constraintSet, completeness);
 }
