@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+const read=p=>fs.readFileSync(p,'utf8');
+const api=read('lib/integrations/genesis-t8/genesis-seller-context.ts');
+const company=read('features/discovery/company-discovery.service.ts');
+const contact=read('features/contacts/contact-discovery.service.ts');
+const route=read('app/api/genesis-t8/campaigns/[id]/seller-context/route.ts');
+let passed=0;
+function check(condition,label){if(!condition){console.error(`FAIL ${label}`);process.exitCode=1;}else{console.log(`PASS ${label}`);passed++;}}
+check(api.includes('export type GenesisSellerContext'),'canonical GenesisSellerContext type');
+check(api.includes('GENESIS_SELLER_CONTEXT_FINGERPRINT_MISMATCH'),'fingerprint hard boundary');
+check(api.includes('deepFreeze'),'immutable read model');
+check(api.includes('selectedCommercialObjective'),'selected objective projected from persisted DNA');
+check(company.includes('loadGenesisSellerContext(job.campaign_id, job.organisation_id)'),'company discovery consumes Genesis seller context');
+check(!company.includes('business_profile_versions?business_profile_id'),'company discovery legacy seller read removed');
+check(contact.includes('loadGenesisSellerContext(job.campaign_id,job.organisation_id)'),'contact/route intelligence consumes Genesis seller context');
+check(!contact.includes('business_profile_versions?business_profile_id'),'contact/route legacy seller read removed');
+check(route.includes('requireOrganisationContext'),'HTTP API is organisation authenticated');
+check(route.includes('loadGenesisSellerContext'),'HTTP API uses canonical loader');
+check(api.includes('ckrVersion') && api.includes('udosibVersion') && api.includes('aiResearchContractVersion'),'Genesis provenance exposed');
+console.log(`MR-R1 Build 3 checks passed: ${passed}/11`);

@@ -1,4 +1,5 @@
 import "server-only";
+import { loadGenesisSellerContext } from "@/lib/integrations/genesis-t8/genesis-seller-context";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { researchRouteIntelligence } from "@/lib/contacts/openai";
 import type { WorkerExecutionContext, WorkerExecutionResult } from "@/lib/pipeline/executor";
@@ -28,10 +29,8 @@ export async function runNextRouteIntelligence(context:WorkerExecutionContext,op
     const companyIntelligence={...company,companyDiscovery:companyVersions[0]?.payload_json??{},companyEvidence,priorRouteMemory:priorRouteMemory[0]??null};
     const campaigns=await databaseRequest<any[]>(`campaign_detail?id=eq.${job.campaign_id}&organisation_id=eq.${job.organisation_id}&limit=1`);
     const campaign=campaigns[0]; if(!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
-    const campaignRows=await databaseRequest<any[]>(`campaigns?id=eq.${job.campaign_id}&organisation_id=eq.${job.organisation_id}&limit=1&select=business_profile_id`);
-    const profileId=campaignRows[0]?.business_profile_id; if(!profileId) throw new Error("BUSINESS_PROFILE_NOT_FOUND");
-    const profiles=await databaseRequest<any[]>(`business_profile_versions?business_profile_id=eq.${profileId}&organisation_id=eq.${job.organisation_id}&order=version_number.desc&limit=1&select=payload_json`);
-    const business=profiles[0]?.payload_json??{};
+    const sellerContext=await loadGenesisSellerContext(job.campaign_id,job.organisation_id);
+    const business=sellerContext.businessDNA as unknown as Record<string,unknown>;
     await databaseRequest("rpc/update_contact_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"RESEARCHING",p_progress:30})});
     const result=await researchRouteIntelligence({organisationId:job.organisation_id,campaignId:job.campaign_id,schedulerRunId:context.schedulerRunId,jobId:job.session_id,company:companyIntelligence,campaign:{name:campaign.name,objective:campaign.objective,audience:campaign.audience,buyerRoles:campaign.buyer_roles,messageAngle:campaign.message_angle},business,routeExpansionPass:Number(job.route_expansion_pass??0)});
     await databaseRequest("rpc/update_contact_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"VALIDATING",p_progress:72,p_candidates:result.contacts.length})});

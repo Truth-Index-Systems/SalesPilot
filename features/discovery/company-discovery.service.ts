@@ -1,4 +1,5 @@
 import "server-only";
+import { loadGenesisSellerContext } from "@/lib/integrations/genesis-t8/genesis-seller-context";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { discoverCompanies } from "@/lib/discovery/openai";
 import { buildCompanySearchPlan, CompanySearchPlanSchema, type CompanySearchPlan } from "@/lib/discovery/search-plan";
@@ -151,11 +152,8 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     const campaigns = await databaseRequest<any[]>(`campaign_detail?id=eq.${job.campaign_id}&organisation_id=eq.${job.organisation_id}&limit=1`);
     const campaign = campaigns[0];
     if (!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
-    const campaignRows = await databaseRequest<any[]>(`campaigns?id=eq.${job.campaign_id}&organisation_id=eq.${job.organisation_id}&limit=1&select=business_profile_id`);
-    const profileId = campaignRows[0]?.business_profile_id;
-    if (!profileId) throw new Error("BUSINESS_PROFILE_NOT_FOUND");
-    const profiles = await databaseRequest<any[]>(`business_profile_versions?business_profile_id=eq.${profileId}&organisation_id=eq.${job.organisation_id}&order=version_number.desc&limit=1&select=payload_json`);
-    const business = profiles[0]?.payload_json ?? { name: campaign.business_name, summary: campaign.business_summary, website: campaign.website_url };
+    const sellerContext = await loadGenesisSellerContext(job.campaign_id, job.organisation_id);
+    const business = sellerContext.businessDNA as unknown as Record<string, unknown>;
 
     let searchPlan: CompanySearchPlan | null = null;
     if (Number(session.company_search_plan_pass ?? 0) === searchPass && session.company_search_plan_json) {

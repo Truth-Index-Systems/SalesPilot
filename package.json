@@ -201,7 +201,9 @@
     "marketroute:mr-r1-build2-check": "npm run marketroute:mr-r1-build2-static-check && npm run marketroute:mr-r1-build2-runtime-check",
     "genesis:g82-depth-hotfix-check": "node scripts/validate-genesis-g82-background-depth-enrichment.mjs",
     "genesis:g82-depth-scheduling-budget-hotfix-check": "node scripts/validate-genesis-g82-depth-scheduling-budget-hotfix.mjs",
-    "genesis:g82-depth-ai-identity-completion-hardening-check": "node scripts/validate-genesis-g82-depth-ai-identity-completion-hardening.mjs"
+    "genesis:g82-depth-ai-identity-completion-hardening-check": "node scripts/validate-genesis-g82-depth-ai-identity-completion-hardening.mjs",
+    "marketroute:mr-r1-build3-static-check": "npm run marketroute:mr-r1-build2-check && node scripts/validate-marketroute-mr-r1-build3.mjs",
+    "marketroute:mr-r1-build3-check": "node scripts/validate-marketroute-mr-r1-build3.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
