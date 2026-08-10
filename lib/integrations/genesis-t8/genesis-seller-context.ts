@@ -10,6 +10,7 @@ import {
 import type { MarketRouteBusinessDnaSource } from "./marketroute-seller-entry";
 import { loadOrMaterialiseMarketRouteGenesisSellerConstraintSet, type MarketRouteGenesisSellerConstraintSet } from "./seller-constraint-contracts";
 import { loadOrMaterialiseMarketRouteGenesisBusinessDnaCompleteness, type MarketRouteGenesisBusinessDnaCompleteness } from "./business-dna-completeness";
+import { MARKETROUTE_GENESIS_AI_BOUNDARY_VERSION } from "./ai-boundary";
 
 export const MARKETROUTE_GENESIS_SELLER_CONTEXT_API_VERSION = "MR-R1-BUILD3-1.0.0" as const;
 export const MARKETROUTE_GENESIS_SELLER_CONTEXT_API_SCHEMA = "marketroute_genesis_seller_context/v1" as const;
@@ -41,6 +42,10 @@ export type GenesisSellerContext = Readonly<{
     aiResearchContractVersion: string;
     sellerEntryVersion: string;
     campaignContextVersion: string;
+    aiBoundaryVersion: string;
+    authoritativeSellerWriter: "GENESIS";
+    truthAuthority: "TRUTH_INDEX";
+    rankingAuthority: "UDOSIB";
   }>;
 }>;
 
@@ -134,6 +139,10 @@ export function projectGenesisSellerContext(
       aiResearchContractVersion: stored.sellerUnderstanding.aiResearchContractVersion,
       sellerEntryVersion: stored.sellerUnderstanding.integrationVersion,
       campaignContextVersion: stored.integrationVersion,
+      aiBoundaryVersion: MARKETROUTE_GENESIS_AI_BOUNDARY_VERSION,
+      authoritativeSellerWriter: "GENESIS",
+      truthAuthority: "TRUTH_INDEX",
+      rankingAuthority: "UDOSIB",
     },
   });
 }

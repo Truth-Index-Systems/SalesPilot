@@ -1,3 +1,4 @@
+import { assertGenesisSellerArtifactCommitAuthority } from "./ai-boundary";
 import "server-only";
 import { createHash } from "node:crypto";
 import { databaseRequest } from "@/lib/database/postgrest";
@@ -95,6 +96,7 @@ export function buildMarketRouteGenesisSellerConstraintSet(
   stored: MarketRouteGenesisT8CampaignSellerContext,
   extractedAt = new Date().toISOString(),
 ): MarketRouteGenesisSellerConstraintSet {
+  assertGenesisSellerArtifactCommitAuthority("GENESIS", "CONSTRAINT_CONTRACTS");
   if (!Number.isFinite(Date.parse(extractedAt))) throw new Error("MARKETROUTE_GENESIS_CONSTRAINT_SET_INVALID:EXTRACTED_AT");
   const dna = stored.sellerUnderstanding.legacyBusinessDna;
   const objective = dna.campaigns.find(item => item.id === stored.selectedCommercialObjectiveId);

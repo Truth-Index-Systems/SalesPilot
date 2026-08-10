@@ -28,6 +28,7 @@ import {
 } from "@/lib/genesis-t8/platform-contracts";
 import { GENESIS_T8_PLATFORM } from "@/lib/genesis-t8/constitution";
 import { GENESIS_T8_CE_R2_RELEASE, GENESIS_T8_MATHEMATICAL_CONSTITUTION_VERSION } from "@/lib/genesis-t8/mathematics/constitution";
+import { assertGenesisSellerArtifactCommitAuthority, MARKETROUTE_GENESIS_AI_BOUNDARY_VERSION } from "./ai-boundary";
 
 export const MARKETROUTE_GENESIS_T8_SELLER_ENTRY_VERSION = "MR-R1-BUILD1-1.0.0" as const;
 export const MARKETROUTE_GENESIS_T8_SELLER_ENTRY_SCHEMA = "marketroute_genesis_t8_seller_entry/v1" as const;
@@ -163,6 +164,11 @@ export function enterMarketRouteSellerUnderstanding<T extends MarketRouteBusines
   envelope: MarketRouteAiEnvelope<T>,
   enteredAt = new Date().toISOString(),
 ): MarketRouteGenesisT8SellerEntry {
+  // AI supplied the semantic proposal; Genesis alone commits the authoritative seller artifact.
+  assertGenesisSellerArtifactCommitAuthority("GENESIS", "BUSINESS_DNA");
+  assertGenesisSellerArtifactCommitAuthority("GENESIS", "COMMERCIAL_GENOME");
+  assertGenesisSellerArtifactCommitAuthority("GENESIS", "COMMERCIAL_OBJECTIVES");
+  void MARKETROUTE_GENESIS_AI_BOUNDARY_VERSION;
   assertMarketRouteBusinessDnaEntryInvariant(envelope.payload);
   if (!Number.isFinite(Date.parse(envelope.generatedAt))) {
     throw new Error("MARKETROUTE_GENESIS_T8_SELLER_ENTRY_VIOLATION:GENERATED_AT");

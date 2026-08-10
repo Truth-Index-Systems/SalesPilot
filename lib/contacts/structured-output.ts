@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ContactDiscoveryResultSchema, type ContactDiscoveryResult } from "./schemas";
+import { deterministicChannelRouting, deterministicConfidenceLabel, deterministicContactOverall, deterministicRouteOrderingScore } from "./deterministic-authority";
 
 export const ContactDiscoveryGatewaySchema = z.record(z.unknown());
 
@@ -99,11 +100,15 @@ function canonicalContact(value: unknown) {
     department: nullableText(item.department, 180),
     location: nullableText(item.location, 180),
     reasonSelected: text(item.reasonSelected, 900, "Supported route candidate identified during contact research."),
-    confidence: {
-      identity: score(confidence.identity), role: score(confidence.role), buyingRelevance: score(confidence.buyingRelevance),
-      operationalRelevance: score(confidence.operationalRelevance), evidenceQuality: score(confidence.evidenceQuality), overall: score(confidence.overall),
-      label: enumValue(confidence.label, CONFIDENCE_LABELS, "UNKNOWN"),
-    },
+    confidence: (() => {
+      const identity = score(confidence.identity);
+      const role = score(confidence.role);
+      const buyingRelevance = score(confidence.buyingRelevance);
+      const operationalRelevance = score(confidence.operationalRelevance);
+      const evidenceQuality = score(confidence.evidenceQuality);
+      const overall = deterministicContactOverall({ identity, role, buyingRelevance, operationalRelevance, evidenceQuality, unknownCount: Array.isArray(item.unknowns) ? item.unknowns.length : 0, riskCount: Array.isArray(item.riskFlags) ? item.riskFlags.length : 0 });
+      return { identity, role, buyingRelevance, operationalRelevance, evidenceQuality, overall, label: deterministicConfidenceLabel(overall) };
+    })(),
     email: {
       address: emailAddress,
       status: emailAddress ? enumValue(emailRow.status, EMAIL_STATUSES, "UNKNOWN") : "UNKNOWN",
@@ -137,7 +142,13 @@ function canonicalChannel(value: unknown) {
     likelyReader,
     reasonSelected,
     verificationStatus: enumValue(item.verificationStatus, CHANNEL_VERIFICATION, "PATTERN_LIKELY"),
-    confidence: score(item.confidence), routingScore: score(item.routingScore), responseLikelihood: score(item.responseLikelihood), campaignRelevance: score(item.campaignRelevance),
+    ...(() => {
+      const confidence = score(item.confidence);
+      const responseLikelihood = score(item.responseLikelihood);
+      const campaignRelevance = score(item.campaignRelevance);
+      const verificationStatus = enumValue(item.verificationStatus, CHANNEL_VERIFICATION, "PATTERN_LIKELY");
+      return { confidence, responseLikelihood, campaignRelevance, routingScore: deterministicChannelRouting({ confidence, responseLikelihood, campaignRelevance, publicVerified: verificationStatus === "PUBLIC_VERIFIED" }) };
+    })(),
     sourceUrl,
     sourceTitle: nullableText(item.sourceTitle, 240),
     evidenceExcerpt,
@@ -198,16 +209,17 @@ function canonicalRoute(value: unknown, index: number) {
 
 /**
  * Converts a structurally valid model object into the canonical persisted v3 contract.
- * This performs only deterministic safety work: clipping, enum fallback, score clamping,
- * invalid-channel removal and replacement of model-owned identifiers with trusted IDs.
+ * This performs deterministic safety and authority work: clipping, enum fallback,
+ * score clamping, deterministic contact/channel/route ordering, invalid-channel removal
+ * and replacement of model-owned identifiers with trusted IDs.
  * It never manufactures a person, company route, source URL or evidence claim.
  */
 export function canonicaliseContactDiscoveryOutput(value: unknown, expectedCompanyId: string): ContactDiscoveryResult {
   const root = record(value) ?? {};
-  const contacts = (Array.isArray(root.contacts) ? root.contacts : []).map(canonicalContact).filter(Boolean).slice(0, 20);
-  const companyContactChannels = (Array.isArray(root.companyContactChannels) ? root.companyContactChannels : []).map(canonicalChannel).filter(Boolean).slice(0, 30);
+  const contacts = (Array.isArray(root.contacts) ? root.contacts : []).map(canonicalContact).filter(Boolean).sort((a: any, b: any) => b.confidence.overall - a.confidence.overall || a.fullName.localeCompare(b.fullName)).slice(0, 20);
+  const companyContactChannels = (Array.isArray(root.companyContactChannels) ? root.companyContactChannels : []).map(canonicalChannel).filter(Boolean).sort((a: any, b: any) => b.routingScore - a.routingScore || a.emailAddress.localeCompare(b.emailAddress)).slice(0, 30);
   const buyingPaths = (Array.isArray(root.buyingPaths) ? root.buyingPaths : []).map(canonicalBuyingPath).filter(Boolean).slice(0, 12);
-  const routes = (Array.isArray(root.routes) ? root.routes : []).map(canonicalRoute).filter(Boolean).slice(0, 16);
+  const routes = (Array.isArray(root.routes) ? root.routes : []).map(canonicalRoute).filter(Boolean).sort((a: any, b: any) => deterministicRouteOrderingScore(b) - deterministicRouteOrderingScore(a) || a.routeKey.localeCompare(b.routeKey)).slice(0, 16);
   return ContactDiscoveryResultSchema.parse({
     schemaVersion: "contact-discovery/v3",
     companyId: expectedCompanyId,
