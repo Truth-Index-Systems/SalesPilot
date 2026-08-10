@@ -153,7 +153,10 @@ export async function runNextCompanyDiscovery(context: WorkerExecutionContext): 
     const campaign = campaigns[0];
     if (!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
     const sellerContext = await loadGenesisSellerContext(job.campaign_id, job.organisation_id);
-    const business = sellerContext.businessDNA as unknown as Record<string, unknown>;
+    const business = {
+      ...(sellerContext.businessDNA as unknown as Record<string, unknown>),
+      genesisConstraintContracts: sellerContext.constraintSet,
+    };
 
     let searchPlan: CompanySearchPlan | null = null;
     if (Number(session.company_search_plan_pass ?? 0) === searchPass && session.company_search_plan_json) {

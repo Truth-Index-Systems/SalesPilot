@@ -8,6 +8,7 @@ import {
   type MarketRouteGenesisT8CampaignSellerContext,
 } from "./campaign-seller-context";
 import type { MarketRouteBusinessDnaSource } from "./marketroute-seller-entry";
+import { loadOrMaterialiseMarketRouteGenesisSellerConstraintSet, type MarketRouteGenesisSellerConstraintSet } from "./seller-constraint-contracts";
 
 export const MARKETROUTE_GENESIS_SELLER_CONTEXT_API_VERSION = "MR-R1-BUILD3-1.0.0" as const;
 export const MARKETROUTE_GENESIS_SELLER_CONTEXT_API_SCHEMA = "marketroute_genesis_seller_context/v1" as const;
@@ -22,6 +23,7 @@ export type GenesisSellerContext = Readonly<{
   commercialObjectives: MarketRouteBusinessDnaSource["campaigns"];
   selectedCommercialObjective: MarketRouteBusinessDnaSource["campaigns"][number];
   researchDirectives: readonly GenesisT8PredicateResearchDirective[];
+  constraintSet: MarketRouteGenesisSellerConstraintSet;
   provenance: Readonly<{
     sourceFingerprint: string;
     persistedAt: string;
@@ -96,6 +98,7 @@ function deepFreeze<T>(value: T): T {
 
 export function projectGenesisSellerContext(
   stored: MarketRouteGenesisT8CampaignSellerContext,
+  constraintSet: MarketRouteGenesisSellerConstraintSet,
 ): GenesisSellerContext {
   const dna = stored.sellerUnderstanding.legacyBusinessDna;
   const selected = dna.campaigns.find(item => item.id === stored.selectedCommercialObjectiveId);
@@ -111,6 +114,7 @@ export function projectGenesisSellerContext(
     commercialObjectives: dna.campaigns,
     selectedCommercialObjective: selected,
     researchDirectives: stored.sellerUnderstanding.baselineResearchDirectives,
+    constraintSet,
     provenance: {
       sourceFingerprint: stored.sourceFingerprint,
       persistedAt: stored.persistedAt,
@@ -142,5 +146,7 @@ export async function loadGenesisSellerContext(
   );
   const row = rows[0];
   if (!row) throw new Error("GENESIS_SELLER_CONTEXT_NOT_FOUND");
-  return projectGenesisSellerContext(assertStoredContext(row, campaignId, organisationId));
+  const stored = assertStoredContext(row, campaignId, organisationId);
+  const constraintSet = await loadOrMaterialiseMarketRouteGenesisSellerConstraintSet(stored);
+  return projectGenesisSellerContext(stored, constraintSet);
 }

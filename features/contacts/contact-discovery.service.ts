@@ -30,7 +30,7 @@ export async function runNextRouteIntelligence(context:WorkerExecutionContext,op
     const campaigns=await databaseRequest<any[]>(`campaign_detail?id=eq.${job.campaign_id}&organisation_id=eq.${job.organisation_id}&limit=1`);
     const campaign=campaigns[0]; if(!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
     const sellerContext=await loadGenesisSellerContext(job.campaign_id,job.organisation_id);
-    const business=sellerContext.businessDNA as unknown as Record<string,unknown>;
+    const business={...(sellerContext.businessDNA as unknown as Record<string,unknown>),genesisConstraintContracts:sellerContext.constraintSet};
     await databaseRequest("rpc/update_contact_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"RESEARCHING",p_progress:30})});
     const result=await researchRouteIntelligence({organisationId:job.organisation_id,campaignId:job.campaign_id,schedulerRunId:context.schedulerRunId,jobId:job.session_id,company:companyIntelligence,campaign:{name:campaign.name,objective:campaign.objective,audience:campaign.audience,buyerRoles:campaign.buyer_roles,messageAngle:campaign.message_angle},business,routeExpansionPass:Number(job.route_expansion_pass??0)});
     await databaseRequest("rpc/update_contact_discovery_progress_owned",{method:"POST",body:JSON.stringify({p_session_id:job.session_id,p_scheduler_run_id:context.schedulerRunId,p_stage:"VALIDATING",p_progress:72,p_candidates:result.contacts.length})});
