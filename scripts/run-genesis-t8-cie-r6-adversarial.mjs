@@ -1,0 +1,15 @@
+import { pathToFileURL } from 'node:url';
+const mod=await import(pathToFileURL(process.argv[2]));
+const routeAuthority={strategy:{primary:{routeId:'r1'}},selectedRouteIds:['r1']};
+const contact=(id,name='Jane Doe',role='Procurement Director',extra={})=>({contactId:id,fullName:name,roleTitle:role,department:'Procurement',emailAddress:'jane@example.com',emailStatus:'VERIFIED',linkedinProfileUrl:null,linkedinStatus:null,reviewStatus:'APPROVED',verifiedIdentityEvidence:1,verifiedRoleEvidence:1,...extra});
+const run=(name,fn)=>{try{if(fn()===false)throw new Error('false');console.log('PASS',name);return 1}catch(e){console.log('FAIL',name,e.message);return 0}};
+let p=0;
+p+=run('named OPEN route binds exact contact',()=>mod.evaluateCieR6ContactAuthority({routeAuthority,routes:[{id:'r1',contactName:'Jane Doe',channelType:'DIRECT_EMAIL',channelValue:'jane@example.com'}],contacts:[contact('c1')]}).primaryContactId==='c1');
+p+=run('higher weighted telemetry cannot outrank route participant',()=>mod.evaluateCieR6ContactAuthority({routeAuthority,routes:[{id:'r1',contactName:'Jane Doe',channelType:'DIRECT_EMAIL',channelValue:'jane@example.com'}],contacts:[contact('z9','Jane Doe'),contact('a1','Other Person')]}).primaryContactId==='z9');
+p+=run('unverified identity fails closed',()=>{try{mod.evaluateCieR6ContactAuthority({routeAuthority,routes:[{id:'r1',contactName:'Jane Doe',channelType:'DIRECT_EMAIL',channelValue:'jane@example.com'}],contacts:[contact('c1','Jane Doe','Procurement Director',{verifiedIdentityEvidence:0})]});return false}catch{return true}});
+p+=run('channel mismatch fails closed',()=>{try{mod.evaluateCieR6ContactAuthority({routeAuthority,routes:[{id:'r1',contactName:'Jane Doe',channelType:'DIRECT_EMAIL',channelValue:'other@example.com'}],contacts:[contact('c1')]});return false}catch{return true}});
+p+=run('organizational route needs no contact',()=>mod.evaluateCieR6ContactAuthority({routeAuthority,routes:[{id:'r1',contactName:null,channelType:'DEPARTMENT_EMAIL',channelValue:'sales@example.com'}],contacts:[]}).primaryContactId===null);
+p+=run('multiple exact valid contacts remain frontier',()=>mod.evaluateCieR6ContactAuthority({routeAuthority,routes:[{id:'r1',contactName:'Jane Doe',channelType:'DIRECT_EMAIL',channelValue:'jane@example.com'}],contacts:[contact('b'),contact('a')]}).contactFrontier.join(',')==='a,b');
+p+=run('rejected contact fails closed',()=>{try{mod.evaluateCieR6ContactAuthority({routeAuthority,routes:[{id:'r1',contactName:'Jane Doe',channelType:'DIRECT_EMAIL',channelValue:'jane@example.com'}],contacts:[contact('c1','Jane Doe','Procurement Director',{reviewStatus:'REJECTED'})]});return false}catch{return true}});
+p+=run('missing selected route fails closed',()=>{try{mod.evaluateCieR6ContactAuthority({routeAuthority,routes:[],contacts:[contact('c1')]});return false}catch{return true}});
+console.log(`CIE-R6 adversarial ${p}/8`); if(p!==8)process.exit(1);

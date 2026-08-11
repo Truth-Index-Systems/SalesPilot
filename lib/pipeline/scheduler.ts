@@ -6,6 +6,7 @@ import type { WorkerExecutionResult } from "./executor";
 import { syncOpportunityFoundations } from "@/lib/opportunities/builder";
 import type { OpportunitySyncSummary } from "@/lib/opportunities/domain";
 import { runCieR4CommercialDecisionAuthority, type CieR4ApplySummary } from "@/lib/genesis-t8/cie/commercial-decision-runtime";
+import { runCieR6ContactAuthority, type CieR6ApplySummary } from "@/lib/genesis-t8/cie/contact-authority-worker";
 import type { EngagementBuilderResult } from "@/lib/engagement/types";
 import { runNextG5CommercialReasoning, type G5CommercialReasoningWorkerResult } from "@/lib/engagement/g5-commercial-reasoning";
 import { runNextG5ChannelStrategy, type G5ChannelStrategyWorkerResult } from "@/lib/engagement/g5-channel-strategy";
@@ -56,6 +57,7 @@ export type PipelineSchedulerResult = {
   contact: SettledWorker | SettledWorker[] | null;
   opportunity: OpportunitySyncSummary | null;
   opportunityScoring: CieR4ApplySummary | null;
+  contactAuthority: CieR6ApplySummary | null;
   engagement: EngagementBuilderResult | null;
   engagementStrategy: EngagementStrategySyncResult | null;
   engagementLearningGuidance: EngagementLearningGuidanceResult | null;
@@ -97,7 +99,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner, 300);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, personalisationSafety: null, outreachGeneration: null, engagementSelfReview: null, engagementQuality: null, autopilotApproval: null, engagementQueue: null, engagementLearning: null, parallelExecution: { g4: { kind: "NONE", attempted: 0, results: [] }, g5: [], limits: { organisationHeavyInFlight: 2, campaignCompanyRouteInFlight: 3, schedulerG4DispatchWidth: 0, schedulerG5DispatchWidth: 0 } } };
+    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, contactAuthority: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, personalisationSafety: null, outreachGeneration: null, engagementSelfReview: null, engagementQuality: null, autopilotApproval: null, engagementQueue: null, engagementLearning: null, parallelExecution: { g4: { kind: "NONE", attempted: 0, results: [] }, g5: [], limits: { organisationHeavyInFlight: 2, campaignCompanyRouteInFlight: 3, schedulerG4DispatchWidth: 0, schedulerG5DispatchWidth: 0 } } };
   }
 
   const runId = lease.run_id;
@@ -166,6 +168,9 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     const opportunityScoring = opportunity && hasSchedulerBudget(schedulerStartedAt, 8_000)
       ? await runCieR4CommercialDecisionAuthority(runId)
       : null;
+    const contactAuthority = opportunityScoring && hasSchedulerBudget(schedulerStartedAt, 8_000)
+      ? await runCieR6ContactAuthority(runId)
+      : null;
     const engagement: EngagementBuilderResult | null = null;
     const engagementStrategy: EngagementStrategySyncResult | null = null;
     const engagementLearningGuidance: EngagementLearningGuidanceResult | null = null;
@@ -210,6 +215,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       contactFoundation,
       foundation: opportunity,
       scoring: opportunityScoring,
+      contactAuthority,
       engagement,
       engagementStrategy,
       engagementLearningGuidance,
@@ -233,6 +239,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       contact,
       opportunity,
       opportunityScoring,
+      contactAuthority,
       engagement,
       engagementStrategy,
       engagementLearningGuidance,

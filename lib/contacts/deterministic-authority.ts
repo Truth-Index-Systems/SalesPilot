@@ -62,7 +62,7 @@ export function finaliseDeterministicContactRouteAuthority(result: ContactDiscov
         },
       };
     })
-    .sort((a, b) => b.confidence.overall - a.confidence.overall || a.fullName.localeCompare(b.fullName));
+    .sort((a, b) => a.fullName.localeCompare(b.fullName) || a.roleTitle.localeCompare(b.roleTitle));
 
   const companyContactChannels = result.companyContactChannels
     .map(channel => ({
@@ -76,8 +76,8 @@ export function finaliseDeterministicContactRouteAuthority(result: ContactDiscov
     }))
     .sort((a, b) => b.routingScore - a.routingScore || a.emailAddress.localeCompare(b.emailAddress));
 
-  const routes = [...result.routes]
-    .sort((a, b) => deterministicRouteOrderingScore(b) - deterministicRouteOrderingScore(a) || a.routeKey.localeCompare(b.routeKey));
+  // CIE-R5: route scores remain compatibility telemetry only. Route array order is canonical, never authoritative.
+  const routes = [...result.routes].sort((a, b) => a.routeKey.localeCompare(b.routeKey));
 
   return { ...result, contacts, companyContactChannels, routes };
 }

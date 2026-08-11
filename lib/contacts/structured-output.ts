@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ContactDiscoveryResultSchema, type ContactDiscoveryResult } from "./schemas";
-import { deterministicChannelRouting, deterministicConfidenceLabel, deterministicContactOverall, deterministicRouteOrderingScore } from "./deterministic-authority";
+import { deterministicChannelRouting, deterministicConfidenceLabel, deterministicContactOverall } from "./deterministic-authority";
 
 export const ContactDiscoveryGatewaySchema = z.record(z.unknown());
 
@@ -216,10 +216,10 @@ function canonicalRoute(value: unknown, index: number) {
  */
 export function canonicaliseContactDiscoveryOutput(value: unknown, expectedCompanyId: string): ContactDiscoveryResult {
   const root = record(value) ?? {};
-  const contacts = (Array.isArray(root.contacts) ? root.contacts : []).map(canonicalContact).filter(Boolean).sort((a: any, b: any) => b.confidence.overall - a.confidence.overall || a.fullName.localeCompare(b.fullName)).slice(0, 20);
+  const contacts = (Array.isArray(root.contacts) ? root.contacts : []).map(canonicalContact).filter(Boolean).sort((a: any, b: any) => a.fullName.localeCompare(b.fullName) || a.roleTitle.localeCompare(b.roleTitle)).slice(0, 20);
   const companyContactChannels = (Array.isArray(root.companyContactChannels) ? root.companyContactChannels : []).map(canonicalChannel).filter(Boolean).sort((a: any, b: any) => b.routingScore - a.routingScore || a.emailAddress.localeCompare(b.emailAddress)).slice(0, 30);
   const buyingPaths = (Array.isArray(root.buyingPaths) ? root.buyingPaths : []).map(canonicalBuyingPath).filter(Boolean).slice(0, 12);
-  const routes = (Array.isArray(root.routes) ? root.routes : []).map(canonicalRoute).filter(Boolean).sort((a: any, b: any) => deterministicRouteOrderingScore(b) - deterministicRouteOrderingScore(a) || a.routeKey.localeCompare(b.routeKey)).slice(0, 16);
+  const routes = (Array.isArray(root.routes) ? root.routes : []).map(canonicalRoute).filter(Boolean).sort((a: any, b: any) => a.routeKey.localeCompare(b.routeKey)).slice(0, 16);
   return ContactDiscoveryResultSchema.parse({
     schemaVersion: "contact-discovery/v3",
     companyId: expectedCompanyId,

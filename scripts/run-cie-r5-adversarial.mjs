@@ -1,0 +1,15 @@
+import { pathToFileURL } from "node:url";
+const mod=await import(pathToFileURL(process.argv[2]).href);
+let passed=0; const t=(n,fn)=>{try{fn(); passed++; console.log(`PASS ${n}`)}catch(e){console.error(`FAIL ${n}`,e); process.exitCode=1}};
+const route=(id,extra={})=>({id,channelType:"DIRECT_EMAIL",channelValue:`${id}@x.com`,isViable:true,...extra});
+const run=(routes)=>mod.evaluateCieR5RouteAuthority({realityId:"r1",commercialReasoning:{whyNow:"Now",smallestReasonableCommitment:"Reply"},sourceSnapshot:{opportunity:{commercial_routes:routes}}});
+t("unique open route selected",()=>{const r=run([route("00000000-0000-0000-0000-000000000001")]); if(r.strategy.primary.routeId!=="00000000-0000-0000-0000-000000000001") throw 1;});
+t("blocked route never selected",()=>{const r=run([route("00000000-0000-0000-0000-000000000001",{isViable:false}),route("00000000-0000-0000-0000-000000000002")]); if(r.strategy.primary.routeId.endsWith("1")) throw 1;});
+t("unresolved only fails closed",()=>{let ok=false; try{run([route("00000000-0000-0000-0000-000000000001",{channelValue:null})])}catch(e){ok=String(e).includes("ROUTE_UNRESOLVED")} if(!ok) throw 1;});
+t("multiple open routes retained",()=>{const r=run([route("00000000-0000-0000-0000-000000000002"),route("00000000-0000-0000-0000-000000000001")]); if(r.selectedRouteIds.length!==2||!r.strategy.secondary) throw 1;});
+t("canonical tie break reproducible",()=>{const a=run([route("00000000-0000-0000-0000-000000000002"),route("00000000-0000-0000-0000-000000000001")]); const b=run([route("00000000-0000-0000-0000-000000000001"),route("00000000-0000-0000-0000-000000000002")]); if(a.strategy.primary.routeId!==b.strategy.primary.routeId) throw 1;});
+t("unknown channel unresolved",()=>{let ok=false; try{run([route("00000000-0000-0000-0000-000000000001",{channelType:"UNKNOWN"})])}catch(e){ok=String(e).includes("ROUTE_UNRESOLVED")} if(!ok) throw 1;});
+t("duplicate route ids rejected",()=>{let ok=false; try{run([route("00000000-0000-0000-0000-000000000001"),route("00000000-0000-0000-0000-000000000001")])}catch(e){ok=String(e).includes("DUPLICATE_ROUTE_ID")} if(!ok) throw 1;});
+t("no routes rejected",()=>{let ok=false; try{run([])}catch(e){ok=String(e).includes("NO_ROUTES")} if(!ok) throw 1;});
+console.log(`CIE-R5 adversarial: ${passed}/8 PASS`);
+if(passed!==8) process.exit(1);
