@@ -130,7 +130,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const opportunityBuilding = opportunities.filter(row => row.status === "BUILDING").length;
   const opportunityResearchComplete = opportunities.filter(row => ["READY", "NEEDS_CONTACT", "NEEDS_EVIDENCE", "LOW_PRIORITY", "APPROVED", "REJECTED", "ENGAGED"].includes(row.status)).length;
   const opportunityAwaitingReview = opportunities.filter(row => ["READY", "NEEDS_CONTACT", "NEEDS_EVIDENCE", "LOW_PRIORITY"].includes(row.status)).length;
-  const opportunityRecommended = opportunities.filter(row => row.status === "READY" && (row.opportunity_score ?? 0) >= 80).length;
+  const opportunityRecommended = opportunities.filter(row => row.status === "READY").length;
   const opportunityApproved = opportunities.filter(row => row.status === "APPROVED").length;
   const topOpportunity = opportunities.find(row => row.status !== "REJECTED" && row.status !== "BUILDING") ?? null;
   const progress = truthfulProgress(discovery);
@@ -169,7 +169,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       <div className="next-status-panel">
         <span>{opportunityCount > 0 ? "Current commercial stage" : "Current intelligence stage"}</span>
         <strong>{opportunityApproved > 0 ? "Engagement" : opportunityResearchComplete > 0 ? "Opportunity Review" : (contactsActive || opportunityBuilding > 0 || routeHandoffReady) ? "Route Research" : "Company Discovery"}</strong>
-        <small>{opportunityResearchComplete > 0 ? `${opportunityRecommended} recommended · top score ${topOpportunity?.opportunity_score ?? 0}/100` : (contactsActive || opportunityBuilding > 0) ? `${contactResearching} companies researching · ${pendingContactCount} contacts awaiting review` : routeHandoffReady ? "Building buyer and reachability intelligence" : stageLabel}</small>
+        <small>{opportunityResearchComplete > 0 ? `${opportunityRecommended} CIE-qualified for review` : (contactsActive || opportunityBuilding > 0) ? `${contactResearching} companies researching · ${pendingContactCount} contacts awaiting review` : routeHandoffReady ? "Building buyer and reachability intelligence" : stageLabel}</small>
         {pendingCompanyCount > 0 ? <Link className="campaign-stage-link" href={`/companies?campaign=${id}&status=PENDING_REVIEW`}>Review {pendingCompanyCount} compan{pendingCompanyCount === 1 ? "y" : "ies"} →</Link> : opportunityResearchComplete > 0 ? <Link className="campaign-stage-link" href={`/opportunities?campaign=${id}`}>Open campaign opportunities →</Link> : (contactsActive || opportunityBuilding > 0) ? <Link className="campaign-stage-link" href={`/contacts?campaign=${id}`}>View supporting contacts →</Link> : null}
       </div>
       <div className="campaign-roadmap" aria-label="Sales campaign journey">

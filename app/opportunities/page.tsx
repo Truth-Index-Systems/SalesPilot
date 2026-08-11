@@ -20,11 +20,9 @@ function queryString(input: Search) {
 }
 
 function matchesBand(row: OpportunityOverview, band?: string) {
-  const score = row.opportunity_score ?? 0;
-  if (band === "RECOMMENDED") return row.status === "READY" && score >= 80;
-  if (band === "REVIEW") return row.status === "READY" && score >= 55 && score < 80;
+  if (band === "RECOMMENDED" || band === "REVIEW") return row.status === "READY";
   if (band === "INCOMPLETE") return row.status === "NEEDS_CONTACT" || row.status === "NEEDS_EVIDENCE" || row.status === "BUILDING";
-  if (band === "LOW") return row.status === "LOW_PRIORITY" || score < 55;
+  if (band === "LOW") return row.status === "LOW_PRIORITY" || row.status === "REJECTED";
   return true;
 }
 
@@ -41,8 +39,8 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
     return true;
   });
 
-  const recommended = allRows.filter(row => row.status === "READY" && (row.opportunity_score ?? 0) >= 80).length;
-  const review = allRows.filter(row => row.status === "READY" && (row.opportunity_score ?? 0) >= 55 && (row.opportunity_score ?? 0) < 80).length;
+  const recommended = allRows.filter(row => row.status === "READY").length;
+  const review = recommended;
   const incomplete = allRows.filter(row => ["BUILDING", "NEEDS_CONTACT", "NEEDS_EVIDENCE"].includes(row.status)).length;
   const approved = allRows.filter(row => row.status === "APPROVED").length;
   const reachable = allRows.filter(row => row.commercial_route_channel_value || row.primary_contact_email || row.primary_route_email || row.primary_contact_linkedin_url).length;

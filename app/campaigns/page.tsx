@@ -28,11 +28,11 @@ export default async function Campaigns() {
       : <div className="card list">{campaigns.map(c => {
           const rows = opportunitiesByCampaign.get(c.id) ?? [];
           const awaiting = rows.filter(row => !["APPROVED", "REJECTED", "ENGAGED"].includes(row.status)).length;
-          const recommended = rows.filter(row => (row.opportunity_score ?? 0) >= 80 && !["APPROVED", "REJECTED", "ENGAGED"].includes(row.status)).length;
+          const recommended = rows.filter(row => row.status === "READY").length;
           return <div className="list-row" key={c.id}>
             <div><div className="name">{c.name}</div><div className="meta"><span className="badge green">{presentCampaignStatus(c.status)}</span> · {presentAutomationMode(c.automationMode)}</div></div>
             <div><div className="label">Audience</div><div className="value compact-value">{c.audience}</div></div>
-            <div><div className="label">Opportunities</div><div className="value">{rows.length}</div><div className="meta">{recommended} recommended</div></div>
+            <div><div className="label">Opportunities</div><div className="value">{rows.length}</div><div className="meta">{recommended} CIE-qualified</div></div>
             <div><div className="label">Next decision</div><div className="value compact-value">{awaiting ? `${awaiting} awaiting review` : rows.length ? "Opportunity review complete" : c.latestProgress ?? "Intelligence assembling"}</div></div>
             <ButtonLink href={`/campaigns/${c.id}`} secondary><ArrowRight size={15}/></ButtonLink>
           </div>;

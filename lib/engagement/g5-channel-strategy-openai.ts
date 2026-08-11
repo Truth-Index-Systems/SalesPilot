@@ -123,6 +123,7 @@ export async function generateG5ChannelStrategy(input: {
   commercialReasoning: Record<string, unknown>;
   sourceSnapshot: Record<string, unknown>;
 }): Promise<{ result: G5ChannelStrategy; model: string; sourceFingerprint: string }> {
+  throw new Error("CIE_R8_AUTHORITY_VIOLATION:AI_ROUTE_SELECTION_ERADICATED");
   const profile = aiWorkloadProfile("G5_CHANNEL_STRATEGY");
   const compactInput = compactG5ChannelBrief({
     commercialReasoning: input.commercialReasoning,

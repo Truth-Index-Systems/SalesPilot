@@ -1,6 +1,6 @@
 import type { ContactDiscoveryResult } from "./schemas";
 
-/** MR-R1 Build 8 deterministic ranking compatibility fence. */
+/** Historical compatibility telemetry. CIE-R8 forbids these numeric values from controlling route/contact selection. */
 export const MARKETROUTE_CONTACT_ROUTE_AUTHORITY_VERSION = "MR-R1-BUILD8-1.0.0" as const;
 
 const clamp = (value: number): number => Math.max(0, Math.min(100, Math.round(Number.isFinite(value) ? value : 0)));
@@ -74,7 +74,7 @@ export function finaliseDeterministicContactRouteAuthority(result: ContactDiscov
         publicVerified: channel.verificationStatus === "PUBLIC_VERIFIED",
       }),
     }))
-    .sort((a, b) => b.routingScore - a.routingScore || a.emailAddress.localeCompare(b.emailAddress));
+    .sort((a, b) => a.emailAddress.localeCompare(b.emailAddress));
 
   // CIE-R5: route scores remain compatibility telemetry only. Route array order is canonical, never authoritative.
   const routes = [...result.routes].sort((a, b) => a.routeKey.localeCompare(b.routeKey));
