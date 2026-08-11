@@ -261,7 +261,8 @@
     "cie:r8-check": "npm run cie:r8-static-check && npm run cie:r8-runtime-check",
     "cie:dashboard-check": "node scripts/validate-cie-founder-dashboard.mjs",
     "genesis:g82-capacity-backpressure-check": "node scripts/validate-genesis-g82-capacity-backpressure-hardening.mjs",
-    "genesis:g82-idle-spillover-check": "node scripts/validate-genesis-g82-idle-capacity-spillover.mjs"
+    "genesis:g82-idle-spillover-check": "node scripts/validate-genesis-g82-idle-capacity-spillover.mjs",
+    "genesis:g82-depth-job-type-reconciliation-check": "node scripts/validate-genesis-g82-depth-ai-job-type-reconciliation.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
