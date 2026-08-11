@@ -36,6 +36,9 @@ export async function scoreOpportunityIntelligenceShadow(
   await databaseRequest<number>("rpc/enforce_opportunity_route_readiness", {
     method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }),
   });
-  if (Array.isArray(result)) return result[0] ?? EMPTY;
-  return result ?? EMPTY;
+  if (Array.isArray(result)) {
+    const rows = result as OpportunityScoringSummary[];
+    return rows[0] ?? EMPTY;
+  }
+  return result as OpportunityScoringSummary;
 }
