@@ -4,7 +4,7 @@
  */
 export const CIE_COMPOSITION_VERSION = "1.0.0" as const;
 
-export type CieAuthorityMode = "AUTHORITATIVE" | "SHADOW" | "PRESENTATION_ONLY" | "LEGACY_TO_ERADICATE";
+export type CieAuthorityMode = "AUTHORITATIVE" | "SHADOW" | "PRESENTATION_ONLY" | "ERADICATED" | "LEGACY_TO_ERADICATE";
 export type CieOwner = "AI" | "TRUTH_INDEX" | "CE1" | "UDOSIB" | "MARKETROUTE" | "LEGACY";
 
 export type CieBoundaryContract = Readonly<{
@@ -70,12 +70,13 @@ export type CieAuthorityPath = Readonly<{
 }>;
 
 export const CIE_AUTHORITY_MIGRATION_MAP = Object.freeze([
-  { id: "LIVE_OPPORTUNITY_SCORING", source: "lib/opportunities/scoring.ts", decision: "opportunity scoring", currentOwner: "LEGACY", targetOwner: "UDOSIB", currentMode: "SHADOW", targetRelease: "CIE-R4" },
+  { id: "LIVE_OPPORTUNITY_SCORING", source: "lib/opportunities/scoring.ts", decision: "opportunity scoring", currentOwner: "LEGACY", targetOwner: "UDOSIB", currentMode: "ERADICATED", targetRelease: "CIE-R4" },
   { id: "CIE_R4_COMMERCIAL_DECISION", source: "lib/genesis-t8/cie/commercial-decision-authority.ts", decision: "commercial opportunity decision", currentOwner: "UDOSIB", targetOwner: "UDOSIB", currentMode: "AUTHORITATIVE", targetRelease: "CIE-R4" },
-  { id: "CONTACT_WEIGHTED_AUTHORITY", source: "lib/contacts/deterministic-authority.ts", decision: "contact ranking", currentOwner: "LEGACY", targetOwner: "UDOSIB", currentMode: "PRESENTATION_ONLY", targetRelease: "CIE-R6" },
-  { id: "ROUTE_WEIGHTED_AUTHORITY", source: "lib/contacts/deterministic-authority.ts", decision: "route ranking", currentOwner: "LEGACY", targetOwner: "UDOSIB", currentMode: "SHADOW", targetRelease: "CIE-R5" },
+  { id: "CONTACT_WEIGHTED_AUTHORITY", source: "lib/contacts/deterministic-authority.ts", decision: "contact ranking", currentOwner: "LEGACY", targetOwner: "UDOSIB", currentMode: "ERADICATED", targetRelease: "CIE-R6" },
+  { id: "CONTACT_CONFIDENCE_TELEMETRY", source: "lib/contacts/deterministic-authority.ts", decision: "contact evidence confidence presentation", currentOwner: "LEGACY", targetOwner: "MARKETROUTE", currentMode: "PRESENTATION_ONLY", targetRelease: "CIE-R8" },
+  { id: "ROUTE_WEIGHTED_AUTHORITY", source: "lib/contacts/deterministic-authority.ts", decision: "route ranking", currentOwner: "LEGACY", targetOwner: "UDOSIB", currentMode: "ERADICATED", targetRelease: "CIE-R5" },
   { id: "CIE_R5_ROUTE_AUTHORITY", source: "lib/genesis-t8/cie/route-authority.ts", decision: "route ranking", currentOwner: "UDOSIB", targetOwner: "UDOSIB", currentMode: "AUTHORITATIVE", targetRelease: "CIE-R5" },
-  { id: "G5_AI_ROUTE_SELECTION", source: "lib/engagement/g5-channel-strategy-openai.ts", decision: "primary/secondary/fallback route selection", currentOwner: "AI", targetOwner: "UDOSIB", currentMode: "SHADOW", targetRelease: "CIE-R5" },
+  { id: "G5_AI_ROUTE_SELECTION", source: "lib/engagement/g5-channel-strategy-openai.ts", decision: "primary/secondary/fallback route selection", currentOwner: "AI", targetOwner: "UDOSIB", currentMode: "ERADICATED", targetRelease: "CIE-R5" },
   { id: "CIE_R5_EXECUTION_ROUTE_SELECTION", source: "lib/genesis-t8/cie/route-authority.ts", decision: "primary/secondary/fallback route selection", currentOwner: "UDOSIB", targetOwner: "UDOSIB", currentMode: "AUTHORITATIVE", targetRelease: "CIE-R5" },
   { id: "G5_ENGAGEMENT_CONFIDENCE", source: "lib/engagement/g5-engagement-quality.ts", decision: "autonomous engagement quality authority", currentOwner: "LEGACY", targetOwner: "UDOSIB", currentMode: "PRESENTATION_ONLY", targetRelease: "CIE-R8" },
   { id: "CIE_R8_AUTOPILOT_GATE", source: "supabase/migrations/0146_genesis_t8_cie_r8_legacy_math_eradication.sql", decision: "autonomous engagement quality authority", currentOwner: "UDOSIB", targetOwner: "UDOSIB", currentMode: "AUTHORITATIVE", targetRelease: "CIE-R8" },

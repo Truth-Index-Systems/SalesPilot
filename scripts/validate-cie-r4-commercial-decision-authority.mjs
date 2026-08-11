@@ -14,7 +14,7 @@ ok(!/opportunity_score|company_fit|route_quality/.test(a),'legacy score leaked i
 ok(sched.includes('runCieR4CommercialDecisionAuthority'),'scheduler not using CIE R4');
 ok(builder.includes('rpc/sync_cie_r4_opportunity_foundations'),'legacy foundation authority still live');
 ok(!sched.includes('scoreOpportunityIntelligence('),'scheduler still calls legacy scorer');
-ok(legacy.includes('LEGACY_OPPORTUNITY_SCORER_MAY_NOT_CONTROL_LIVE_STATE'),'legacy scorer not fail closed');
+ok(legacy.includes('LEGACY_OPPORTUNITY_SCORER_MAY_NOT_CONTROL_LIVE_STATE')||legacy.includes('LEGACY_OPPORTUNITY_SCORER_ERADICATED'),'legacy scorer not fail closed');
 ok(comp.includes('CIE_R4_COMMERCIAL_DECISION')&&comp.includes('currentMode: "AUTHORITATIVE"'),'composition map missing R4 owner');
 ok(sql.includes("opportunity_score = null"),'SQL does not strip legacy score authority');
 ok(sql.includes("else 'BUILDING'"),'commercial candidate must not unlock READY before R5/R6');

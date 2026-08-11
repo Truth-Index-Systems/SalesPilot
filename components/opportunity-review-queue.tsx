@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, CheckCircle2, ContactRound, ExternalLink, Mail, ShieldCheck } from "@/components/icons";
 import type { OpportunityOverview } from "@/lib/opportunities/domain";
-import { buildAccessRoute, routeConfidenceClass } from "@/lib/opportunities/route-view";
+import { buildAccessRoute } from "@/lib/opportunities/route-view";
 
 function band(row: OpportunityOverview) {
   if (row.status === "APPROVED") return { label: "Approved", className: "approved" };
@@ -13,7 +13,7 @@ function band(row: OpportunityOverview) {
   if (row.status === "NEEDS_CONTACT") return { label: "Route research needed", className: "hold" };
   if (row.status === "NEEDS_EVIDENCE") return { label: "Needs evidence", className: "hold" };
   if (row.status === "LOW_PRIORITY") return { label: "Low priority", className: "archived" };
-  return { label: (row.opportunity_score ?? 0) >= 80 ? "Recommended" : "Review", className: "pending_review" };
+  return { label: row.status === "READY" ? "Ready for review" : "Review", className: "pending_review" };
 }
 
 function reviewable(row: OpportunityOverview) {
@@ -65,41 +65,40 @@ export function OpportunityReviewQueue({ rows }: { rows: OpportunityOverview[] }
     <div className="opportunity-card-grid">
       {rows.map(row => {
         const state = band(row);
-        const score = row.opportunity_score ?? 0;
         const route = buildAccessRoute(row);
         const channel = route.email;
         return <article className={`card opportunity-review-card ${selectedSet.has(row.id) ? "selected" : ""}`} key={row.id}>
           <div className="opportunity-card-main">
             <div className="opportunity-card-head">
               <Link href={`/opportunities/${row.id}`} className="opportunity-card-title-link">
-                <span className="eyebrow">#{row.rank} · {row.campaign_name}</span><h3>{row.company_name}</h3><span>{row.company_industry || "Industry not confirmed"}{row.company_country ? ` · ${row.company_country}` : ""}</span>
+                <span className="eyebrow">{row.campaign_name}</span><h3>{row.company_name}</h3><span>{row.company_industry || "Industry not confirmed"}{row.company_country ? ` · ${row.company_country}` : ""}</span>
               </Link>
               <div className="opportunity-card-head-actions">
                 {reviewable(row) ? <label className="opportunity-select"><input type="checkbox" checked={selectedSet.has(row.id)} onChange={() => setSelected(current => current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id])} aria-label={`Select ${row.company_name}`} /><span>Select</span></label> : <span className="opportunity-select opportunity-select-disabled">Researching</span>}
-                <div className="opportunity-score"><strong>{score}</strong><span>Opportunity score</span></div>
+                <div className="opportunity-score"><strong>{row.status === "READY" || row.status === "APPROVED" || row.status === "ENGAGED" ? "✓" : "…"}</strong><span>CIE state</span></div>
               </div>
             </div>
             <Link href={`/opportunities/${row.id}`} className="opportunity-card-link">
             <div className="opportunity-contact opportunity-route-summary">
               <ContactRound size={18}/>
               <div className="opportunity-route-copy">
-                <span>Best commercial route</span>
+                <span>Authorised commercial route</span>
                 <strong>{route.personName || "Research in progress"}</strong>
-                <small>{route.personName ? `${route.role} · ${route.typeLabel}` : "MarketRoute is analysing the strongest commercial route into this organisation."}</small>
+                <small>{route.personName ? `${route.role} · ${route.typeLabel}` : "MarketRoute is resolving an authorised commercial route into this organisation."}</small>
                 {route.personName && <p>{route.recommendation}</p>}
               </div>
               <div className="opportunity-route-signals">
-                <div><span>Route quality</span><strong className="route-stars" aria-label={`${route.quality} out of 5 stars`}>{route.qualityStars}</strong><small>{route.qualityLabel}</small></div>
-                <div><span>Route confidence</span><strong className={`route-confidence ${routeConfidenceClass(route.confidence)}`}>{route.confidence}%</strong><small>{route.confidenceLabel}</small></div>
+                <div><span>Route authority</span><strong>{route.authorityState}</strong><small>{route.isReady ? "CIE-authorised execution path" : "Route decision unresolved"}</small></div>
+                <div><span>Route evidence</span><strong>{route.evidenceState === "EVIDENCE_LINKED" ? "Linked" : "Incomplete"}</strong><small>{route.evidenceSummary}</small></div>
               </div>
             </div>
             <div className="opportunity-reason"><span>Why this is an opportunity</span><p>{row.buying_reason || row.company_summary || "MarketRoute is still assembling the recommendation."}</p></div>
             {route.isReady && <div className="route-next-step"><span>Recommended next step</span><p>{route.nextStep}</p></div>}
             <div className="opportunity-score-grid">
-              <div><span>Company fit</span><strong>{row.company_fit ?? 0}</strong></div>
-              <div><span>Operational fit</span><strong>{row.operational_fit ?? 0}</strong></div>
-              <div><span>Route quality</span><strong>{row.route_quality ?? 0}</strong></div>
-              <div><span>Route confidence</span><strong>{row.route_confidence ?? 0}</strong></div>
+              <div><span>Commercial decision</span><strong>{row.status === "READY" || row.status === "APPROVED" || row.status === "ENGAGED" ? "Actionable" : "Unresolved"}</strong></div>
+              <div><span>Route authority</span><strong>{route.authorityState}</strong></div>
+              <div><span>Route evidence</span><strong>{route.evidenceState === "EVIDENCE_LINKED" ? "Linked" : "Incomplete"}</strong></div>
+              <div><span>Evidence sources</span><strong>{Number(row.company_evidence_count) + Number(row.contact_evidence_count) + Number(row.commercial_route_evidence_count || 0)}</strong></div>
             </div>
             <div className="opportunity-channel-row">
               <div className={channel ? "available" : "unknown"}><Mail size={15}/><span>{channel || "Email route not found"}</span></div>

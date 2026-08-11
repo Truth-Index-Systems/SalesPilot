@@ -7,7 +7,7 @@ import { requirePageUser } from "@/lib/auth/page-user";
 import { getOpportunity, listOpportunities } from "@/lib/opportunities/repository";
 import { listCampaigns } from "@/lib/campaigns/repository";
 import { Building2, CheckCircle2, ContactRound, ExternalLink, Mail, ShieldCheck, Target } from "@/components/icons";
-import { buildAccessRoute, routeConfidenceClass } from "@/lib/opportunities/route-view";
+import { buildAccessRoute } from "@/lib/opportunities/route-view";
 import { formatDateTime } from "@/lib/date-time";
 import { getG5ApprovalStrategyForOpportunity, getG5StrategyStatusForOpportunity } from "@/lib/engagement/g5-assisted-approval";
 import { G5AssistedApprovalActions } from "@/components/g5-assisted-approval-actions";
@@ -20,18 +20,13 @@ function statusLabel(status: string) {
   return ({ BUILDING: "Research in progress", READY: "Ready for review", NEEDS_CONTACT: "Route research needed", NEEDS_EVIDENCE: "Needs evidence", LOW_PRIORITY: "Low priority", APPROVED: "Approved", REJECTED: "Not selected", ENGAGED: "Engaged" } as Record<string, string>)[status] ?? status;
 }
 
-function componentLabel(key: string) {
-  return ({ companyFit: "Company fit", operationalFit: "Operational fit", routeQuality: "Route quality", routeConfidence: "Route confidence", buyingAuthority: "Buying authority", contactability: "Route accessibility", routeAccessibility: "Route accessibility", evidenceQuality: "Evidence quality", commercialValue: "Commercial value", urgency: "Urgency" } as Record<string, string>)[key] ?? key;
-}
-
 export default async function OpportunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePageUser(`/opportunities/${id}`);
   const [opportunity, all, campaigns, engagementStrategy, engagementStatus, engagementTimeline] = await Promise.all([getOpportunity(id), listOpportunities(), listCampaigns(), getG5ApprovalStrategyForOpportunity(id), getG5StrategyStatusForOpportunity(id), getG5LiveTimelineForOpportunity(id)]);
   if (!opportunity) notFound();
-  const explanation = opportunity.score_explanation_json;
   const route = buildAccessRoute(opportunity);
-  const limitations = explanation?.limitations ?? [];
+  const limitations: string[] = [];
   const companyEvidence = Array.isArray(opportunity.company_evidence) ? opportunity.company_evidence : [];
   const contactEvidence = Array.isArray(opportunity.contact_evidence) ? opportunity.contact_evidence : [];
   const commercialRoutes = Array.isArray(opportunity.commercial_routes) ? opportunity.commercial_routes : [];
@@ -66,7 +61,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
 
     <Card className="opportunity-detail-hero">
       <div>
-        <span className="eyebrow">MarketRoute recommendation</span>
+        <span className="eyebrow">CIE commercial case</span>
         <h2>{opportunity.buying_reason || "MarketRoute is still assembling the buying case."}</h2>
         <p>{opportunity.operational_pain || opportunity.company_summary || "No operational pain statement has been supported yet."}</p>
         <div className="opportunity-hero-actions"><a className="button secondary" href={opportunity.company_website_url} target="_blank" rel="noreferrer">Official company website <ExternalLink size={15}/></a>{route.linkedinUrl && <a className="button secondary" href={route.linkedinUrl || "#"} target="_blank" rel="noreferrer">Open LinkedIn route <ExternalLink size={15}/></a>}</div>
@@ -77,18 +72,18 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
     <div className="grid cols-2 section">
       <Card>
         <div className="card-title">The company</div><div className="card-subtitle">Why this organisation may realistically become a customer.</div>
-        <div className="strategy-grid section"><div className="strategy-item"><Building2 size={18}/><div><span>Industry</span><strong>{opportunity.company_industry || "Not confirmed"}</strong></div></div><div className="strategy-item"><Target size={18}/><div><span>Company fit</span><strong>{opportunity.company_fit ?? 0}/100</strong></div></div><div className="strategy-item"><ShieldCheck size={18}/><div><span>Official evidence</span><strong>{opportunity.company_evidence_count} sources</strong></div></div><div className="strategy-item"><CheckCircle2 size={18}/><div><span>Commercial value</span><strong>{opportunity.commercial_value ?? 0}/100</strong></div></div></div>
+        <div className="strategy-grid section"><div className="strategy-item"><Building2 size={18}/><div><span>Industry</span><strong>{opportunity.company_industry || "Not confirmed"}</strong></div></div><div className="strategy-item"><Target size={18}/><div><span>Commercial state</span><strong>{statusLabel(opportunity.status)}</strong></div></div><div className="strategy-item"><ShieldCheck size={18}/><div><span>Official evidence</span><strong>{opportunity.company_evidence_count} sources</strong></div></div><div className="strategy-item"><CheckCircle2 size={18}/><div><span>Route authority</span><strong>{route.authorityState}</strong></div></div></div>
         <p className="company-summary">{opportunity.company_summary}</p>
       </Card>
       <Card>
-        <div className="card-title">Best commercial route</div><div className="card-subtitle">The strongest currently supported path into the relevant buying centre — not simply the highest-scoring contact.</div>
-        {(route.personName || opportunity.commercial_route_label) ? <div className="opportunity-person opportunity-route-detail section"><ContactRound size={24}/><div><strong>{route.personName || opportunity.commercial_route_label}</strong><span>{route.role} · {route.typeLabel}</span><small>{route.recommendation}</small></div></div> : <div className="verified-empty section"><span>Research in progress. MarketRoute is analysing the strongest commercial route into this organisation.</span></div>}
+        <div className="card-title">Authorised commercial route</div><div className="card-subtitle">The current CIE-authorised execution path into the relevant buying centre. Pareto-equivalent alternatives remain alternatives rather than being collapsed into a hidden score.</div>
+        {(route.personName || opportunity.commercial_route_label) ? <div className="opportunity-person opportunity-route-detail section"><ContactRound size={24}/><div><strong>{route.personName || opportunity.commercial_route_label}</strong><span>{route.role} · {route.typeLabel}</span><small>{route.recommendation}</small></div></div> : <div className="verified-empty section"><span>Research in progress. MarketRoute is resolving an authorised commercial route into this organisation.</span></div>}
         <div className="route-signal-grid section">
-          <div><span>Route quality</span><strong className="route-stars" aria-label={`${route.quality} out of 5 stars`}>{route.qualityStars}</strong><small>{route.qualityLabel}</small></div>
-          <div><span>Route confidence</span><strong className={`route-confidence ${routeConfidenceClass(route.confidence)}`}>{route.confidence}%</strong><small>{route.confidenceLabel}</small></div>
-          <div><span>Recommended route</span><strong>{route.typeLabel}</strong><small>{route.confidenceSummary}</small></div>
+          <div><span>Route authority</span><strong>{route.authorityState}</strong><small>{route.isReady ? "CIE-authorised execution path" : "Route decision unresolved"}</small></div>
+          <div><span>Route evidence</span><strong>{route.evidenceState === "EVIDENCE_LINKED" ? "Linked" : "Incomplete"}</strong><small>{route.evidenceSummary}</small></div>
+          <div><span>Execution channel</span><strong>{route.typeLabel}</strong><small>No weighted route score is used.</small></div>
         </div>
-        <div className="route-strategy-callout section"><Target size={18}/><div><span>Recommended entry strategy</span><strong>{route.nextStep}</strong></div></div>
+        <div className="route-strategy-callout section"><Target size={18}/><div><span>Authorised next step</span><strong>{route.nextStep}</strong></div></div>
         <div className="contact-channel-strip section"><div className={route.email ? "contact-channel verified" : "contact-channel unknown"}><Mail size={14}/><div><span>Best email route</span><strong>{route.email || "Unknown"}</strong><small>{route.emailStatus || "Not found"}</small></div></div><div className={route.linkedinUrl ? "contact-channel verified" : "contact-channel unknown"}><ExternalLink size={14}/><div><span>LinkedIn route</span><strong>{route.linkedinUrl ? "Profile matched" : "Unknown"}</strong><small>{route.linkedinUrl ? "Public profile available" : "Not found"}</small></div></div>{route.phone && <div className="contact-channel verified"><ContactRound size={14}/><div><span>Switchboard / phone</span><strong>{route.phone}</strong><small>Verified route number</small></div></div>}</div>
       </Card>
     </div>

@@ -18,7 +18,7 @@ export function assertCieR8FreezeCandidate(): void {
   const paths: readonly CieAuthorityPath[] = CIE_AUTHORITY_MIGRATION_MAP;
   assertSingleAuthority(paths);
   const governed = new Set(['opportunity scoring','route ranking','contact ranking','primary/secondary/fallback route selection','autonomous engagement quality authority']);
-  const forbidden = paths.filter((p) => p.currentMode === 'LEGACY_TO_ERADICATE' || (governed.has(p.decision) && p.currentMode === 'AUTHORITATIVE' && p.currentOwner !== 'UDOSIB'));
+  const forbidden = paths.filter((p) => p.currentMode === 'LEGACY_TO_ERADICATE' || (governed.has(p.decision) && (p.currentMode === 'SHADOW' || (p.currentMode === 'AUTHORITATIVE' && p.currentOwner !== 'UDOSIB'))));
   if (forbidden.length) throw new Error(`CIE_R8_FREEZE_VIOLATION:${forbidden.map((x) => x.id).join(',')}`);
 }
 

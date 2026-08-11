@@ -47,7 +47,7 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.band);
 
   return <AppShell title="Opportunities" user={user} workspaceStats={{ campaigns: campaigns.length, companies: new Set(allRows.map(row => row.company_id)).size, replies: 0, opportunities: allRows.length }}>
-    <PageHeader eyebrow="Your pipeline" title="Your next best sales opportunities" subtitle="See the companies most worth your time, why they may need what you sell and the strongest credible route into each one. Lower-scoring research stays visible rather than being silently discarded." action={<span className="badge green"><ShieldCheck size={14}/> Evidence-led ranking</span>} />
+    <PageHeader eyebrow="Your pipeline" title="Commercial opportunities ready for review" subtitle="See each commercial case, why it may matter and the CIE-authorised route into the organisation. Unresolved research stays visible rather than being silently discarded." action={<span className="badge green"><ShieldCheck size={14}/> CIE decision authority</span>} />
 
     <Card className="opportunity-philosophy">
       <div><span className="eyebrow">Why this could become a customer</span><h2>A strong opportunity needs more than company fit — it needs a reason to buy and a credible way in.</h2><p>MarketRoute keeps the evidence and access route visible beneath every recommendation, so you can make the call with context.</p></div>
@@ -55,14 +55,14 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
     </Card>
 
     <div className="grid cols-4 section">
-      <Card><div className="card-title">Recommended</div><div className="metric-value">{recommended}</div><div className="metric-foot positive">Strongest opportunities first</div></Card>
-      <Card><div className="card-title">Worth reviewing</div><div className="metric-value">{review}</div><div className="metric-foot">Potential with visible limitations</div></Card>
+      <Card><div className="card-title">Ready for review</div><div className="metric-value">{recommended}</div><div className="metric-foot positive">CIE decision and route authority resolved</div></Card>
+      <Card><div className="card-title">Awaiting your decision</div><div className="metric-value">{review}</div><div className="metric-foot">Commercial cases with visible evidence and route</div></Card>
       <Card><div className="card-title">Research in progress</div><div className="metric-value">{incomplete}</div><div className="metric-foot">Needs route research or evidence</div></Card>
       <Card><div className="card-title">Approved for engagement</div><div className="metric-value">{approved}</div><div className="metric-foot positive">{reachable} opportunities currently reachable</div></Card>
     </div>
 
     <Card className="opportunity-review-flow section">
-      <div><Target size={18}/><span>Company fit</span></div><i>→</i><div><ContactRound size={18}/><span>Best access route</span></div><i>→</i><div><ShieldCheck size={18}/><span>Reachability and evidence</span></div><i>→</i><div className="active"><CheckCircle2 size={18}/><span>Opportunity review</span></div>
+      <div><Target size={18}/><span>Commercial Reality</span></div><i>→</i><div><ContactRound size={18}/><span>Authorised access route</span></div><i>→</i><div><ShieldCheck size={18}/><span>Reachability and evidence</span></div><i>→</i><div className="active"><CheckCircle2 size={18}/><span>Opportunity review</span></div>
     </Card>
 
     <form className="company-search-controls" action="/opportunities" method="get">
@@ -74,8 +74,8 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
 
     <div className="company-filter-row">
       <Link className={`filter-chip ${!search.band ? "active" : ""}`} href={queryString({ ...search, band: undefined })}>All · {allRows.length}</Link>
-      <Link className={`filter-chip ${search.band === "RECOMMENDED" ? "active" : ""}`} href={queryString({ ...search, band: "RECOMMENDED" })}>Recommended · {recommended}</Link>
-      <Link className={`filter-chip ${search.band === "REVIEW" ? "active" : ""}`} href={queryString({ ...search, band: "REVIEW" })}>Worth reviewing · {review}</Link>
+      <Link className={`filter-chip ${search.band === "RECOMMENDED" ? "active" : ""}`} href={queryString({ ...search, band: "RECOMMENDED" })}>Ready for review · {recommended}</Link>
+      <Link className={`filter-chip ${search.band === "REVIEW" ? "active" : ""}`} href={queryString({ ...search, band: "REVIEW" })}>Awaiting decision · {review}</Link>
       <Link className={`filter-chip ${search.band === "INCOMPLETE" ? "active" : ""}`} href={queryString({ ...search, band: "INCOMPLETE" })}>Still assembling · {incomplete}</Link>
       <Link className={`filter-chip ${search.status === "APPROVED" ? "active" : ""}`} href={queryString({ ...search, status: "APPROVED" as OpportunityStatus, band: undefined })}>Approved · {approved}</Link>
     </div>
