@@ -10,7 +10,7 @@ import { runGenesisG82AutonomousExpansionWorker } from "./autonomous-expansion-w
 import { ensureGenesisG82DepthBacklog, runGenesisG82DepthWorker } from "./autonomous-depth-worker";
 import { reconcileMissingMrTi2Snapshots } from "./truth-v2/reconciliation";
 
-export const GENESIS_G82_AUTONOMOUS_OPERATIONS_VERSION="G8.2-DEPTH-PRIORITY-OPERATIONS-1.1" as const;
+export const GENESIS_G82_AUTONOMOUS_OPERATIONS_VERSION="G8.2-CAPACITY-BACKPRESSURE-OPERATIONS-1.2" as const;
 
 async function safe<T>(name:string,fn:()=>Promise<T>):Promise<{name:string;ok:true;result:T}|{name:string;ok:false;error:string}>{
   try{return {name,ok:true,result:await fn()};}catch(error){return {name,ok:false,error:error instanceof Error?error.message:String(error)};}
@@ -47,7 +47,7 @@ export async function runGenesisG82AutonomousOperations(){
   // CUSTOMER_ONLY and PAUSED still block it, so live customer work remains authoritative.
   const mayDepth=(capacity.mode==="NORMAL"||capacity.mode==="CONSERVATIVE")&&capacity.maximumBackgroundRepairs>0;
   if(mayDepth){
-    depth=await safe("depth",()=>runGenesisG82DepthWorker(1));
+    depth=await safe("depth",()=>runGenesisG82DepthWorker(2));
   }
 
   // New breadth remains stricter: it must also have no pending live-customer work.
@@ -57,7 +57,7 @@ export async function runGenesisG82AutonomousOperations(){
     refresh=await safe("refresh",()=>runGenesisG8IntelligentBackgroundRefresh({limit:capacity.mode==="CONSERVATIVE"?1:2}));
     // Breadth runs after depth. AI governance remains the hard spend authority and will
     // defer this call if the preceding depth work consumed the currently available slot.
-    expansion=await safe("expansion",()=>runGenesisG82AutonomousExpansionWorker(1));
+    expansion=await safe("expansion",()=>runGenesisG82AutonomousExpansionWorker(2));
   }
 
   await databaseRequest("rpc/record_genesis_g8_capacity_budget_event",{

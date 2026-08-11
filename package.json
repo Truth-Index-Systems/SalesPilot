@@ -259,7 +259,8 @@
     "cie:r8-static-check": "npm run cie:r7-check && node scripts/validate-genesis-t8-cie-r8.mjs",
     "cie:r8-runtime-check": "rm -rf .cie-r8-runtime && tsc --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --skipLibCheck --esModuleInterop --outDir .cie-r8-runtime --rootDir . lib/genesis-t8/cie/freeze-candidate.ts lib/genesis-t8/cie/composition.ts && node scripts/run-genesis-t8-cie-r8-adversarial.mjs .cie-r8-runtime/lib/genesis-t8/cie/freeze-candidate.js && rm -rf .cie-r8-runtime",
     "cie:r8-check": "npm run cie:r8-static-check && npm run cie:r8-runtime-check",
-    "cie:dashboard-check": "node scripts/validate-cie-founder-dashboard.mjs"
+    "cie:dashboard-check": "node scripts/validate-cie-founder-dashboard.mjs",
+    "genesis:g82-capacity-backpressure-check": "node scripts/validate-genesis-g82-capacity-backpressure-hardening.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
