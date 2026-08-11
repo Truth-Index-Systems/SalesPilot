@@ -5,7 +5,7 @@ import { runNextRouteIntelligence } from "@/features/contacts/contact-discovery.
 import type { WorkerExecutionResult } from "./executor";
 import { syncOpportunityFoundations } from "@/lib/opportunities/builder";
 import type { OpportunityScoringSummary, OpportunitySyncSummary } from "@/lib/opportunities/domain";
-import { scoreOpportunityIntelligence } from "@/lib/opportunities/scoring";
+import { runCieR4CommercialDecisionAuthority } from "@/lib/genesis-t8/cie/commercial-decision-runtime";
 import type { EngagementBuilderResult } from "@/lib/engagement/types";
 import { runNextG5CommercialReasoning, type G5CommercialReasoningWorkerResult } from "@/lib/engagement/g5-commercial-reasoning";
 import { runNextG5ChannelStrategy, type G5ChannelStrategyWorkerResult } from "@/lib/engagement/g5-channel-strategy";
@@ -164,7 +164,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     // jobs will naturally become eligible on webhook/collector completion.
     const opportunity = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await syncOpportunityFoundations(runId) : null;
     const opportunityScoring = opportunity && hasSchedulerBudget(schedulerStartedAt, 8_000)
-      ? await scoreOpportunityIntelligence(runId)
+      ? await runCieR4CommercialDecisionAuthority(runId)
       : null;
     const engagement: EngagementBuilderResult | null = null;
     const engagementStrategy: EngagementStrategySyncResult | null = null;

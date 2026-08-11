@@ -1,0 +1,13 @@
+import {pathToFileURL} from 'node:url';
+const m=await import(pathToFileURL(process.argv[2]).href); let pass=0; const ok=(x,msg)=>{if(!x)throw new Error(msg);pass++};
+let r=m.evaluateCieTruthNext([{evidenceKey:'a',direction:'SUPPORT',effectiveStrength:.8,dependenceFamilyKey:'press-release'},{evidenceKey:'b',direction:'SUPPORT',effectiveStrength:.8,dependenceFamilyKey:'press-release'},{evidenceKey:'c',direction:'SUPPORT',effectiveStrength:.8,dependenceFamilyKey:'press-release'}]);
+ok(r.supportStrength===.8,'copies must collapse'); ok(r.truthProbability===null&&r.probabilityState==='UNCALIBRATED','uncalibrated evidence must not claim probability');
+r=m.evaluateCieTruthNext([{evidenceKey:'a',direction:'SUPPORT',effectiveStrength:.8,dependenceFamilyKey:'fam1'},{evidenceKey:'b',direction:'SUPPORT',effectiveStrength:.8,dependenceFamilyKey:'fam2'}]);
+ok(r.supportStrength>.95,'independent families may compound');
+const p=m.fitCieTruthCalibrationProfile([{rawEvidenceBalance:.1,outcome:0},{rawEvidenceBalance:.2,outcome:1},{rawEvidenceBalance:.3,outcome:0},{rawEvidenceBalance:.8,outcome:1},{rawEvidenceBalance:.9,outcome:1}]);
+ok(p.points.every((x,i,a)=>i===0||x.calibratedProbability>=a[i-1].calibratedProbability),'PAV must be monotone');
+r=m.evaluateCieTruthNext([{evidenceKey:'a',direction:'SUPPORT',effectiveStrength:.8,dependenceFamilyKey:'fam1'}],p); ok(r.truthProbability!==null&&r.probabilityState==='EMPIRICALLY_CALIBRATED','profile should authorize probability');
+let threw=false; try{m.evaluateCieTruthNext([{evidenceKey:'x',direction:'SUPPORT',effectiveStrength:.5,dependenceFamilyKey:'f'},{evidenceKey:'x',direction:'SUPPORT',effectiveStrength:.6,dependenceFamilyKey:'g'}])}catch{threw=true} ok(threw,'duplicate evidence fails closed');
+threw=false; try{m.aggregateDependenceFamilies([{evidenceKey:'x',direction:'SUPPORT',effectiveStrength:1.2,dependenceFamilyKey:'f'}])}catch{threw=true} ok(threw,'invalid strength fails closed');
+const mixed=m.evaluateCieTruthNext([{evidenceKey:'s',direction:'SUPPORT',effectiveStrength:.7,dependenceFamilyKey:'s'},{evidenceKey:'c',direction:'CONTRADICT',effectiveStrength:.7,dependenceFamilyKey:'c'}]); ok(Math.abs(mixed.rawEvidenceBalance-.5)<1e-12,'symmetric conflict should balance');
+console.log(`CIE-R2 adversarial: ${pass}/8 PASS`);

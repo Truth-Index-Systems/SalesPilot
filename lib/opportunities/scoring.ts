@@ -13,13 +13,16 @@ const EMPTY: OpportunityScoringSummary = {
 };
 
 /**
- * Scores opportunities from intelligence already persisted by G2 and G3.
- * It deliberately performs no model or web request and therefore consumes no
- * AI budget or Discovery Credits.
+ * LEGACY SHADOW ONLY after CIE-R4. This function is retained for historical
+ * comparison/audit and MUST NOT be called by the live scheduler or mutate live
+ * commercial authority. Existing SQL scorers remain legacy artifacts pending
+ * CIE-R8 eradication.
  */
-export async function scoreOpportunityIntelligence(
+export async function scoreOpportunityIntelligenceShadow(
   schedulerRunId: string,
 ): Promise<OpportunityScoringSummary> {
+  throw new Error("CIE_R4_AUTHORITY_VIOLATION:LEGACY_OPPORTUNITY_SCORER_MAY_NOT_CONTROL_LIVE_STATE");
+  /* istanbul ignore next -- unreachable legacy reference retained for eradication audit */
   const result = await databaseRequest<OpportunityScoringSummary | OpportunityScoringSummary[]>(
     "rpc/score_opportunity_intelligence",
     { method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }) },

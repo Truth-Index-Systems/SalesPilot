@@ -10,3 +10,5 @@ export * from "./ai-research-contract";
 export * from "./reasoning-contract";
 export * from "./platform-contracts";
 export * from "./freeze-kernel";
+
+export * from "./cie";

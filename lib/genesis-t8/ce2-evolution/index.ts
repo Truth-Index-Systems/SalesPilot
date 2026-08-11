@@ -7,3 +7,9 @@ export * from "./temporal-mathematics";
 export * from "./reality-state-machine";
 
 export * from "./multidimensional-stability";
+
+export * from "./research-calculus";
+
+export * from "./commercial-graph-calculus";
+
+export * from "./counterfactual-decision-calculus";

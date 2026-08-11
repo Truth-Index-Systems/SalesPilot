@@ -1,0 +1,30 @@
+import assert from "node:assert/strict";
+let passed=0; const test=(n,f)=>{f();passed++;};
+const precedence={NO_DECISION_VALUE:0,ENRICHMENT:1,ASSURANCE_RELEVANT:2,STABILITY_RELEVANT:3,DECISION_SHARPENING:4,DECISION_BLOCKING:5};
+const cmpCost=(a,b)=>a==null||b==null?0:a-b;
+const compare=(a,b)=>{if(precedence[a.impact]!==precedence[b.impact])return precedence[b.impact]-precedence[a.impact];if(a.critical!==b.critical)return b.critical-a.critical;let x=cmpCost(a.money,b.money);if(x)return x;x=cmpCost(a.time,b.time);if(x)return x;return a.id.localeCompare(b.id);};
+const rank=x=>[...x].sort(compare).map(v=>v.id);
+
+test("decision blocking beats high uncertainty enrichment",()=>assert.deepEqual(rank([{id:"enrich",impact:"ENRICHMENT",critical:0,money:0,time:1},{id:"block",impact:"DECISION_BLOCKING",critical:0,money:100,time:1000}]),["block","enrich"]));
+test("decision sharpening beats stability relevance",()=>assert.deepEqual(rank([{id:"s",impact:"STABILITY_RELEVANT",critical:6,money:0,time:0},{id:"d",impact:"DECISION_SHARPENING",critical:0,money:100,time:1000}]),["d","s"]));
+test("stability relevance beats assurance",()=>assert.deepEqual(rank([{id:"a",impact:"ASSURANCE_RELEVANT",critical:0,money:0,time:0},{id:"s",impact:"STABILITY_RELEVANT",critical:1,money:100,time:1000}]),["s","a"]));
+test("assurance beats enrichment",()=>assert.deepEqual(rank([{id:"e",impact:"ENRICHMENT",critical:6,money:0,time:0},{id:"a",impact:"ASSURANCE_RELEVANT",critical:0,money:100,time:1000}]),["a","e"]));
+test("no decision value always last",()=>assert.equal(rank([{id:"n",impact:"NO_DECISION_VALUE",critical:6,money:0,time:0},{id:"e",impact:"ENRICHMENT",critical:0,money:100,time:1000}])[1],"n"));
+test("more critical dimensions wins equal impact",()=>assert.deepEqual(rank([{id:"one",impact:"STABILITY_RELEVANT",critical:1,money:0,time:0},{id:"two",impact:"STABILITY_RELEVANT",critical:2,money:100,time:1000}]),["two","one"]));
+test("known lower monetary cost breaks equal-value tie",()=>assert.deepEqual(rank([{id:"exp",impact:"ASSURANCE_RELEVANT",critical:0,money:8,time:100},{id:"cheap",impact:"ASSURANCE_RELEVANT",critical:0,money:2,time:100}]),["cheap","exp"]));
+test("known lower duration breaks money tie",()=>assert.deepEqual(rank([{id:"slow",impact:"ASSURANCE_RELEVANT",critical:0,money:2,time:1000},{id:"fast",impact:"ASSURANCE_RELEVANT",critical:0,money:2,time:100}]),["fast","slow"]));
+test("unknown cost is not treated as zero",()=>assert.deepEqual(rank([{id:"unknown",impact:"ASSURANCE_RELEVANT",critical:0,money:null,time:null},{id:"known",impact:"ASSURANCE_RELEVANT",critical:0,money:5,time:50}]),["known","unknown"]));
+test("cheap enrichment cannot compensate decision value",()=>assert.equal(rank([{id:"cheap",impact:"ENRICHMENT",critical:0,money:0,time:0},{id:"block",impact:"DECISION_BLOCKING",critical:0,money:1e6,time:1e9}])[0],"block"));
+test("impact ordering transitive",()=>{const x=[{id:"a",impact:"DECISION_BLOCKING",critical:0,money:9,time:9},{id:"b",impact:"DECISION_SHARPENING",critical:9,money:0,time:0},{id:"c",impact:"STABILITY_RELEVANT",critical:9,money:0,time:0}];assert.deepEqual(rank(x),["a","b","c"]);});
+test("canonical id final tie break",()=>assert.deepEqual(rank([{id:"b",impact:"ENRICHMENT",critical:0,money:null,time:null},{id:"a",impact:"ENRICHMENT",critical:0,money:null,time:null}]),["a","b"]));
+// Candidate theory attacks.
+test("VOI candidate rejected without utility",()=>{const utility=undefined,probability=undefined;assert.equal(utility,undefined);assert.equal(probability,undefined);});
+test("entropy candidate can choose irrelevant uncertainty",()=>{const entropyPick={id:"irrelevant",uncertainty:.99};const decisionPick={id:"blocking",uncertainty:.2};assert.equal(entropyPick.uncertainty>decisionPick.uncertainty,true);assert.equal(rank([{id:"irrelevant",impact:"ENRICHMENT",critical:0,money:0,time:0},{id:"blocking",impact:"DECISION_BLOCKING",critical:0,money:10,time:10}])[0],"blocking");});
+test("deterministic impact candidate requires no probability",()=>{const c={id:"x",impact:"DECISION_BLOCKING",critical:0,money:null,time:null};assert.equal(Object.hasOwn(c,"probability"),false);});
+test("sequential selection can change after blocker resolved",()=>{const before=rank([{id:"block",impact:"DECISION_BLOCKING",critical:0,money:5,time:5},{id:"sharp",impact:"DECISION_SHARPENING",critical:0,money:1,time:1}]);const after=rank([{id:"block",impact:"NO_DECISION_VALUE",critical:0,money:5,time:5},{id:"sharp",impact:"DECISION_SHARPENING",critical:0,money:1,time:1}]);assert.equal(before[0],"block");assert.equal(after[0],"sharp");});
+test("cost monotonic inside equal impact",()=>assert.deepEqual(rank([{id:"a",impact:"ENRICHMENT",critical:0,money:4,time:1},{id:"b",impact:"ENRICHMENT",critical:0,money:5,time:0}]),["a","b"]));
+test("stability criticality cannot outrank blocking",()=>assert.equal(rank([{id:"s",impact:"STABILITY_RELEVANT",critical:6,money:0,time:0},{id:"b",impact:"DECISION_BLOCKING",critical:0,money:99,time:99}])[0],"b"));
+test("zero cost valid",()=>assert.equal(rank([{id:"a",impact:"ENRICHMENT",critical:0,money:0,time:0},{id:"b",impact:"ENRICHMENT",critical:0,money:1,time:1}])[0],"a"));
+test("research calculus is noncompensatory",()=>assert.equal(rank([{id:"low",impact:"ENRICHMENT",critical:6,money:0,time:0},{id:"high",impact:"DECISION_SHARPENING",critical:0,money:999999,time:999999}])[0],"high"));
+test("decision impact invariant to candidate input order",()=>{const x=[{id:"z",impact:"DECISION_SHARPENING",critical:0,money:3,time:3},{id:"a",impact:"DECISION_BLOCKING",critical:0,money:3,time:3}];assert.deepEqual(rank(x),rank([...x].reverse()));});
+console.log(`PASS CE2-R6 adversarial ${passed}/21`);

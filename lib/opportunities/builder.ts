@@ -11,13 +11,13 @@ const EMPTY: OpportunitySyncSummary = {
 };
 
 /**
- * Materialises the opportunity foundation from existing company/contact truth.
- * This is deterministic and makes no AI or web requests. The pipeline scheduler
- * is the only runtime caller.
+ * CIE-R4 foundation-only materialisation. Creates opportunity identity/workflow
+ * shells from approved companies but intentionally does not select a contact,
+ * infer route readiness, rank by fit, or unlock review. CIE owns all such authority.
  */
 export async function syncOpportunityFoundations(schedulerRunId: string): Promise<OpportunitySyncSummary> {
   const result = await databaseRequest<OpportunitySyncSummary | OpportunitySyncSummary[]>(
-    "rpc/sync_opportunity_foundations",
+    "rpc/sync_cie_r4_opportunity_foundations",
     { method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId }) },
   );
   if (Array.isArray(result)) return result[0] ?? EMPTY;
