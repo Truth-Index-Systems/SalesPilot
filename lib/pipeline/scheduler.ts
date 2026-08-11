@@ -4,8 +4,8 @@ import { runNextCompanyDiscovery } from "@/features/discovery/company-discovery.
 import { runNextRouteIntelligence } from "@/features/contacts/contact-discovery.service";
 import type { WorkerExecutionResult } from "./executor";
 import { syncOpportunityFoundations } from "@/lib/opportunities/builder";
-import type { OpportunityScoringSummary, OpportunitySyncSummary } from "@/lib/opportunities/domain";
-import { runCieR4CommercialDecisionAuthority } from "@/lib/genesis-t8/cie/commercial-decision-runtime";
+import type { OpportunitySyncSummary } from "@/lib/opportunities/domain";
+import { runCieR4CommercialDecisionAuthority, type CieR4ApplySummary } from "@/lib/genesis-t8/cie/commercial-decision-runtime";
 import type { EngagementBuilderResult } from "@/lib/engagement/types";
 import { runNextG5CommercialReasoning, type G5CommercialReasoningWorkerResult } from "@/lib/engagement/g5-commercial-reasoning";
 import { runNextG5ChannelStrategy, type G5ChannelStrategyWorkerResult } from "@/lib/engagement/g5-channel-strategy";
@@ -55,7 +55,7 @@ export type PipelineSchedulerResult = {
   contactFoundation: ContactFoundationSync | null;
   contact: SettledWorker | SettledWorker[] | null;
   opportunity: OpportunitySyncSummary | null;
-  opportunityScoring: OpportunityScoringSummary | null;
+  opportunityScoring: CieR4ApplySummary | null;
   engagement: EngagementBuilderResult | null;
   engagementStrategy: EngagementStrategySyncResult | null;
   engagementLearningGuidance: EngagementLearningGuidanceResult | null;
