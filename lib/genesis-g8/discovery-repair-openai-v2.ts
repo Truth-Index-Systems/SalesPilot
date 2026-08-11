@@ -12,6 +12,24 @@ import { buildMrTi2ClaimRepairInstructions, hardAcceptMrTi2ClaimRepairResult, mr
 
 export const GENESIS_G8_MRTI2_REPAIR_RESEARCH_VERSION="G8-MRTI2-B8.3.4-AI-CANONICALISATION-1.2" as const;
 
+/** Post-freeze transport/persistence safety boundary. TI-2.1.8 remains byte-for-byte frozen. */
+function isRfc3339Timestamp(value:string):boolean {
+  const pattern=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
+  return pattern.test(value)&&Number.isFinite(Date.parse(value));
+}
+
+function assertRepairTimestampBoundary(result:MrTi2ClaimRepairResult):MrTi2ClaimRepairResult {
+  for(const [index,observation] of result.observations.entries()){
+    if(observation.sourcePublishedAt!==null&&!isRfc3339Timestamp(observation.sourcePublishedAt)){
+      throw new Error(`GENESIS_G8_MRTI2_REPAIR_INVALID_SOURCE_PUBLISHED_AT:${index}`);
+    }
+    if(!isRfc3339Timestamp(observation.observedAt)){
+      throw new Error(`GENESIS_G8_MRTI2_REPAIR_INVALID_OBSERVED_AT:${index}`);
+    }
+  }
+  return result;
+}
+
 export interface GenesisG8MrTi2RepairInput {
   repairId:string; entityId:string; entityType:TruthEntityType; entityCanonicalKey:string; entityDisplayName?:string|null;
   claimId:string; claimKey:string; claimLabel:string; objective:string; repairMode:string; organisationId?:string|null; campaignId?:string|null;
@@ -58,9 +76,10 @@ export async function researchGenesisG8ClaimRepairV2(input:GenesisG8MrTi2RepairI
     await completeAiRequest({ledgerId:reservation.ledgerId,ok:true,usage:responseUsage(json),webSearchCalls:1,durationMs:Date.now()-startedAt,responseId});
     let accepted:HardAcceptance<MrTi2ClaimRepairResult>;
     try{accepted=hardAcceptMrTi2ClaimRepairResult(input.entityType,input.claimKey,decodeAiJson(json));}catch(error){accepted={value:null,issues:[error instanceof Error?error.message:"AI_OUTPUT_JSON_INVALID"]};}
-    if(accepted.value&&accepted.issues.length===0)return accepted.value;
+    if(accepted.value&&accepted.issues.length===0)return assertRepairTimestampBoundary(accepted.value);
     try{
-      return await canonicaliseWithAi({apiKey,model,organisationId,campaignId:input.campaignId??null,jobType:"GENESIS_G8_REPAIR",task:"GENESIS_G8_REPAIR",jobId:input.repairId,parentScope:requestScope,rawResponse:json,schemaName:"mr_ti_2_claim_repair_v1",jsonSchema:mrTi2ClaimRepairJsonSchema,instructions:`Canonicalise exactly one ${input.entityType} claim (${input.claimKey}). Preserve only evidence already present in the supplied research. Do not widen to another claim. Ensure missing=true iff observations is empty. Preserve provenance and MR-TI-2 primitive scales.`,accept:(value)=>hardAcceptMrTi2ClaimRepairResult(input.entityType,input.claimKey,value),estimatedCostUsd:0.008});
+      const canonicalised=await canonicaliseWithAi({apiKey,model,organisationId,campaignId:input.campaignId??null,jobType:"GENESIS_G8_REPAIR",task:"GENESIS_G8_REPAIR",jobId:input.repairId,parentScope:requestScope,rawResponse:json,schemaName:"mr_ti_2_claim_repair_v1",jsonSchema:mrTi2ClaimRepairJsonSchema,instructions:`Canonicalise exactly one ${input.entityType} claim (${input.claimKey}). Preserve only evidence already present in the supplied research. Do not widen to another claim. Ensure missing=true iff observations is empty. Preserve provenance and MR-TI-2 primitive scales.`,accept:(value)=>hardAcceptMrTi2ClaimRepairResult(input.entityType,input.claimKey,value),estimatedCostUsd:0.008});
+      return assertRepairTimestampBoundary(canonicalised);
     }catch(error){
       if(isOpenAIBackgroundPending(error))throw error;
       console.warn("Repair AI canonicalisation failed",{issues:accepted.issues.slice(0,8),error:error instanceof Error?error.message:String(error)});

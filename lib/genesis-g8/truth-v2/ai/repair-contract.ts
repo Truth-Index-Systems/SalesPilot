@@ -5,7 +5,7 @@ import type { MrTi2EvidenceObservation } from "./evidence-contract";
 import { getMrTi2ClaimContract } from "../contracts";
 import type { HardAcceptance } from "../../ai-canonicalisation";
 
-export const MR_TI_2_REPAIR_PROMPT_VERSION = "mr-ti-2/claim-repair/1.3-rfc3339-boundary" as const;
+export const MR_TI_2_REPAIR_PROMPT_VERSION = "mr-ti-2/claim-repair/1.2-ai-canonicalisation" as const;
 
 export type MrTi2ClaimRepairResult = {
   engineContract:"MR-TI-2.0";
@@ -54,14 +54,13 @@ function unit(v:unknown):number|null{return typeof v==="number"&&Number.isFinite
 function integer(v:unknown,min:number,max:number):number|null{return typeof v==="number"&&Number.isInteger(v)&&v>=min&&v<=max?v:null;}
 function url(v:unknown):v is string{if(typeof v!=="string"||!v)return false;try{const u=new URL(v);return u.protocol==="http:"||u.protocol==="https:";}catch{return false;}}
 function entityType(v:unknown):TruthEntityType|null{return v==="industry"||v==="sector"||v==="company"||v==="contact"||v==="route"||v==="opportunity"?v:null;}
-function rfc3339(v:unknown):v is string{if(typeof v!=="string")return false;const pattern=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;return pattern.test(v)&&Number.isFinite(Date.parse(v));}
 
 function acceptObservation(value:unknown,path:string,claimKey:string,allowed:Set<string>,issues:string[]):MrTi2EvidenceObservation|null{
   const row=rec(value);if(!row){issues.push(`${path}:object`);return null;}
   const direction=row.direction==="SUPPORT"||row.direction==="CONTRADICT"?row.direction:null;
   const proposition=str(row.proposition,500), evidenceText=str(row.evidenceText,1200), sourceTitle=nullableStr(row.sourceTitle,300), sourceLineageKey=str(row.sourceLineageKey,240), derivativeOfLineageKey=nullableStr(row.derivativeOfLineageKey,240);
   const authority=unit(row.authority),directness=unit(row.directness),traceability=unit(row.traceability),derivativeDepth=integer(row.derivativeDepth,0,20);
-  const sourcePublishedAt=row.sourcePublishedAt===null?null:rfc3339(row.sourcePublishedAt)?row.sourcePublishedAt:undefined; const observedAt=rfc3339(row.observedAt)?row.observedAt:null;
+  const sourcePublishedAt=row.sourcePublishedAt===null?null:typeof row.sourcePublishedAt==="string"?row.sourcePublishedAt:undefined; const observedAt=typeof row.observedAt==="string"&&row.observedAt.length>0?row.observedAt:null;
   const sourceClass=typeof row.sourceClass==="string"&&SOURCE_CLASSES.has(row.sourceClass)?row.sourceClass as MrTi2EvidenceObservation["sourceClass"]:null;
   if(row.claimKey!==claimKey)issues.push(`${path}.claimKey`);if(!direction)issues.push(`${path}.direction`);if(!proposition)issues.push(`${path}.proposition`);if(!evidenceText)issues.push(`${path}.evidenceText`);if(!url(row.sourceUrl))issues.push(`${path}.sourceUrl`);if(sourceTitle===undefined)issues.push(`${path}.sourceTitle`);if(!sourceClass)issues.push(`${path}.sourceClass`);if(authority===null)issues.push(`${path}.authority`);if(directness===null)issues.push(`${path}.directness`);if(traceability===null)issues.push(`${path}.traceability`);if(sourcePublishedAt===undefined)issues.push(`${path}.sourcePublishedAt`);if(!observedAt)issues.push(`${path}.observedAt`);if(!sourceLineageKey)issues.push(`${path}.sourceLineageKey`);if(derivativeOfLineageKey===undefined)issues.push(`${path}.derivativeOfLineageKey`);if(derivativeDepth===null)issues.push(`${path}.derivativeDepth`);
   if(derivativeDepth===0&&derivativeOfLineageKey!==null&&derivativeOfLineageKey!==undefined)issues.push(`${path}.lineageRootParent`);if(derivativeDepth!==null&&derivativeDepth>0&&derivativeOfLineageKey===null)issues.push(`${path}.lineageMissingParent`);
