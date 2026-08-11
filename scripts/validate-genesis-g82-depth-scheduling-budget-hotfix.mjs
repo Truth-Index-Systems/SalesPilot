@@ -3,7 +3,7 @@ const ops=fs.readFileSync('lib/genesis-g8/autonomous-operations.ts','utf8');
 const cap=fs.readFileSync('lib/genesis-g8/capacity-budget.ts','utf8');
 const checks=[
  ['depth has independent gate', /const mayDepth=.*maximumBackgroundRepairs>0/.test(ops)],
- ['depth runs before breadth block', ops.indexOf('runGenesisG82DepthWorker(1)') < ops.indexOf('runGenesisG82AutonomousExpansionWorker(1)')],
+ ['depth runs before breadth block', ops.indexOf('runGenesisG82DepthWorker(') < ops.indexOf('runGenesisG82AutonomousExpansionWorker(')],
  ['depth blocked outside normal/conservative', /capacity\.mode==="NORMAL"\|\|capacity\.mode==="CONSERVATIVE"/.test(ops)],
  ['breadth still protects customer work', /!capacity\.snapshot\.liveCustomerWorkPending/.test(ops)],
  ['default background target 100', /MARKETROUTE_G8_BACKGROUND_DAILY_BUDGET_USD \?\? "100"/.test(cap)],

@@ -11,7 +11,7 @@ const checks=[
  ["no-credit failures excluded",/not ilike '%no credits remaining%'/.test(sql)],
  ["expansion worker claims two",/runGenesisG82AutonomousExpansionWorker\(2\)/.test(ops)],
  ["depth worker claims two",/runGenesisG82DepthWorker\(2\)/.test(ops)],
- ["operator version bumped",/CAPACITY-BACKPRESSURE-OPERATIONS-1\.2/.test(ops)],
+ ["operator version bumped",/(?:CAPACITY-BACKPRESSURE-OPERATIONS-1\.2|IDLE-SPILLOVER-OPERATIONS-1\.3)/.test(ops)],
 ];
 let passed=0;
 for(const [name,ok] of checks){console.log(`${ok?"PASS":"FAIL"} ${name}`); if(ok)passed++;}

@@ -3,7 +3,7 @@ import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { runGenesisG8IntelligentBackgroundRefresh, type GenesisG8BackgroundRefreshSummary } from "./background-refresh";
 
-export const GENESIS_G8_CAPACITY_BUDGET_VERSION = "G8.2-DEPTH-PRIORITY-CAPACITY-1.0" as const;
+export const GENESIS_G8_CAPACITY_BUDGET_VERSION = "G8.2-IDLE-SPILLOVER-CAPACITY-1.1" as const;
 
 export type GenesisG8CapacityMode = "NORMAL" | "CONSERVATIVE" | "CUSTOMER_ONLY" | "PAUSED";
 
@@ -98,6 +98,28 @@ const PAUSED_ALLOCATION: GenesisG8CapacityAllocation = {
   experimentPercent: 0,
 };
 
+async function syncGenesisG8SystemGovernanceLimits(organisationId: string): Promise<void> {
+  const dailyRequestLimit = Math.max(1, Number(
+    process.env.MARKETROUTE_G8_AI_DAILY_REQUEST_LIMIT
+      ?? process.env.MARKETROUTE_PUBLIC_AI_DAILY_REQUEST_LIMIT
+      ?? "5000",
+  ) || 5000);
+  const dailyCostLimitUsd = Math.max(0, Number(
+    process.env.MARKETROUTE_G8_AI_DAILY_COST_LIMIT_USD
+      ?? process.env.MARKETROUTE_PUBLIC_AI_DAILY_COST_LIMIT_USD
+      ?? "100",
+  ) || 100);
+
+  await databaseRequest("rpc/sync_genesis_g8_system_governance_limits", {
+    method: "POST",
+    body: JSON.stringify({
+      p_system_organisation_id: organisationId,
+      p_daily_request_limit: dailyRequestLimit,
+      p_daily_cost_limit_usd: dailyCostLimitUsd,
+    }),
+  });
+}
+
 export async function readGenesisG8CapacitySnapshot(): Promise<GenesisG8CapacitySnapshot> {
   const organisationId = process.env.MARKETROUTE_G8_SYSTEM_ORGANISATION_ID?.trim() ?? "";
   if (!organisationId) {
@@ -118,6 +140,11 @@ export async function readGenesisG8CapacitySnapshot(): Promise<GenesisG8Capacity
       truthGainPerRepairCall: 0,
     };
   }
+  // Keep the autonomous Genesis system organisation aligned with the configured
+  // Vercel governance envelope. G8-specific variables win; the public variables
+  // remain a backwards-compatible fallback for the current deployment.
+  await syncGenesisG8SystemGovernanceLimits(organisationId);
+
   const rows = await databaseRequest<DbCapacitySnapshot[]>("rpc/genesis_g8_capacity_budget_snapshot", {
     method: "POST",
     body: JSON.stringify({ p_system_organisation_id: organisationId }),
@@ -153,14 +180,18 @@ export function decideGenesisG8Capacity(snapshot: GenesisG8CapacitySnapshot): Ge
     mode = "PAUSED";
     allocation = PAUSED_ALLOCATION;
     reasons.push("System governance is unavailable, disabled, or has no usable daily capacity.");
-  } else if (snapshot.liveCustomerWorkPending || capacityUsedRatio >= 0.9) {
+  } else if (snapshot.liveCustomerWorkPending) {
     mode = "CUSTOMER_ONLY";
     allocation = CUSTOMER_ONLY_ALLOCATION;
-    reasons.push(snapshot.liveCustomerWorkPending ? "Live customer work is pending." : "At least 90% of governed daily capacity is already used.");
+    reasons.push("Live customer work is pending; customer work retains exclusive priority over background growth.");
   } else if (capacityUsedRatio >= 0.75) {
     mode = "CONSERVATIVE";
     allocation = CONSERVATIVE_ALLOCATION;
-    reasons.push("At least 75% of governed daily capacity is already used.");
+    reasons.push(
+      capacityUsedRatio >= 0.9
+        ? "At least 90% of governed daily capacity is used, but no live customer work is pending; remaining hard-budget capacity is available to background intelligence as governed spillover."
+        : "At least 75% of governed daily capacity is already used; background intelligence may use only the remaining governed capacity.",
+    );
   } else {
     mode = "NORMAL";
     allocation = NORMAL_ALLOCATION;
