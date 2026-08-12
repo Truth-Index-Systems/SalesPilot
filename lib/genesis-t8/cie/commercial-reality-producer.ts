@@ -1,5 +1,5 @@
 /**
- * MarketRoute Forensic Build 2 — live Commercial Reality producer.
+ * MarketRoute Forensic Build 3 — live Commercial Reality producer with material authority lineage.
  *
  * This is the first production composition boundary that connects the repaired
  * Truth Foundation + immutable seller constraints to CE-R2/R3/R4. It consumes
@@ -11,8 +11,9 @@ import { propagateConstraintStates, type GenesisT8CommercialRealityPropagation }
 import { evaluateCommercialCoherence, type GenesisT8CoherenceConstraintContext, type GenesisT8CoherenceDimension } from "../mathematics/commercial-coherence";
 import { composeTruthIntoCommercialReality, type CieR3KnowledgeInput, type CieR3CompositionResult } from "./truth-ce2-bridge";
 import { evaluateCieR4CommercialDecision, type CieR4CommercialDecision } from "./commercial-decision-authority";
+import { buildR4MaterialAuthorityFingerprint } from "./authority-lineage";
 
-export const MARKETROUTE_FORENSIC_BUILD2_PRODUCER_VERSION = "MR-T8-FB2-1.0.0" as const;
+export const MARKETROUTE_FORENSIC_BUILD2_PRODUCER_VERSION = "MR-T8-FB3-1.0.0" as const;
 export const MARKETROUTE_FORENSIC_BUILD2_TRUTH_SEMANTICS = "MR-TI-2-TFR1" as const;
 
 const COHERENCE_DIMENSIONS = new Set<GenesisT8CoherenceDimension>([
@@ -56,6 +57,7 @@ export type ForensicBuild2ProductionInput = Readonly<{
 export type ForensicBuild2CommercialRealityProduction = Readonly<{
   producerVersion: typeof MARKETROUTE_FORENSIC_BUILD2_PRODUCER_VERSION;
   inputFingerprint: string;
+  authorityFingerprint: string;
   sellerContextFingerprint: string;
   constraintFingerprint: string;
   targetTruthEntityId: string;
@@ -269,6 +271,15 @@ export function produceForensicBuild2CommercialReality(input: ForensicBuild2Prod
   });
   const decision = evaluateCieR4CommercialDecision({ opportunityId: input.opportunityId, composition, propagation, constraintContexts });
 
+  const authorityFingerprint = buildR4MaterialAuthorityFingerprint({
+    sellerContextFingerprint: input.seller.sellerContextFingerprint,
+    constraintFingerprint: input.seller.constraintFingerprint,
+    targetTruthEntityId: input.targetTruthEntityId,
+    targetFacts: input.targetFacts,
+    propagation,
+    decision,
+  });
+
   const inputFingerprint = hash({
     producerVersion: MARKETROUTE_FORENSIC_BUILD2_PRODUCER_VERSION,
     sellerContextFingerprint: input.seller.sellerContextFingerprint,
@@ -285,6 +296,7 @@ export function produceForensicBuild2CommercialReality(input: ForensicBuild2Prod
   return Object.freeze({
     producerVersion: MARKETROUTE_FORENSIC_BUILD2_PRODUCER_VERSION,
     inputFingerprint,
+    authorityFingerprint,
     sellerContextFingerprint: input.seller.sellerContextFingerprint,
     constraintFingerprint: input.seller.constraintFingerprint,
     targetTruthEntityId: input.targetTruthEntityId,

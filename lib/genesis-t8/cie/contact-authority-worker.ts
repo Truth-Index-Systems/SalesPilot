@@ -2,6 +2,7 @@ import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { evaluateCieR5RouteAuthority } from "./route-authority";
 import { evaluateCieR6ContactAuthority, type CieR6ContactCandidate } from "./contact-authority";
+import { buildR6AuthoritySourceFingerprint } from "./authority-lineage";
 
 export type CieR6ApplySummary = Readonly<{ processed: number; ready: number; organisational: number; unresolved: number }>;
 
@@ -10,6 +11,7 @@ type Context = Readonly<{
   reality_id: string;
   commercial_routes: unknown[] | null;
   contacts: unknown[] | null;
+  r4_authority_fingerprint: string;
 }>;
 
 type ContactRow = Record<string, unknown>;
@@ -36,6 +38,8 @@ function candidate(row: ContactRow): CieR6ContactCandidate | null {
 }
 
 export async function runCieR6ContactAuthority(schedulerRunId: string): Promise<CieR6ApplySummary> {
+  // Fail closed before recomputation: source or parent-authority drift removes READY immediately.
+  await databaseRequest("rpc/invalidate_stale_cie_r6_authority",{method:"POST",body:JSON.stringify({p_scheduler_run_id:schedulerRunId})});
   const contexts=await databaseRequest<Context[]>("rpc/get_cie_r6_contact_authority_context",{
     method:"POST",body:JSON.stringify({p_scheduler_run_id:schedulerRunId,p_limit:40}),
   });
@@ -47,9 +51,12 @@ export async function runCieR6ContactAuthority(schedulerRunId: string): Promise<
       const routeAuthority=evaluateCieR5RouteAuthority({realityId:context.reality_id,commercialReasoning:{},sourceSnapshot});
       const contacts=(Array.isArray(context.contacts)?context.contacts:[]).map(value=>candidate((value??{}) as ContactRow)).filter((value):value is CieR6ContactCandidate=>value!==null);
       const decision=evaluateCieR6ContactAuthority({routeAuthority,routes:routes as any[],contacts});
+      const sourceFingerprint=buildR6AuthoritySourceFingerprint({r4AuthorityFingerprint:context.r4_authority_fingerprint,routes,contacts:Array.isArray(context.contacts)?context.contacts:[]});
       await databaseRequest("rpc/persist_cie_r6_contact_decision",{
         method:"POST",body:JSON.stringify({
           p_opportunity_id:context.opportunity_id,
+          p_parent_r4_authority_fingerprint:context.r4_authority_fingerprint,
+          p_source_fingerprint:sourceFingerprint,
           p_primary_contact_id:decision.primaryContactId,
           p_contact_frontier_json:decision.contactFrontier,
           p_bindings_json:decision.bindings,

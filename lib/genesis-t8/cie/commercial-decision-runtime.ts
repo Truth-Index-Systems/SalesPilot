@@ -3,6 +3,8 @@ import { databaseRequest } from "@/lib/database/postgrest";
 import type { CieR4CommercialDecision } from "./commercial-decision-authority";
 import type { ForensicBuild2CommercialRealityProduction } from "./commercial-reality-producer";
 
+export type CieR4PersistenceOutcome = Readonly<{ material_changed: boolean; r6_invalidated: boolean; r7_retired: number }>;
+
 export type CieR4ApplySummary = Readonly<{
   applied: number;
   rejected: number;
@@ -21,16 +23,17 @@ const EMPTY: CieR4ApplySummary = Object.freeze({ applied: 0, rejected: 0, held: 
 export async function persistForensicBuild2CommercialRealityProduction(
   production: ForensicBuild2CommercialRealityProduction,
   schedulerRunId: string,
-): Promise<void> {
+): Promise<CieR4PersistenceOutcome> {
   const decision: CieR4CommercialDecision = production.decision;
   if (decision.authorityMode !== "AUTHORITATIVE") throw new Error("CIE_R4_AUTHORITY_VIOLATION:NON_AUTHORITATIVE_DECISION");
-  await databaseRequest("rpc/persist_cie_r4_commercial_reality_production", {
+  const result = await databaseRequest<CieR4PersistenceOutcome[]>("rpc/persist_cie_r4_commercial_reality_production", {
     method: "POST",
     body: JSON.stringify({
       p_scheduler_run_id: schedulerRunId,
       p_opportunity_id: decision.opportunityId,
       p_producer_version: production.producerVersion,
       p_input_fingerprint: production.inputFingerprint,
+      p_authority_fingerprint: production.authorityFingerprint,
       p_seller_context_fingerprint: production.sellerContextFingerprint,
       p_constraint_fingerprint: production.constraintFingerprint,
       p_target_truth_entity_id: production.targetTruthEntityId,
@@ -48,6 +51,7 @@ export async function persistForensicBuild2CommercialRealityProduction(
       p_deferred_seller_constraint_ids: production.deferredSellerConstraintIds,
     }),
   });
+  return result[0] ?? Object.freeze({ material_changed: true, r6_invalidated: false, r7_retired: 0 });
 }
 
 /** Apply only already-persisted current Build 2 CIE decisions. No legacy fallback is permitted. */

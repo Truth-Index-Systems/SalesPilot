@@ -15,6 +15,7 @@ type Row = Readonly<{
   repair_mode: CieR7RepairCandidate["repairMode"];
   blocking_mode: CieR7RepairCandidate["blockingMode"];
   stability_json: GenesisT8MultidimensionalStability;
+  r4_input_fingerprint: string;
 }>;
 
 export async function runCieR7ResearchCounterfactualLoop(schedulerRunId: string): Promise<CieR7ApplySummary> {
@@ -44,7 +45,7 @@ export async function runCieR7ResearchCounterfactualLoop(schedulerRunId: string)
     });
     await databaseRequest("rpc/replace_cie_r7_research_directives", {
       method: "POST",
-      body: JSON.stringify({ p_opportunity_id: first.opportunity_id, p_reality_id: first.reality_id, p_directives_json: loop.directives }),
+      body: JSON.stringify({ p_opportunity_id: first.opportunity_id, p_reality_id: first.reality_id, p_r4_input_fingerprint: first.r4_input_fingerprint, p_directives_json: loop.directives }),
     });
     directives += loop.directives.length;
     blockingDirectives += loop.directives.filter((x) => x.impactClass === "DECISION_BLOCKING").length;

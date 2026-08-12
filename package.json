@@ -269,7 +269,10 @@
     "forensic:build1-check": "npm run forensic:build1-static-check && npm run forensic:build1-runtime-check",
     "forensic:build2-static-check": "node scripts/validate-marketroute-forensic-build2.mjs",
     "forensic:build2-runtime-check": "rm -rf .fb2-runtime && tsc -p tsconfig.fb2.json --pretty false && node scripts/run-genesis-t8-ce-r2-r2-adversarial.mjs .fb2-runtime/lib/genesis-t8/mathematics/constraint-mathematics.js && node scripts/run-marketroute-forensic-build2-adversarial.mjs .fb2-runtime/lib/genesis-t8/cie/commercial-reality-producer.js && rm -rf .fb2-runtime",
-    "forensic:build2-check": "npm run forensic:build2-static-check && npm run forensic:build2-runtime-check"
+    "forensic:build2-check": "npm run forensic:build2-static-check && npm run forensic:build2-runtime-check",
+    "forensic:build3-static-check": "node scripts/validate-marketroute-forensic-build3.mjs",
+    "forensic:build3-runtime-check": "rm -rf .fb3-runtime && tsc -p tsconfig.fb3.json --pretty false && node scripts/run-marketroute-forensic-build3-adversarial.mjs .fb3-runtime/lib/genesis-t8/cie/commercial-reality-producer.js .fb3-runtime/lib/genesis-t8/cie/authority-lineage.js && rm -rf .fb3-runtime",
+    "forensic:build3-check": "npm run forensic:build3-static-check && npm run forensic:build3-runtime-check"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

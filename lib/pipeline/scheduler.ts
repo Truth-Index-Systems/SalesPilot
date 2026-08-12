@@ -169,7 +169,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     // Cheap deterministic assembly follows dispatch. Newly submitted background
     // jobs will naturally become eligible on webhook/collector completion.
     const opportunity = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await syncOpportunityFoundations(runId) : null;
-    // Forensic Build 2: produce current R4 authority from TFR1 Truth + immutable seller constraints
+    // Forensic Build 3: revalidate current R4 authority from TFR1 Truth + immutable seller constraints
     // before any R4 application. No legacy score or pre-existing orphan decision may substitute.
     const commercialRealityProduction = opportunity && hasSchedulerBudget(schedulerStartedAt, 12_000)
       ? await runCieR4CommercialRealityProduction(runId)

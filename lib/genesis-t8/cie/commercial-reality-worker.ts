@@ -19,10 +19,13 @@ export type CieR4ProductionSummary = Readonly<{
   held: number;
   missingTruthEntity: number;
   failed: number;
+  materialChanges: number;
+  stableRevalidations: number;
+  r6Invalidated: number;
 }>;
 
 type OpportunityRow = Readonly<{ id: string; organisation_id: string; campaign_id: string; company_id: string }>;
-type ProductionCandidateRow = Readonly<{ opportunity_id: string; organisation_id: string; campaign_id: string; company_id: string }>;
+type ProductionCandidateRow = Readonly<{ opportunity_id: string; organisation_id: string; campaign_id: string; company_id: string; revalidation_reason?: string | null }>;
 type CompanyRow = Readonly<{ id: string; organisation_id: string; campaign_id: string; company_name: string; canonical_domain: string; industry: string | null; country: string | null }>;
 type KnowledgeLinkRow = Readonly<{ genesis_g8_entity_id: string }>;
 type EntityRow = Readonly<{ id: string }>;
@@ -30,7 +33,7 @@ type SnapshotRow = Readonly<{ id: string; entity_id: string; truth_semantics_ver
 
 const EMPTY: CieR4ProductionSummary = Object.freeze({
   inspected: 0, produced: 0, candidates: 0, researchRequired: 0, rejected: 0, held: 0,
-  missingTruthEntity: 0, failed: 0,
+  missingTruthEntity: 0, failed: 0, materialChanges: 0, stableRevalidations: 0, r6Invalidated: 0,
 });
 
 async function resolveTargetTruthEntity(opportunity: OpportunityRow, company: CompanyRow): Promise<string | null> {
@@ -55,9 +58,9 @@ async function tfr1SnapshotAt(entityId: string, referenceTime: string): Promise<
 }
 
 /**
- * Produce only missing Build 2 authority records. Build 3 owns staleness and
- * invalidation, so this worker intentionally does not churn the Truth snapshot
- * on every scheduler tick once the current producer version exists.
+ * Build 3 production/revalidation worker. Candidate selection is state-aware:
+ * missing authority, newer Truth, seller/constraint drift, or due temporal
+ * validation. Exact trace changes are separated from material authority changes.
  */
 export async function runCieR4CommercialRealityProduction(
   schedulerRunId: string,
@@ -65,7 +68,7 @@ export async function runCieR4CommercialRealityProduction(
 ): Promise<CieR4ProductionSummary> {
   const boundedLimit = Math.max(1, Math.min(25, Math.trunc(limit) || 12));
   const rows = await databaseRequest<ProductionCandidateRow[]>(
-    "rpc/get_cie_r4_commercial_reality_production_candidates",
+    "rpc/get_cie_r4_commercial_reality_revalidation_candidates",
     { method: "POST", body: JSON.stringify({ p_scheduler_run_id: schedulerRunId, p_limit: boundedLimit }) },
   );
   const candidatesList: readonly OpportunityRow[] = Object.freeze(rows.map((row) => Object.freeze({
@@ -75,6 +78,7 @@ export async function runCieR4CommercialRealityProduction(
 
   let produced = 0, candidates = 0, researchRequired = 0, rejected = 0, held = 0;
   let missingTruthEntity = 0, failed = 0;
+  let materialChanges = 0, stableRevalidations = 0, r6Invalidated = 0;
 
   for (const opportunity of candidatesList) {
     try {
@@ -117,15 +121,17 @@ export async function runCieR4CommercialRealityProduction(
         }),
         referenceTime,
       });
-      await persistForensicBuild2CommercialRealityProduction(production, schedulerRunId);
+      const persisted = await persistForensicBuild2CommercialRealityProduction(production, schedulerRunId);
       produced += 1;
+      if (persisted.material_changed) materialChanges += 1; else stableRevalidations += 1;
+      if (persisted.r6_invalidated) r6Invalidated += 1;
       if (production.decision.disposition === "COMMERCIAL_CANDIDATE") candidates += 1;
       else if (production.decision.disposition === "RESEARCH_REQUIRED") researchRequired += 1;
       else if (production.decision.disposition === "REJECT") rejected += 1;
       else held += 1;
     } catch (error) {
       failed += 1;
-      console.error("CIE-R4 Build 2 commercial reality production failed", { opportunityId: opportunity.id, error });
+      console.error("CIE-R4 Build 3 commercial reality revalidation failed", { opportunityId: opportunity.id, error });
     }
   }
 
@@ -138,5 +144,8 @@ export async function runCieR4CommercialRealityProduction(
     held,
     missingTruthEntity,
     failed,
+    materialChanges,
+    stableRevalidations,
+    r6Invalidated,
   });
 }
