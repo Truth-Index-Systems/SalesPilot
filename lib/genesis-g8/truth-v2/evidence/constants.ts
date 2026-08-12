@@ -1,4 +1,4 @@
-export const MR_TI_2_PROBABILITY_CAP = 0.999 as const;
+export const MR_TI_2_EVIDENCE_STRENGTH_CAP = 0.999 as const;
 export const MR_TI_2_EVIDENCE_SD_PENALTY = 0.5 as const;
 export const MR_TI_2_LINEAGE_DECAY_BASE = 3 as const;
 

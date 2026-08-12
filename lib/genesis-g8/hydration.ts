@@ -24,9 +24,14 @@ export interface GenesisG8IntelligenceGap {
 
 export interface GenesisG8ProductionTruth {
   engineVersion: "MR-TI-2.0";
+  truthSemanticsVersion: "MR-TI-2-TFR1";
   truthIndex: number;
+  evidenceSufficiency: number;
+  /** Legacy compatibility alias for evidenceSufficiency. */
   confidence: number;
   coverage: number;
+  calibratedProbabilityCoverage: number;
+  probabilityState: "UNCALIBRATED" | "PARTIALLY_CALIBRATED" | "EMPIRICALLY_CALIBRATED";
   foundationalIntegrity: number;
   maxContradictionSeverity: number;
   review: { required: boolean; state: "AUTO" | "VERIFY" | "HUMAN_REVIEW_REQUIRED" };
@@ -47,7 +52,7 @@ export async function hydrateGenesisG8EntityTruth(
 ): Promise<GenesisG8HydratedKnowledge | null> {
   const bundle = await readGenesisG8KnowledgeBundle(entityId);
   if (!bundle) return null;
-  const result = await calculateAndPersistMrTi2Truth(entityId);
+  const result = await calculateAndPersistMrTi2Truth(entityId, { referenceTime: options.now });
   if (!result) return null;
   const contract = getMrTi2ClaimContract(bundle.entity.entityType);
   const byDefinition = new Map(contract.claims.map((definition) => [definition.key, definition]));
@@ -73,7 +78,11 @@ export async function hydrateGenesisG8EntityTruth(
       ? "MISSING_EVIDENCE"
       : contribution.reviewState !== "AUTO"
         ? "CONTRADICTED"
-        : "LOW_CONFIDENCE";
+        : contribution.undatedEvidenceCount > 0 && contribution.minimumFreshnessModifier < 0.5
+          ? "STALE_EVIDENCE"
+          : contribution.evidenceSufficiency < 0.55
+            ? "INSUFFICIENT_EVIDENCE"
+            : "LOW_CONFIDENCE";
     gaps.push({
       claimId,
       claimKey,
@@ -83,7 +92,7 @@ export async function hydrateGenesisG8EntityTruth(
       priority: priorities.get(claimKey)?.priority ?? definition.weight * 100,
       evidenceCount: evidence.length,
       minimumEvidence: 1,
-      confidence: contribution?.probability === null || contribution?.probability === undefined ? 0 : contribution.probability * 100,
+      confidence: contribution?.evidenceSufficiency === undefined ? 0 : contribution.evidenceSufficiency * 100,
       freshestEvidenceAt: freshest,
     });
   }
@@ -92,9 +101,13 @@ export async function hydrateGenesisG8EntityTruth(
     entity: bundle.entity,
     truth: {
       engineVersion: "MR-TI-2.0",
+      truthSemanticsVersion: result.truthSemanticsVersion,
       truthIndex: result.state.truthIndex,
+      evidenceSufficiency: result.state.evidenceSufficiency,
       confidence: result.state.representedConfidence,
       coverage: result.state.coverage,
+      calibratedProbabilityCoverage: result.state.calibratedProbabilityCoverage,
+      probabilityState: result.state.probabilityState,
       foundationalIntegrity: result.state.foundationalIntegrity,
       maxContradictionSeverity: result.state.maxContradictionSeverity,
       review: { required: result.state.reviewState !== "AUTO", state: result.state.reviewState },

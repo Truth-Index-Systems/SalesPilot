@@ -1,4 +1,4 @@
-import { assessMrTi2Contradiction, calculateMrTi2RawClaimProbability } from "../claims";
+import { assessMrTi2Contradiction, calibrateMrTi2EvidenceBalance, calculateMrTi2RawEvidenceBalance } from "../claims";
 import { calculateMrTi2RelationshipContradiction, combineMrTi2ContradictionStrength } from "./contradiction";
 import { applyMrTi2DependencyCeilings } from "./dependency";
 import { getMrTi2DependencyOrder, validateMrTi2Relationships } from "./topology";
@@ -9,26 +9,27 @@ export function evaluateMrTi2MatrixTwo(input:MrTi2MatrixTwoInput):MrTi2MatrixTwo
   const relationships=validateMrTi2Relationships(claimKeys,input.relationships);
   const dependencyOrder=getMrTi2DependencyOrder(claimKeys,relationships);
 
-  // Relationship contradiction is calculated from Matrix-1/raw probabilities.
-  // This makes the pass deterministic and prevents mutually contradictory claims
-  // repeatedly feeding each other until convergence is implementation-dependent.
+  // Relationship contradiction is calculated from Matrix-1/raw evidence balance.
+  // It remains an evidence-domain transformation; it is not described as probability.
   const preDependency:Record<string,MrTi2AdjustedClaimState>={};
   for(const claimKey of claimKeys){
     const raw=input.claims[claimKey];
     const relation=calculateMrTi2RelationshipContradiction(claimKey,input.claims,relationships);
     const combined=combineMrTi2ContradictionStrength(raw.contradictionStrength,relation.strength);
-    const probability=calculateMrTi2RawClaimProbability({supportStrength:raw.supportStrength,contradictionStrength:combined});
+    const evidenceBalance=calculateMrTi2RawEvidenceBalance({supportStrength:raw.supportStrength,contradictionStrength:combined});
     const contradiction=assessMrTi2Contradiction(raw.supportStrength,combined);
     preDependency[claimKey]={
       ...raw,
-      rawProbability:raw.probability,
+      rawEvidenceBalance:raw.evidenceBalance,
       relationshipContradictionStrength:relation.strength,
       combinedContradictionStrength:combined,
-      preDependencyProbability:probability,
+      preDependencyEvidenceBalance:evidenceBalance,
       dependencyConstraints:[],
       dependencyConstrained:false,
-      probability,
-      represented:probability!==null,
+      evidenceBalance,
+      truthProbability:null,
+      probabilityState:"UNCALIBRATED",
+      represented:evidenceBalance!==null,
       ...contradiction,
     };
   }
@@ -36,13 +37,18 @@ export function evaluateMrTi2MatrixTwo(input:MrTi2MatrixTwoInput):MrTi2MatrixTwo
   const evaluated:Record<string,MrTi2AdjustedClaimState>={};
   for(const claimKey of dependencyOrder){
     const state=preDependency[claimKey];
-    const dependency=applyMrTi2DependencyCeilings(claimKey,state.probability,evaluated,relationships);
+    const dependency=applyMrTi2DependencyCeilings(claimKey,state.evidenceBalance,evaluated,relationships);
+    const truthProbability=dependency.evidenceBalance===null||!input.calibrationProfile
+      ? null
+      : calibrateMrTi2EvidenceBalance(dependency.evidenceBalance,input.calibrationProfile);
     evaluated[claimKey]={
       ...state,
       dependencyConstraints:dependency.constraints,
       dependencyConstrained:dependency.constrained,
-      probability:dependency.probability,
-      represented:dependency.probability!==null,
+      evidenceBalance:dependency.evidenceBalance,
+      truthProbability,
+      probabilityState:truthProbability===null?"UNCALIBRATED":"EMPIRICALLY_CALIBRATED",
+      represented:dependency.evidenceBalance!==null,
     };
   }
 

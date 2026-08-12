@@ -11,29 +11,78 @@ import type { GenesisG8EntityType as TruthEntityType } from "../entity-types";
 
 type ClaimRow={id:string;claim_key:string};
 type EvidenceRow={id:string;claim_id:string;direction:"SUPPORTS"|"CONTRADICTS";observed_at:string};
-type AssessmentRow={evidence_id:string;authority:number;directness:number;traceability:number;source_published_at:string|null;derivative_depth:number};
+type AssessmentRow={
+  evidence_id:string;
+  authority:number;
+  directness:number;
+  traceability:number;
+  source_published_at:string|null;
+  source_lineage_key:string|null;
+  derivative_of_evidence_id:string|null;
+  derivative_depth:number;
+};
 type RelationshipRow={from_claim_id:string;to_claim_id:string;relationship_type:"DEPENDS_ON"|"CONTRADICTS";strength:number};
 type EntityRow={id:string;entity_type:TruthEntityType};
 
-export async function calculateAndPersistMrTi2Truth(entityId:string):Promise<MrTi2EntityTruthResult|null>{
+function toReferenceTime(value?:Date|string):string {
+  const date=value instanceof Date?new Date(value.getTime()):value?new Date(value):new Date();
+  if(Number.isNaN(date.getTime())) throw new Error(`MR_TI_2_INVALID_REFERENCE_TIME:${String(value)}`);
+  return date.toISOString();
+}
+
+/** Resolve a common-origin family through derivative links so copied/syndicated evidence cannot freely compound. */
+function resolveDependenceFamilyKey(evidenceId:string,assessments:ReadonlyMap<string,AssessmentRow>):string {
+  let current=evidenceId;
+  const visited=new Set<string>();
+  let bestLineage:string|null=null;
+  while(current && !visited.has(current)){
+    visited.add(current);
+    const row=assessments.get(current);
+    if(!row) break;
+    if(row.source_lineage_key?.trim()) bestLineage=row.source_lineage_key.trim();
+    if(!row.derivative_of_evidence_id) break;
+    current=row.derivative_of_evidence_id;
+  }
+  return bestLineage?`LINEAGE:${bestLineage}`:`EVIDENCE:${current||evidenceId}`;
+}
+
+export async function calculateAndPersistMrTi2Truth(
+  entityId:string,
+  options:{referenceTime?:Date|string}={},
+):Promise<MrTi2EntityTruthResult|null>{
+  const referenceTime=toReferenceTime(options.referenceTime);
   await syncMrTi2ClaimProfiles(entityId);
   const entityRows=await databaseRequest<EntityRow[]>(`genesis_g8_intelligence_entities?select=id,entity_type&id=eq.${encodeURIComponent(entityId)}&limit=1`);
   const entity=entityRows[0]; if(!entity) return null;
   const contract=getMrTi2ClaimContract(entity.entity_type);
   const claims=await databaseRequest<ClaimRow[]>(`genesis_g8_intelligence_claims?select=id,claim_key&entity_id=eq.${encodeURIComponent(entityId)}&limit=500`);
   const byId=new Map(claims.map((claim)=>[claim.id,claim.claim_key]));
-  const byKey=new Map(claims.map((claim)=>[claim.claim_key,claim.id]));
   const claimIds=claims.map((claim)=>claim.id);
   const evidence=claimIds.length?await databaseRequest<EvidenceRow[]>(`genesis_g8_intelligence_evidence?select=id,claim_id,direction,observed_at&claim_id=in.(${claimIds.join(",")})&limit=5000`):[];
   const evidenceIds=evidence.map((item)=>item.id);
-  const assessments=evidenceIds.length?await databaseRequest<AssessmentRow[]>(`genesis_g8_truth_v2_evidence_assessments?select=evidence_id,authority,directness,traceability,source_published_at,derivative_depth&evidence_id=in.(${evidenceIds.join(",")})&limit=5000`):[];
+  const assessments=evidenceIds.length?await databaseRequest<AssessmentRow[]>(`genesis_g8_truth_v2_evidence_assessments?select=evidence_id,authority,directness,traceability,source_published_at,source_lineage_key,derivative_of_evidence_id,derivative_depth&evidence_id=in.(${evidenceIds.join(",")})&limit=5000`):[];
   const assessmentByEvidence=new Map(assessments.map((row)=>[row.evidence_id,row]));
   const definitionByKey=new Map(contract.claims.map((definition)=>[definition.key,definition]));
   const matrixInputs:MrTi2MatrixOneEvidenceInput[]=[];
   for(const item of evidence){
     const claimKey=byId.get(item.claim_id); const assessment=assessmentByEvidence.get(item.id); const definition=claimKey?definitionByKey.get(claimKey):null;
-    if(!claimKey||!assessment||!definition) continue; // Legacy evidence without V2 primitives remains outside shadow maths until reassessed.
-    matrixInputs.push({evidenceKey:item.id,claimKey,direction:item.direction==="SUPPORTS"?"SUPPORT":"CONTRADICT",primitive:{authority:Number(assessment.authority),directness:Number(assessment.directness),traceability:Number(assessment.traceability),sourcePublishedAt:assessment.source_published_at,observedAt:item.observed_at,freshnessHalfLifeDays:definition.freshnessHalfLifeDays,derivativeDepth:Number(assessment.derivative_depth)}});
+    if(!claimKey||!assessment||!definition) continue; // Evidence without V2 primitives remains outside TFR1 maths until reassessed.
+    matrixInputs.push({
+      evidenceKey:item.id,
+      claimKey,
+      direction:item.direction==="SUPPORTS"?"SUPPORT":"CONTRADICT",
+      dependenceFamilyKey:resolveDependenceFamilyKey(item.id,assessmentByEvidence),
+      primitive:{
+        authority:Number(assessment.authority),
+        directness:Number(assessment.directness),
+        traceability:Number(assessment.traceability),
+        sourcePublishedAt:assessment.source_published_at,
+        observedAt:item.observed_at,
+        referenceTime,
+        freshnessHalfLifeDays:definition.freshnessHalfLifeDays,
+        derivativeDepth:Number(assessment.derivative_depth),
+      },
+    });
   }
   const cells=buildMrTi2MatrixOne(matrixInputs);
   const rawClaims:Record<string,MrTi2RawClaimState>={};
@@ -43,8 +92,9 @@ export async function calculateAndPersistMrTi2Truth(entityId:string):Promise<MrT
     const fromClaimKey=byId.get(row.from_claim_id),toClaimKey=byId.get(row.to_claim_id); if(!fromClaimKey||!toClaimKey) return [];
     return [{fromClaimKey,toClaimKey,relationshipType:row.relationship_type,strength:Number(row.strength)}];
   });
-  const adjusted=evaluateMrTi2MatrixTwo({claims:rawClaims,relationships:matrixTwoRelationships});
-  const result=aggregateMrTi2EntityTruth({entityType:entity.entity_type,claims:adjusted.claims,definitions:contract.claims});
+  // TFR1 deliberately supplies no calibration profile until labelled truth outcomes exist.
+  const adjusted=evaluateMrTi2MatrixTwo({claims:rawClaims,relationships:matrixTwoRelationships,calibrationProfile:null});
+  const result=aggregateMrTi2EntityTruth({entityType:entity.entity_type,claims:adjusted.claims,definitions:contract.claims,calculatedAt:referenceTime});
   await persistMrTi2TruthSnapshot(buildMrTi2SnapshotWrite(entityId,result));
   return result;
 }

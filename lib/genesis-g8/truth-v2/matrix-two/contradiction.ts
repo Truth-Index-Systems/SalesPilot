@@ -8,8 +8,8 @@ export interface MrTi2RelationshipContradictionResult {
 }
 
 // CONTRADICTS is logically symmetric even though persistence stores one edge.
-// A relationship contributes contradiction only when the opposite proposition
-// is represented; unknown opposing claims add no contradiction mass.
+// Relationship contradiction uses the opposing claim's EVIDENCE BALANCE, not a
+// falsely-labelled probability. Unknown opposing claims add no contradiction mass.
 export function calculateMrTi2RelationshipContradiction(
   claimKey:string,
   claims:Readonly<Record<string,MrTi2RawClaimState>>,
@@ -22,11 +22,11 @@ export function calculateMrTi2RelationshipContradiction(
     if(edge.fromClaimKey===claimKey) other=edge.toClaimKey;
     else if(edge.toClaimKey===claimKey) other=edge.fromClaimKey;
     if(!other) continue;
-    const probability=claims[other]?.probability;
-    if(probability===null || probability===undefined) continue;
+    const evidenceBalance=claims[other]?.evidenceBalance;
+    if(evidenceBalance===null || evidenceBalance===undefined) continue;
     const strength=assertUnitInterval(edge.strength,"relationship_strength");
-    const contribution=strength*probability;
-    contributions.push({conflictingClaimKey:other,strength,conflictingProbability:probability,contribution});
+    const contribution=strength*evidenceBalance;
+    contributions.push({conflictingClaimKey:other,strength,conflictingEvidenceBalance:evidenceBalance,contribution});
   }
   const residual=contributions.reduce((acc,item)=>acc*(1-item.contribution),1);
   return {strength:1-residual,contributions};

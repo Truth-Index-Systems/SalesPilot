@@ -2,6 +2,8 @@ import type { GenesisG8EntityType as TruthEntityType } from "../entity-types";
 
 export const MR_TI_2_ENGINE_VERSION = "MR-TI-2.0" as const;
 export const MR_TI_2_CONTRACT_VERSION = "MR-TI-2-CONTRACTS-1.0" as const;
+/** Semantic version for the forensic Truth Foundation Repair. Engine contract remains 2.0 for DB/RPC compatibility. */
+export const MR_TI_2_TRUTH_SEMANTICS_VERSION = "MR-TI-2-TFR1" as const;
 
 export type MrTi2ImpactClass = "FOUNDATIONAL" | "COMMERCIAL" | "SUPPORTING" | "OPTIONAL";
 export type MrTi2RelationshipType = "DEPENDS_ON" | "CONTRADICTS";

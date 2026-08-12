@@ -1,5 +1,11 @@
 import fs from 'node:fs';
-const src=fs.readFileSync('lib/genesis-t8/cie/truth-next.ts','utf8'); let pass=0; const need=(s)=>{if(!src.includes(s))throw new Error(`missing:${s}`);pass++};
-['aggregateDependenceFamilies','compoundIndependentFamilyStrengths','rawEvidenceBalance','truthProbability','UNCALIBRATED','EMPIRICALLY_CALIBRATED','PAV_ISOTONIC','fitCieTruthCalibrationProfile','SHADOW','supportStrength','contradictionStrength'].forEach(need);
-const frozen=fs.readFileSync('lib/genesis-g8/truth-v2/claims/probability.ts','utf8'); if(!frozen.includes('calculateMrTi2RawClaimProbability'))throw new Error('frozen TI unexpectedly changed'); pass++;
-console.log(`CIE-R2 static: ${pass}/12 PASS`);
+const src=fs.readFileSync('lib/genesis-t8/cie/truth-next.ts','utf8');
+const production=fs.readFileSync('lib/genesis-g8/truth-v2/claims/probability.ts','utf8');
+const shared=fs.readFileSync('lib/truth-foundation/epistemic.ts','utf8');
+let pass=0;
+const need=(name,condition)=>{if(!condition)throw new Error(`missing:${name}`);pass++;};
+for(const symbol of ['aggregateDependenceFamilies','compoundIndependentFamilyStrengths','rawEvidenceBalance','truthProbability','UNCALIBRATED','EMPIRICALLY_CALIBRATED','fitCieTruthCalibrationProfile','SHARED_FOUNDATION','supportStrength','contradictionStrength']) need(symbol,src.includes(symbol));
+need('shared epistemic import',src.includes('../../truth-foundation/epistemic'));
+need('production evidence balance',production.includes('calculateMrTi2RawEvidenceBalance')&&!production.includes('calculateMrTi2RawClaimProbability'));
+need('empirical calibration primitive',shared.includes('PAV_ISOTONIC')&&shared.includes('fitTruthCalibrationProfile'));
+console.log(`CIE-R2 static: ${pass}/13 PASS`);

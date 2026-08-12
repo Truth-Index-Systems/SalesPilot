@@ -1,4 +1,4 @@
-import { MR_TI_2_PROBABILITY_CAP } from "./constants";
+import { MR_TI_2_EVIDENCE_STRENGTH_CAP } from "./constants";
 
 export function assertUnitInterval(value:number,label:string):number {
   if(!Number.isFinite(value) || value < 0 || value > 1) throw new Error(`MR_TI_2_INVALID_${label.toUpperCase()}:${value}`);
@@ -7,7 +7,7 @@ export function assertUnitInterval(value:number,label:string):number {
 
 export function clampProbability(value:number):number {
   if(!Number.isFinite(value)) throw new Error(`MR_TI_2_NON_FINITE_PROBABILITY:${value}`);
-  return Math.min(MR_TI_2_PROBABILITY_CAP,Math.max(0,value));
+  return Math.min(MR_TI_2_EVIDENCE_STRENGTH_CAP,Math.max(0,value));
 }
 
 export function roundMrTi2(value:number,places=12):number {
