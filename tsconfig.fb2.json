@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target":"ES2022",
+    "module":"NodeNext",
+    "moduleResolution":"NodeNext",
+    "strict":true,
+    "skipLibCheck":true,
+    "esModuleInterop":true,
+    "types":[],
+    "outDir":".fb2-runtime",
+    "rootDir":"."
+  },
+  "files":[
+    "lib/genesis-t8/cie/commercial-reality-producer.ts",
+    "lib/genesis-t8/cie/truth-ce2-bridge.ts",
+    "lib/genesis-t8/cie/truth-next.ts",
+    "lib/genesis-t8/cie/commercial-decision-authority.ts",
+    "lib/genesis-t8/ce2-evolution/commercial-reality.ts",
+    "lib/genesis-t8/ce2-evolution/epistemic-mathematics.ts",
+    "lib/genesis-t8/ce2-evolution/temporal-mathematics.ts",
+    "lib/genesis-t8/ce2-evolution/reality-state-machine.ts",
+    "lib/genesis-t8/ce2-evolution/multidimensional-stability.ts",
+    "lib/genesis-t8/mathematics/constraint-mathematics.ts",
+    "lib/genesis-t8/mathematics/constraint-propagation.ts",
+    "lib/genesis-t8/mathematics/commercial-coherence.ts",
+    "lib/genesis-g8/truth-v2/entity/types.ts",
+    "lib/genesis-g8/truth-v2/entity/aggregate.ts",
+    "lib/genesis-g8/truth-v2/matrix-two/types.ts",
+    "lib/genesis-g8/truth-v2/claims/types.ts",
+    "lib/truth-foundation/epistemic.ts"
+  ]
+}

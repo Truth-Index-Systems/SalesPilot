@@ -8,8 +8,8 @@
  */
 import type { GenesisT8ConstraintApplicability, GenesisT8ConstraintClass } from "./constraints";
 
-export const GENESIS_T8_CONSTRAINT_MATHEMATICS_VERSION = "1.0.0" as const;
-export const GENESIS_T8_CE_R2_R2_BUILD = "R2-BUILD1" as const;
+export const GENESIS_T8_CONSTRAINT_MATHEMATICS_VERSION = "1.1.0-TFR1" as const;
+export const GENESIS_T8_CE_R2_R2_BUILD = "FORENSIC-BUILD2" as const;
 
 export const GENESIS_T8_SEMANTIC_POLARITIES = Object.freeze([
   "SUPPORTS_REALITY",
@@ -19,10 +19,15 @@ export const GENESIS_T8_SEMANTIC_POLARITIES = Object.freeze([
 export type GenesisT8SemanticPolarity = (typeof GENESIS_T8_SEMANTIC_POLARITIES)[number];
 
 export type GenesisT8TIConstraintTruth = Readonly<{
-  probability: number;
-  confidence: number;
+  /** Truth-owned effective support channel. Evidence strength, never probability. */
+  supportStrength: number;
+  /** Truth-owned effective contradiction channel. Evidence strength, never probability. */
+  contradictionStrength: number;
+  /** Quantity of represented evidence independent of direction. */
+  evidenceSufficiency: number;
+  /** Whether the proposition itself is represented in the active Truth contract. */
   coverage: number;
-  /** TI-owned contradiction severity in [0,1]. CE-R2 never recalculates it. */
+  /** Truth-owned contradiction severity in [0,1]. CE-R2 never recalculates it. */
   contradictionSeverity: number;
 }>;
 
@@ -97,18 +102,18 @@ export function assertConstraintMathInputInvariant(input: GenesisT8ConstraintMat
 }
 
 /**
- * Centre TI probability around epistemic neutrality (0.5) and let TI confidence
- * control how strongly the qualified fact may act mathematically.
+ * Resolve directional force directly from Truth-owned evidence channels.
  *
- * r = (2p - 1)c, r in [-1,1]
+ * r = support - contradiction, r in [-1,1]
  *
- * Coverage is intentionally absent from this equation: missing knowledge must
- * not be coerced into commercial opposition.
+ * This is the forensic TFR1 bridge: weak positive support remains positive,
+ * weak contradiction remains negative, and uncalibrated evidence is never
+ * smuggled into CE-R2 as a pseudo-probability with a synthetic 0.5 midpoint.
  */
-export function resolvedTruthSignal(probability: number, confidence: number): number {
-  const p = clamp01(probability);
-  const c = clamp01(confidence);
-  return cleanZero(Math.max(-1, Math.min(1, (2 * p - 1) * c)));
+export function resolvedTruthSignal(supportStrength: number, contradictionStrength: number): number {
+  const support = clamp01(supportStrength);
+  const contradiction = clamp01(contradictionStrength);
+  return cleanZero(Math.max(-1, Math.min(1, support - contradiction)));
 }
 
 /** AI supplies only categorical semantic direction; mathematics supplies sign. */
@@ -119,10 +124,10 @@ export function applySemanticPolarity(signal: number, polarity: GenesisT8Semanti
 
 /**
  * Knowledge is kept orthogonal to commercial possibility.
- * k = coverage * confidence
+ * k = coverage * evidence sufficiency
  */
-export function representedKnowledge(coverage: number, confidence: number): number {
-  return clamp01(coverage) * clamp01(confidence);
+export function representedKnowledge(coverage: number, evidenceSufficiency: number): number {
+  return clamp01(coverage) * clamp01(evidenceSufficiency);
 }
 
 /** TI contradiction severity is an upstream mathematical result; CE-R2 carries it forward unchanged. */
@@ -143,7 +148,7 @@ export function evaluateLocalConstraint(input: GenesisT8ConstraintMathInput): Ge
   }
 
   if (input.applicability === "UNRESOLVED" || input.semanticPolarity === "UNKNOWN" || !input.truth) {
-    const knowledge = input.truth ? representedKnowledge(input.truth.coverage, input.truth.confidence) : 0;
+    const knowledge = input.truth ? representedKnowledge(input.truth.coverage, input.truth.evidenceSufficiency) : 0;
     const contradiction = input.truth ? tiContradictionUncertainty(input.truth.contradictionSeverity) : 0;
     return Object.freeze({
       constraintId: input.constraintId, constraintClass: input.constraintClass, applicability: input.applicability,
@@ -153,11 +158,11 @@ export function evaluateLocalConstraint(input: GenesisT8ConstraintMathInput): Ge
     });
   }
 
-  const baseSignal = resolvedTruthSignal(input.truth.probability, input.truth.confidence);
+  const baseSignal = resolvedTruthSignal(input.truth.supportStrength, input.truth.contradictionStrength);
   const signed = applySemanticPolarity(baseSignal, input.semanticPolarity);
   const support = Math.max(0, signed);
   const opposition = Math.max(0, -signed);
-  const knowledge = representedKnowledge(input.truth.coverage, input.truth.confidence);
+  const knowledge = representedKnowledge(input.truth.coverage, input.truth.evidenceSufficiency);
   const contradiction = tiContradictionUncertainty(input.truth.contradictionSeverity);
 
   let supportStrength = 0;
@@ -213,8 +218,9 @@ export function evaluateLocalConstraint(input: GenesisT8ConstraintMathInput): Ge
 
 export const GENESIS_T8_CONSTRAINT_MATHEMATICS_LAWS = Object.freeze([
   "NO_ARBITRARY_COMMERCIAL_WEIGHTS_IN_PRIMITIVE_CONSTRAINT_MATH",
-  "TI_PROBABILITY_IS_CENTERED_AT_EPISTEMIC_NEUTRALITY",
-  "TI_CONFIDENCE_MODULATES_TRUTH_FORCE",
+  "TRUTH_SUPPORT_MINUS_CONTRADICTION_DETERMINES_DIRECTIONAL_FORCE",
+  "UNCALIBRATED_EVIDENCE_IS_NEVER_CONSUMED_AS_PROBABILITY",
+  "TRUTH_EVIDENCE_SUFFICIENCY_CONTROLS_REPRESENTED_KNOWLEDGE",
   "TI_COVERAGE_AFFECTS_KNOWLEDGE_NOT_COMMERCIAL_DIRECTION",
   "AI_SUPPLIES_CATEGORICAL_SEMANTIC_POLARITY_NOT_NUMERIC_WEIGHT",
   "BOUNDARY_OUTPUT_IS_ELIMINATION_SUPPORT_NOT_PREMATURE_BINARY_ELIMINATION",

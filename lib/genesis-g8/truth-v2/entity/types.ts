@@ -16,6 +16,16 @@ export interface MrTi2ClaimContribution {
   impactClass: MrTi2ClaimDefinition["impactClass"];
   weight: number;
   represented: boolean;
+  /** Truth-owned positive evidence channel after dependence/freshness handling. */
+  supportStrength:number;
+  /** Direct evidence contradiction channel before AI-authored relationship maths. */
+  contradictionStrength:number;
+  /** Relationship-derived contradiction retained for diagnostics; not Build-2 commercial authority. */
+  relationshipContradictionStrength:number;
+  /** Direct-evidence contradiction severity before relationship propagation. */
+  directContradictionSeverity:number;
+  /** Direct-evidence review state before relationship propagation. */
+  directReviewState:MrTi2ClaimReviewState;
   /** Directional evidence index; never a probability. */
   evidenceBalance: number | null;
   evidenceSufficiency:number;

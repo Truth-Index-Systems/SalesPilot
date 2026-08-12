@@ -1,5 +1,5 @@
 import { MR_TI_2_CONTRACT_VERSION, MR_TI_2_ENGINE_VERSION, MR_TI_2_TRUTH_SEMANTICS_VERSION } from "../types";
-import type { MrTi2ClaimReviewState } from "../claims";
+import { assessMrTi2Contradiction, type MrTi2ClaimReviewState } from "../claims";
 import type { MrTi2ClaimDefinition } from "../types";
 import type { MrTi2ClaimContribution, MrTi2EntityAggregationInput, MrTi2EntityProbabilityState, MrTi2EntityTruthResult } from "./types";
 
@@ -46,11 +46,17 @@ export function aggregateMrTi2EntityTruth(input:MrTi2EntityAggregationInput):MrT
     const represented=Boolean(state?.represented && state.evidenceBalance!==null);
     const evidenceBalance=represented?clamp01(state!.evidenceBalance as number):null;
     const evidenceSufficiency=represented?clamp01(state!.evidenceSufficiency):0;
+    const directContradiction=state?assessMrTi2Contradiction(state.supportStrength,state.contradictionStrength):null;
     return {
       claimKey:definition.key,
       impactClass:definition.impactClass,
       weight:definition.weight,
       represented,
+      supportStrength:represented?clamp01(state!.supportStrength):0,
+      contradictionStrength:represented?clamp01(state!.contradictionStrength):0,
+      relationshipContradictionStrength:represented?clamp01(state!.relationshipContradictionStrength):0,
+      directContradictionSeverity:represented?(directContradiction?.severity??0):0,
+      directReviewState:represented?(directContradiction?.reviewState??"AUTO"):"AUTO",
       evidenceBalance,
       evidenceSufficiency,
       truthProbability:state?.truthProbability??null,

@@ -6,6 +6,7 @@ import type { WorkerExecutionResult } from "./executor";
 import { syncOpportunityFoundations } from "@/lib/opportunities/builder";
 import type { OpportunitySyncSummary } from "@/lib/opportunities/domain";
 import { runCieR4CommercialDecisionAuthority, type CieR4ApplySummary } from "@/lib/genesis-t8/cie/commercial-decision-runtime";
+import { runCieR4CommercialRealityProduction, type CieR4ProductionSummary } from "@/lib/genesis-t8/cie/commercial-reality-worker";
 import { runCieR6ContactAuthority, type CieR6ApplySummary } from "@/lib/genesis-t8/cie/contact-authority-worker";
 import { runCieR7ResearchCounterfactualLoop, type CieR7ApplySummary } from "@/lib/genesis-t8/cie/research-counterfactual-worker";
 import type { EngagementBuilderResult } from "@/lib/engagement/types";
@@ -57,6 +58,7 @@ export type PipelineSchedulerResult = {
   contactFoundation: ContactFoundationSync | null;
   contact: SettledWorker | SettledWorker[] | null;
   opportunity: OpportunitySyncSummary | null;
+  commercialRealityProduction: CieR4ProductionSummary | null;
   opportunityScoring: CieR4ApplySummary | null;
   contactAuthority: CieR6ApplySummary | null;
   researchCounterfactual: CieR7ApplySummary | null;
@@ -101,7 +103,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
   const owner = `vercel:${process.env.VERCEL_REGION ?? "local"}:${randomUUID()}`;
   const lease = await acquirePipelineSchedulerLease(owner, 300);
   if (!lease.acquired || !lease.run_id) {
-    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, opportunityScoring: null, contactAuthority: null, researchCounterfactual: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, personalisationSafety: null, outreachGeneration: null, engagementSelfReview: null, engagementQuality: null, autopilotApproval: null, engagementQueue: null, engagementLearning: null, parallelExecution: { g4: { kind: "NONE", attempted: 0, results: [] }, g5: [], limits: { organisationHeavyInFlight: 2, campaignCompanyRouteInFlight: 3, schedulerG4DispatchWidth: 0, schedulerG5DispatchWidth: 0 } } };
+    return { acquired: false, runId: null, preparation: null, company: null, contactFoundation: null, contact: null, opportunity: null, commercialRealityProduction: null, opportunityScoring: null, contactAuthority: null, researchCounterfactual: null, engagement: null, engagementStrategy: null, engagementLearningGuidance: null, commercialReasoning: null, channelStrategy: null, personalisationSafety: null, outreachGeneration: null, engagementSelfReview: null, engagementQuality: null, autopilotApproval: null, engagementQueue: null, engagementLearning: null, parallelExecution: { g4: { kind: "NONE", attempted: 0, results: [] }, g5: [], limits: { organisationHeavyInFlight: 2, campaignCompanyRouteInFlight: 3, schedulerG4DispatchWidth: 0, schedulerG5DispatchWidth: 0 } } };
   }
 
   const runId = lease.run_id;
@@ -167,7 +169,12 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
     // Cheap deterministic assembly follows dispatch. Newly submitted background
     // jobs will naturally become eligible on webhook/collector completion.
     const opportunity = hasSchedulerBudget(schedulerStartedAt, 8_000) ? await syncOpportunityFoundations(runId) : null;
-    const opportunityScoring = opportunity && hasSchedulerBudget(schedulerStartedAt, 8_000)
+    // Forensic Build 2: produce current R4 authority from TFR1 Truth + immutable seller constraints
+    // before any R4 application. No legacy score or pre-existing orphan decision may substitute.
+    const commercialRealityProduction = opportunity && hasSchedulerBudget(schedulerStartedAt, 12_000)
+      ? await runCieR4CommercialRealityProduction(runId)
+      : null;
+    const opportunityScoring = commercialRealityProduction && hasSchedulerBudget(schedulerStartedAt, 8_000)
       ? await runCieR4CommercialDecisionAuthority(runId)
       : null;
     const contactAuthority = opportunityScoring && hasSchedulerBudget(schedulerStartedAt, 8_000)
@@ -219,6 +226,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       speedR3: parallelExecution,
       contactFoundation,
       foundation: opportunity,
+      commercialRealityProduction,
       scoring: opportunityScoring,
       contactAuthority,
       researchCounterfactual,
@@ -244,6 +252,7 @@ export async function runPipelineScheduler(): Promise<PipelineSchedulerResult> {
       contactFoundation,
       contact,
       opportunity,
+      commercialRealityProduction,
       opportunityScoring,
       contactAuthority,
       researchCounterfactual,
