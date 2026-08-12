@@ -15,7 +15,6 @@ const CHANNEL_TYPES = new Set(["NAMED","DEPARTMENTAL","GENERAL"]);
 const CHANNEL_VERIFICATION = new Set(["PUBLIC_VERIFIED","PATTERN_LIKELY"]);
 const ROUTE_TYPES = new Set(["OPERATIONAL","TRANSFORMATION","PROCUREMENT","TECHNICAL","EXECUTIVE","REGIONAL"]);
 const ROUTE_CHANNEL_TYPES = new Set(["DIRECT_EMAIL","LINKEDIN","DEPARTMENT_EMAIL","GENERAL_EMAIL","SWITCHBOARD","INTRODUCTION","UNKNOWN"]);
-const ROUTE_DIFFICULTIES = new Set(["LOW","MEDIUM","HIGH"]);
 
 function record(value: unknown): JsonRecord | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : null;
@@ -196,10 +195,6 @@ function canonicalRoute(value: unknown, index: number) {
     entryRole, targetRole, department: nullableText(item.department, 180),
     contactName: nullableText(item.contactName, 180), contactRole: nullableText(item.contactRole, 180),
     channelType, channelValue: nullableText(item.channelValue, 500),
-    authority: score(item.authority), accessibility: score(item.accessibility),
-    commercialRelevance: score(item.commercialRelevance), evidenceQuality: score(item.evidenceQuality),
-    resilience: score(item.resilience), confidence: score(item.confidence),
-    difficulty: enumValue(item.difficulty, ROUTE_DIFFICULTIES, "HIGH"),
     rationale: text(item.rationale, 1200, "Commercial route identified from supported public evidence."),
     nextStep: text(item.nextStep, 900, "Continue route research before outreach."),
     fallbackReason: nullableText(item.fallbackReason, 700),

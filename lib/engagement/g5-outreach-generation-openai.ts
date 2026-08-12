@@ -14,7 +14,7 @@ import {
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 
-type RouteTruth = { id?: unknown; channelType?: unknown; channelValue?: unknown; isViable?: unknown };
+type RouteTruth = { id?: unknown; channelType?: unknown; channelValue?: unknown };
 type PrimaryDecision = { routeId?: unknown; executionChannel?: unknown };
 
 const CHANNEL_COMPATIBILITY: Record<string, G5OutreachGeneration["channel"] | null> = {
@@ -67,11 +67,10 @@ function validateAgainstImmutableDecision(input: {
   if (input.result.routeId !== primary.routeId) throw new Error("G5_OUTREACH_ROUTE_MISMATCH");
   if (input.result.channel !== primary.channel) throw new Error("G5_OUTREACH_CHANNEL_MISMATCH");
   const route = routeById(input.sourceSnapshot, primary.routeId);
-  if (!route) throw new Error("G5_OUTREACH_G4_ROUTE_MISSING");
-  if (route.isViable !== true) throw new Error("G5_OUTREACH_G4_ROUTE_NOT_VIABLE");
-  if (typeof route.channelValue !== "string" || route.channelValue.trim().length === 0) throw new Error("G5_OUTREACH_G4_ROUTE_UNREACHABLE");
+  if (!route) throw new Error("G5_OUTREACH_CIE_ROUTE_MISSING");
+  if (typeof route.channelValue !== "string" || route.channelValue.trim().length === 0) throw new Error("G5_OUTREACH_CIE_ROUTE_UNREACHABLE");
   const expected = typeof route.channelType === "string" ? CHANNEL_COMPATIBILITY[route.channelType] : null;
-  if (!expected || expected !== primary.channel) throw new Error("G5_OUTREACH_G4_CHANNEL_MISMATCH");
+  if (!expected || expected !== primary.channel) throw new Error("G5_OUTREACH_CIE_CHANNEL_MISMATCH");
   const immutableSourceText = JSON.stringify(input.sourceSnapshot);
   for (const evidence of input.result.evidenceUsed) {
     if (!immutableSourceText.includes(evidence.sourceId)) throw new Error("G5_OUTREACH_UNKNOWN_EVIDENCE_SOURCE");
@@ -149,10 +148,10 @@ export async function generateG5Outreach(input: {
           "MISSION: Express the already-approved commercial insight in the fewest natural words necessary to earn a response. Strategy has already been decided upstream; your job is precision, humanity and restraint.",
           "ACCOUNTABLE FOR: Language only - clarity, brevity, natural executive voice, channel-native structure and faithful expression of the approved commercial thesis. You are an executive editor, not a researcher or strategist.",
           "ADVISES BUT DOES NOT DECIDE: You may choose wording, sentence order and the least-friction phrasing of the already-approved next commitment. You do NOT introduce a new commercial claim, change route/channel/contact, reinterpret evidence, change the commercial thesis, approve your own message, set confidence thresholds, schedule or send.",
-          "OUT OF SCOPE / HAND OFF: Every substantive claim must already exist in G4/R2/R5. If the inputs are weak or incomplete, write conservatively and expose limitations rather than solving the gap with creativity. R6 independently reviews quality; deterministic MarketRoute owns progression.",
+          "OUT OF SCOPE / HAND OFF: Every substantive claim must already exist in the current R4/R5/R6 authority lineage. If the inputs are weak or incomplete, write conservatively and expose limitations rather than solving the gap with creativity. R6 independently reviews quality; deterministic MarketRoute owns progression.",
           "DECISION STANDARD: Ask 'Would I allow a credible CEO, CRO or senior account executive to send this under their own name?' If it sounds automated, over-polished, needy, generic or like marketing copy, simplify it.",
           "VOICE: Sound like an intelligent operator who noticed something relevant, not a marketer who found a merge field. Prefer specific observation -> plausible implication -> credible relevance -> low-friction question.",
-          "G4 commercial truth is immutable. Never research, rediscover, alter or invent a route, contact, fact, pain, result, budget, relationship or timing claim.",
+          "Current R4 commercial reality and CIE-R5/R6 route/contact authority are immutable. Never research, rediscover, alter or invent a route, contact, fact, pain, result, budget, relationship or timing claim.",
           "channelStrategy.primary routeId and executionChannel are authoritative. Generate only for that route/channel.",
           "Commercial Reasoning is the factual spine. Respect every prohibited claim and limitation.",
           "VERIFIED_FACT may be directly stated. COMMERCIAL_INFERENCE must be framed as possibility/hypothesis ('may', 'could', 'often', 'worth exploring') and never as something you know about the recipient. DO_NOT_USE must never appear or be implied.",

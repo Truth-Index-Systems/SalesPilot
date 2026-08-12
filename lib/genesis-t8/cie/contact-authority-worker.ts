@@ -2,7 +2,11 @@ import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { evaluateCieR5RouteAuthority } from "./route-authority";
 import { evaluateCieR6ContactAuthority, type CieR6ContactCandidate } from "./contact-authority";
-import { buildR6AuthoritySourceFingerprint } from "./authority-lineage";
+import {
+  buildR5AuthoritySourceFingerprint,
+  buildR5MaterialAuthorityFingerprint,
+  buildR6AuthoritySourceFingerprintV4,
+} from "./authority-lineage";
 
 export type CieR6ApplySummary = Readonly<{ processed: number; ready: number; organisational: number; unresolved: number }>;
 
@@ -38,7 +42,8 @@ function candidate(row: ContactRow): CieR6ContactCandidate | null {
 }
 
 export async function runCieR6ContactAuthority(schedulerRunId: string): Promise<CieR6ApplySummary> {
-  // Fail closed before recomputation: source or parent-authority drift removes READY immediately.
+  // Build 4: invalidate route authority first, then downstream contact authority.
+  await databaseRequest("rpc/invalidate_stale_cie_r5_authority",{method:"POST",body:JSON.stringify({p_scheduler_run_id:schedulerRunId})});
   await databaseRequest("rpc/invalidate_stale_cie_r6_authority",{method:"POST",body:JSON.stringify({p_scheduler_run_id:schedulerRunId})});
   const contexts=await databaseRequest<Context[]>("rpc/get_cie_r6_contact_authority_context",{
     method:"POST",body:JSON.stringify({p_scheduler_run_id:schedulerRunId,p_limit:40}),
@@ -49,13 +54,30 @@ export async function runCieR6ContactAuthority(schedulerRunId: string): Promise<
       const routes=Array.isArray(context.commercial_routes)?context.commercial_routes:[];
       const sourceSnapshot={opportunity:{commercial_routes:routes}};
       const routeAuthority=evaluateCieR5RouteAuthority({realityId:context.reality_id,commercialReasoning:{},sourceSnapshot});
+      const r5SourceFingerprint=buildR5AuthoritySourceFingerprint({r4AuthorityFingerprint:context.r4_authority_fingerprint,routes});
+      const r5AuthorityFingerprint=buildR5MaterialAuthorityFingerprint({r4AuthorityFingerprint:context.r4_authority_fingerprint,routeAuthority});
+
+      await databaseRequest("rpc/persist_cie_r5_route_decision",{
+        method:"POST",body:JSON.stringify({
+          p_opportunity_id:context.opportunity_id,
+          p_parent_r4_authority_fingerprint:context.r4_authority_fingerprint,
+          p_source_fingerprint:r5SourceFingerprint,
+          p_authority_fingerprint:r5AuthorityFingerprint,
+          p_selected_route_ids:routeAuthority.selectedRouteIds,
+          p_route_states_json:routeAuthority.routeStates,
+          p_strategy_json:routeAuthority.strategy,
+          p_graph_assessment_json:routeAuthority.graphAssessment,
+        }),
+      });
+
       const contacts=(Array.isArray(context.contacts)?context.contacts:[]).map(value=>candidate((value??{}) as ContactRow)).filter((value):value is CieR6ContactCandidate=>value!==null);
       const decision=evaluateCieR6ContactAuthority({routeAuthority,routes:routes as any[],contacts});
-      const sourceFingerprint=buildR6AuthoritySourceFingerprint({r4AuthorityFingerprint:context.r4_authority_fingerprint,routes,contacts:Array.isArray(context.contacts)?context.contacts:[]});
+      const sourceFingerprint=buildR6AuthoritySourceFingerprintV4({r5AuthorityFingerprint,contacts:Array.isArray(context.contacts)?context.contacts:[]});
       await databaseRequest("rpc/persist_cie_r6_contact_decision",{
         method:"POST",body:JSON.stringify({
           p_opportunity_id:context.opportunity_id,
           p_parent_r4_authority_fingerprint:context.r4_authority_fingerprint,
+          p_parent_r5_authority_fingerprint:r5AuthorityFingerprint,
           p_source_fingerprint:sourceFingerprint,
           p_primary_contact_id:decision.primaryContactId,
           p_contact_frontier_json:decision.contactFrontier,

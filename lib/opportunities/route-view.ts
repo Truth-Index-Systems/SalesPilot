@@ -17,20 +17,27 @@ export type AccessRouteView = {
   isReady: boolean;
 };
 
+/**
+ * Founder-facing route read model.
+ *
+ * Forensic Build 4 deliberately treats `commercial_route_id` as the authority
+ * boundary: opportunity_overview only populates that row from the primary route
+ * of an ACTIVE MR-T8-FB4 R5 decision. Legacy contact channels are not allowed to
+ * infer OPEN route authority.
+ */
 export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
-  const intelligentChannel = row.commercial_route_channel_value || null;
-  const intelligentType = row.commercial_route_channel_type || null;
-  const intelligentEmail = intelligentChannel && ["DIRECT_EMAIL", "DEPARTMENT_EMAIL", "GENERAL_EMAIL"].includes(intelligentType || "") ? intelligentChannel : null;
-  const intelligentLinkedIn = intelligentChannel && intelligentType === "LINKEDIN" ? intelligentChannel : null;
-  const email = intelligentEmail || row.primary_contact_email || row.primary_route_email || null;
-  const emailStatus = intelligentEmail ? "ROUTE_VERIFIED" : row.primary_contact_email_status || row.primary_route_verification_status || null;
-  const linkedinUrl = intelligentLinkedIn || row.primary_contact_linkedin_url || null;
+  const hasAuthorisedRoute = Boolean(row.commercial_route_id);
+  const intelligentChannel = hasAuthorisedRoute ? row.commercial_route_channel_value || null : null;
+  const intelligentType = hasAuthorisedRoute ? row.commercial_route_channel_type || null : null;
+  const email = intelligentChannel && ["DIRECT_EMAIL", "DEPARTMENT_EMAIL", "GENERAL_EMAIL"].includes(intelligentType || "") ? intelligentChannel : null;
+  const linkedinUrl = intelligentChannel && intelligentType === "LINKEDIN" ? intelligentChannel : null;
   const phone = intelligentChannel && intelligentType === "SWITCHBOARD" ? intelligentChannel : null;
-  const role = row.commercial_route_target_role || row.commercial_route_contact_role || row.primary_contact_role || row.primary_route_likely_reader || "Commercial decision maker";
+  const emailStatus = email ? "CIE_R5_OPEN" : null;
+  const role = row.commercial_route_target_role || row.commercial_route_contact_role || "Commercial decision maker";
 
   let type: AccessRouteView["type"] = "unverified";
   let typeLabel = "Route research in progress";
-  if (email && (row.commercial_route_contact_name || row.primary_contact_name)) {
+  if (email && row.commercial_route_contact_name) {
     type = "direct_email";
     typeLabel = "Direct email";
   } else if (linkedinUrl) {
@@ -38,7 +45,7 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
     typeLabel = "LinkedIn route";
   } else if (email) {
     type = "email_route";
-    typeLabel = "Verified email route";
+    typeLabel = "Evidence-qualified email route";
   } else if (intelligentType === "SWITCHBOARD" && intelligentChannel) {
     type = "switchboard";
     typeLabel = "Switchboard route";
@@ -47,29 +54,29 @@ export function buildAccessRoute(row: OpportunityOverview): AccessRouteView {
     typeLabel = "Introduction route";
   }
 
-  const isReady = Boolean(email || linkedinUrl || (intelligentChannel && intelligentType && intelligentType !== "UNKNOWN"));
+  const isReady = Boolean(hasAuthorisedRoute && intelligentChannel && intelligentType && intelligentType !== "UNKNOWN");
   const authorityState: AccessRouteView["authorityState"] = isReady ? "OPEN" : "UNRESOLVED";
-  const evidenceCount = Number(row.commercial_route_evidence_count || 0) + Number(row.contact_evidence_count || 0);
-  const evidenceState: AccessRouteView["evidenceState"] = evidenceCount > 0 ? "EVIDENCE_LINKED" : "EVIDENCE_INCOMPLETE";
-  const evidenceSummary = evidenceCount > 0
-    ? `${evidenceCount} linked route evidence source${evidenceCount === 1 ? "" : "s"}.`
-    : "Route evidence is still being assembled.";
+  const evidenceCount = hasAuthorisedRoute ? Number(row.commercial_route_evidence_count || 0) : 0;
+  const evidenceState: AccessRouteView["evidenceState"] = isReady && evidenceCount > 0 ? "EVIDENCE_LINKED" : "EVIDENCE_INCOMPLETE";
+  const evidenceSummary = isReady && evidenceCount > 0
+    ? `${evidenceCount} qualifying evidence source${evidenceCount === 1 ? "" : "s"} support the authorised route.`
+    : "No active evidence-qualified R5 route is currently authorised.";
 
-  const recommendation = row.commercial_route_rationale || row.recommended_entry_strategy || row.primary_route_reason || row.contact_reason_selected || (
+  const recommendation = row.commercial_route_rationale || (
     isReady
-      ? "This route is currently authorised by the CIE route/contact decision path."
+      ? "This route is authorised by the current persisted CIE-R5 decision and bound downstream through R6."
       : "MarketRoute is still gathering enough evidence to establish an OPEN commercial route."
   );
   const nextStep = row.commercial_route_next_step || (email
-    ? `Approach ${row.commercial_route_contact_name || row.primary_contact_name || role} through the supported email route and anchor the opening message to the identified commercial need.`
+    ? `Approach ${row.commercial_route_contact_name || role} through the evidence-qualified email route and anchor the opening message to the identified commercial need.`
     : linkedinUrl
-      ? `Use LinkedIn to establish relevance with ${row.commercial_route_contact_name || row.primary_contact_name || role}, then earn a direct conversation or introduction.`
+      ? `Use the authorised LinkedIn route to establish relevance with ${row.commercial_route_contact_name || role}, then earn a direct conversation or introduction.`
       : phone
-        ? `Call ${phone} and use the verified switchboard route to reach ${row.commercial_route_contact_name || row.primary_contact_name || role}.`
+        ? `Call ${phone} through the evidence-qualified switchboard route to reach ${row.commercial_route_contact_name || role}.`
         : "Continue route research before beginning outreach.");
 
   return {
-    personName: row.commercial_route_contact_name || row.primary_contact_name,
+    personName: hasAuthorisedRoute ? row.commercial_route_contact_name : null,
     role,
     type,
     typeLabel,

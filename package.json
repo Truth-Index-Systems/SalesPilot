@@ -272,7 +272,11 @@
     "forensic:build2-check": "npm run forensic:build2-static-check && npm run forensic:build2-runtime-check",
     "forensic:build3-static-check": "node scripts/validate-marketroute-forensic-build3.mjs",
     "forensic:build3-runtime-check": "rm -rf .fb3-runtime && tsc -p tsconfig.fb3.json --pretty false && node scripts/run-marketroute-forensic-build3-adversarial.mjs .fb3-runtime/lib/genesis-t8/cie/commercial-reality-producer.js .fb3-runtime/lib/genesis-t8/cie/authority-lineage.js && rm -rf .fb3-runtime",
-    "forensic:build3-check": "npm run forensic:build3-static-check && npm run forensic:build3-runtime-check"
+    "forensic:build3-check": "npm run forensic:build3-static-check && npm run forensic:build3-runtime-check",
+    "forensic:build4-static-check": "node scripts/validate-marketroute-forensic-build4.mjs",
+    "forensic:build4-runtime-check": "rm -rf .fb4-runtime .forensic-empty-types && mkdir -p .forensic-empty-types && tsc --typeRoots ./.forensic-empty-types --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --skipLibCheck --esModuleInterop --outDir .fb4-runtime --rootDir . lib/genesis-t8/cie/route-authority.ts lib/genesis-t8/ce2-evolution/commercial-graph-calculus.ts && node scripts/run-marketroute-forensic-build4-adversarial.mjs .fb4-runtime/lib/genesis-t8/cie/route-authority.js && rm -rf .fb4-runtime .forensic-empty-types",
+    "forensic:build4-check": "npm run forensic:build4-static-check && npm run forensic:build4-sql-signature-check && npm run forensic:build4-runtime-check",
+    "forensic:build4-sql-signature-check": "node scripts/validate-marketroute-forensic-build4-sql-signatures.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

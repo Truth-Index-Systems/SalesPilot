@@ -35,9 +35,7 @@ export function normaliseContactDiscoveryResult(result:ContactDiscoveryResult,co
   if(route.channelType==="LINKEDIN") channelValue=linkedinProfile(channelValue);
   const channelType=channelValue?route.channelType:"UNKNOWN";
   const personSupported=evidence.some(item=>item.evidenceType==="IDENTITY")&&evidence.some(item=>item.evidenceType==="ROLE");
-  const evidenceQuality=evidence.length?Math.round(evidence.reduce((sum,item)=>sum+item.qualityScore,0)/evidence.length):0;
-  const confidence=Math.min(route.confidence,evidence.length?100:45);
-  return {...route,channelType,channelValue,contactName:personSupported?route.contactName:null,contactRole:personSupported?route.contactRole:null,evidence,evidenceQuality,confidence};
+  return {...route,channelType,channelValue,contactName:personSupported?route.contactName:null,contactRole:personSupported?route.contactRole:null,evidence};
  });
  return finaliseDeterministicContactRouteAuthority({...result,contacts,companyContactChannels,routes});
 }

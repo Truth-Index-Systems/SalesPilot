@@ -43,7 +43,7 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
   const review = recommended;
   const incomplete = allRows.filter(row => ["BUILDING", "NEEDS_CONTACT", "NEEDS_EVIDENCE"].includes(row.status)).length;
   const approved = allRows.filter(row => row.status === "APPROVED").length;
-  const reachable = allRows.filter(row => row.commercial_route_channel_value || row.primary_contact_email || row.primary_route_email || row.primary_contact_linkedin_url).length;
+  const reachable = allRows.filter(row => row.commercial_route_id && row.commercial_route_channel_value).length;
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.band);
 
   return <AppShell title="Opportunities" user={user} workspaceStats={{ campaigns: campaigns.length, companies: new Set(allRows.map(row => row.company_id)).size, replies: 0, opportunities: allRows.length }}>
