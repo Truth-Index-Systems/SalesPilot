@@ -10,6 +10,7 @@ import type { CampaignSummary } from "@/lib/campaigns/schemas";
 import { companyCounts } from "@/lib/discovery/repository";
 import { listOpportunities } from "@/lib/opportunities/repository";
 import type { OpportunityOverview } from "@/lib/opportunities/domain";
+import { isOpportunityAuthorityReady, presentOpportunityAuthorityState } from "@/lib/opportunities/authority-view";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +22,9 @@ function greeting(name: string): string {
 
 function opportunityBand(row: OpportunityOverview) {
   if (row.status === "APPROVED") return "Approved for engagement";
-  if (row.status === "READY") return "CIE-qualified for review";
-  if (row.status === "NEEDS_CONTACT") return "Needs a reachable buyer";
-  if (row.status === "NEEDS_EVIDENCE") return "Needs stronger evidence";
-  return "Worth reviewing";
+  if (row.status === "ENGAGED") return "Engaged";
+  if (isOpportunityAuthorityReady(row)) return "CIE-qualified for review";
+  return presentOpportunityAuthorityState(row.authority_state);
 }
 
 export default async function Home() {
@@ -44,11 +44,11 @@ export default async function Home() {
   let companies = { total: 0, pending: 0, approved: 0 };
   try { companies = await companyCounts(); } catch (error) { console.error("Overview companies unavailable", error); }
 
-  const recommended = opportunities.filter(row => row.status === "READY").length;
+  const recommended = opportunities.filter(isOpportunityAuthorityReady).length;
   const awaitingDecision = opportunities.filter(row => !["APPROVED", "REJECTED", "ENGAGED"].includes(row.status)).length;
   const approved = opportunities.filter(row => row.status === "APPROVED").length;
   const topOpportunities = opportunities.filter(row => row.status !== "REJECTED").slice(0, 4);
-  const nextOpportunity = opportunities.find(row => !["APPROVED", "REJECTED", "ENGAGED"].includes(row.status));
+  const nextOpportunity = opportunities.find(row => isOpportunityAuthorityReady(row) && !["APPROVED", "REJECTED", "ENGAGED"].includes(row.status)) ?? opportunities.find(row => !["APPROVED", "REJECTED", "ENGAGED"].includes(row.status));
 
   return <AppShell title="Overview" user={user} workspaceStats={{ campaigns: campaigns.length, companies: companies.total, replies: 0, opportunities: opportunities.length }}>
     <PageHeader

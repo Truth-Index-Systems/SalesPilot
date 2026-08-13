@@ -38,7 +38,7 @@ pass("R5_MATERIAL_FINGERPRINT_PATHS",lineage.includes('MR-T8-FB5-R5-AUTHORITY-1.
 pass("R6_PARENT_VERSION_FB5",lineage.includes('MR-T8-FB5-R6-SOURCE-1.0.0'));
 pass("G5_CONSUMES_V3_LEDGER",g5.includes('cie-r5-route-authority/v3')&&g5.includes("get_cie_r5_route_authority_for_engagement_owned")&&!g5.includes("evaluateCieR5RouteAuthority"));
 pass("G5_SCHEMA_V3",g5schema.includes('"cie-r5-route-authority/v3"'));
-pass("READ_MODEL_FB5",repo.includes('MR-T8-FB5-R5-1.0.0'));
+pass("READ_MODEL_FB5",repo.includes('MR-T8-FB5-R5-1.0.0')||(repo.includes('cie_authoritative_opportunity_read')&&read('supabase/migrations/0157_marketroute_forensic_build7_authoritative_read_model.sql').includes("b.r5_producer_version='MR-T8-FB5-R5-1.0.0'")));
 pass("SQL_RELATION_LEDGER",migration.includes("genesis_t8_canonical_relationship_assertions")&&migration.includes("source_fingerprint text not null"));
 pass("SQL_RELATION_PERSIST_RPC",migration.includes("persist_genesis_t8_canonical_relationships_owned")&&migration.includes("CANONICAL_RELATIONSHIP_NUMERIC_AUTHORITY_FORBIDDEN"));
 pass("SQL_RELATION_CONTEXT_RPC",migration.includes("get_cie_r5_canonical_relationship_context"));

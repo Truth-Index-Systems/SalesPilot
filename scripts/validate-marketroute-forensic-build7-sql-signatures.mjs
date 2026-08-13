@@ -1,0 +1,13 @@
+import fs from'node:fs';let p=0,t=0;const canonical=fs.readFileSync('supabase/migrations/0157_marketroute_forensic_build7_authoritative_read_model.sql','utf8'),standalone=fs.readFileSync('APPLY-IN-SUPABASE-FORENSIC-BUILD7.sql','utf8');const check=(n,b)=>{t++;if(b){p++;console.log('PASS',n)}else{console.error('FAIL',n);process.exitCode=1}};
+check('migration is atomic',/^BEGIN;/m.test(canonical)&&/COMMIT;\s*$/m.test(canonical));
+check('standalone SQL exactly matches canonical migration',canonical===standalone);
+check('Build 7 changes no function return signatures',!canonical.match(/create\s+(or\s+replace\s+)?function/i));
+check('Build 7 drops no production functions',!canonical.match(/drop\s+function/i));
+check('only read-model views are created',canonical.match(/create or replace view/gi)?.length===3);
+check('PostgREST schema reload included',canonical.includes("notify pgrst, 'reload schema'"));
+check('security invoker set on all views',(canonical.match(/security_invoker=true/g)||[]).length===3);
+check('legacy public roles revoked on all views',(canonical.match(/revoke all on public\.cie_/g)||[]).length===3);
+check('service role receives all read views',(canonical.match(/grant select on public\.cie_/g)||[]).length===3);
+check('no historical view is replaced',!canonical.includes('create or replace view public.opportunity_overview')&&!canonical.includes('create or replace view public.opportunity_detail'));
+check('no CREATE OR REPLACE FUNCTION 42P13 risk',!canonical.includes('returns table('));
+console.log(`${p}/${t} Build-7 SQL signature checks passed`);if(p!==t)process.exit(1);

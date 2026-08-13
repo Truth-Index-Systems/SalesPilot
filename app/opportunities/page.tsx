@@ -6,6 +6,7 @@ import { requirePageUser } from "@/lib/auth/page-user";
 import { listOpportunities } from "@/lib/opportunities/repository";
 import { listCampaigns } from "@/lib/campaigns/repository";
 import type { OpportunityOverview, OpportunityStatus } from "@/lib/opportunities/domain";
+import { isOpportunityAuthorityReady, opportunityAuthorityNeedsResearch, opportunityAuthorityIsStale } from "@/lib/opportunities/authority-view";
 import { BriefcaseBusiness, CheckCircle2, ContactRound, ShieldCheck, Target } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +21,9 @@ function queryString(input: Search) {
 }
 
 function matchesBand(row: OpportunityOverview, band?: string) {
-  if (band === "RECOMMENDED" || band === "REVIEW") return row.status === "READY";
-  if (band === "INCOMPLETE") return row.status === "NEEDS_CONTACT" || row.status === "NEEDS_EVIDENCE" || row.status === "BUILDING";
-  if (band === "LOW") return row.status === "LOW_PRIORITY" || row.status === "REJECTED";
+  if (band === "RECOMMENDED" || band === "REVIEW") return isOpportunityAuthorityReady(row);
+  if (band === "INCOMPLETE") return opportunityAuthorityNeedsResearch(row) || opportunityAuthorityIsStale(row);
+  if (band === "LOW") return row.authority_state === "REJECTED" || row.status === "REJECTED";
   return true;
 }
 
@@ -39,11 +40,11 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
     return true;
   });
 
-  const recommended = allRows.filter(row => row.status === "READY").length;
-  const review = recommended;
-  const incomplete = allRows.filter(row => ["BUILDING", "NEEDS_CONTACT", "NEEDS_EVIDENCE"].includes(row.status)).length;
+  const recommended = allRows.filter(isOpportunityAuthorityReady).length;
+  const review = allRows.filter(row => isOpportunityAuthorityReady(row) && row.status !== "APPROVED" && row.status !== "ENGAGED").length;
+  const incomplete = allRows.filter(row => opportunityAuthorityNeedsResearch(row) || opportunityAuthorityIsStale(row)).length;
   const approved = allRows.filter(row => row.status === "APPROVED").length;
-  const reachable = allRows.filter(row => row.commercial_route_id && row.commercial_route_channel_value).length;
+  const reachable = allRows.filter(isOpportunityAuthorityReady).length;
   const hasFilters = Boolean(search.status || search.campaign || search.q || search.band);
 
   return <AppShell title="Opportunities" user={user} workspaceStats={{ campaigns: campaigns.length, companies: new Set(allRows.map(row => row.company_id)).size, replies: 0, opportunities: allRows.length }}>
@@ -55,7 +56,7 @@ export default async function Opportunities({ searchParams }: { searchParams: Pr
     </Card>
 
     <div className="grid cols-4 section">
-      <Card><div className="card-title">Ready for review</div><div className="metric-value">{recommended}</div><div className="metric-foot positive">CIE decision and route authority resolved</div></Card>
+      <Card><div className="card-title">Ready for review</div><div className="metric-value">{recommended}</div><div className="metric-foot positive">Current R4 → R5 → R6 authority resolved</div></Card>
       <Card><div className="card-title">Awaiting your decision</div><div className="metric-value">{review}</div><div className="metric-foot">Commercial cases with visible evidence and route</div></Card>
       <Card><div className="card-title">Research in progress</div><div className="metric-value">{incomplete}</div><div className="metric-foot">Needs route research or evidence</div></Card>
       <Card><div className="card-title">Approved for engagement</div><div className="metric-value">{approved}</div><div className="metric-foot positive">{reachable} opportunities currently reachable</div></Card>

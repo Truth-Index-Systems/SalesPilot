@@ -7,6 +7,7 @@ import type { CampaignSummary } from "@/lib/campaigns/schemas";
 import { requirePageUser } from "@/lib/auth/page-user";
 import { listOpportunities } from "@/lib/opportunities/repository";
 import type { OpportunityOverview } from "@/lib/opportunities/domain";
+import { isOpportunityAuthorityReady } from "@/lib/opportunities/authority-view";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export default async function Campaigns() {
       : <div className="card list">{campaigns.map(c => {
           const rows = opportunitiesByCampaign.get(c.id) ?? [];
           const awaiting = rows.filter(row => !["APPROVED", "REJECTED", "ENGAGED"].includes(row.status)).length;
-          const recommended = rows.filter(row => row.status === "READY").length;
+          const recommended = rows.filter(isOpportunityAuthorityReady).length;
           return <div className="list-row" key={c.id}>
             <div><div className="name">{c.name}</div><div className="meta"><span className="badge green">{presentCampaignStatus(c.status)}</span> · {presentAutomationMode(c.automationMode)}</div></div>
             <div><div className="label">Audience</div><div className="value compact-value">{c.audience}</div></div>

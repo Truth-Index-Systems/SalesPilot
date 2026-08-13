@@ -67,6 +67,21 @@ export type OpportunityFoundation = {
   updated_at: string;
 };
 
+export const CIE_OPPORTUNITY_AUTHORITY_STATES = [
+  "AWAITING_COMMERCIAL_REALITY",
+  "COMMERCIAL_AUTHORITY_STALE",
+  "REJECTED",
+  "TEMPORAL_HOLD",
+  "RESEARCH_REQUIRED",
+  "ROUTE_UNRESOLVED",
+  "ROUTE_STALE",
+  "CONTACT_UNRESOLVED",
+  "CONTACT_STALE",
+  "READY",
+] as const;
+
+export type CieOpportunityAuthorityState = (typeof CIE_OPPORTUNITY_AUTHORITY_STATES)[number];
+
 export type OpportunityOverview = OpportunityFoundation & {
   campaign_name: string;
   company_name: string;
@@ -74,7 +89,7 @@ export type OpportunityOverview = OpportunityFoundation & {
   company_industry: string | null;
   company_country: string | null;
   company_summary: string | null;
-  company_confidence: number;
+  company_confidence: number | null;
   primary_contact_name: string | null;
   primary_contact_role: string | null;
   primary_contact_department: string | null;
@@ -122,6 +137,64 @@ export type OpportunityOverview = OpportunityFoundation & {
   commercial_route_evidence_count: number;
   organisation_map: Record<string, unknown> | null;
   buying_paths: Array<Record<string, unknown>> | null;
+  authority_state: CieOpportunityAuthorityState;
+  authority_ready: boolean;
+  authority_current: boolean;
+  workflow_authority_mismatch: boolean;
+  r4_current: boolean;
+  r5_current: boolean;
+  r6_current: boolean;
+  r4_reality_id: string | null;
+  r4_reality_state: string | null;
+  r4_disposition: string | null;
+  r4_input_fingerprint: string | null;
+  r4_authority_fingerprint: string | null;
+  r4_seller_context_fingerprint: string | null;
+  r4_constraint_fingerprint: string | null;
+  target_truth_entity_id: string | null;
+  target_truth_snapshot_id: string | null;
+  target_truth_semantics_version: string | null;
+  r4_producer_version: string | null;
+  r4_production_id: string | null;
+  r4_decision_json: Record<string, unknown> | null;
+  r4_last_validated_at: string | null;
+  r4_next_validation_at: string | null;
+  r4_last_invalidation_reason: string | null;
+  r4_updated_at: string | null;
+  r5_authority_status: string | null;
+  r5_producer_version: string | null;
+  r5_source_fingerprint: string | null;
+  r5_authority_fingerprint: string | null;
+  r5_selected_route_ids: string[] | null;
+  r5_route_states_json: Array<Record<string, unknown>> | null;
+  r5_strategy_json: Record<string, unknown> | null;
+  r5_graph_assessment_json: Record<string, unknown> | null;
+  r5_invalidation_reason: string | null;
+  r5_invalidated_at: string | null;
+  r5_updated_at: string | null;
+  r6_authority_status: string | null;
+  r6_producer_version: string | null;
+  r6_source_fingerprint: string | null;
+  r6_contact_truth_fingerprint: string | null;
+  r6_contact_truth_json: Array<Record<string, unknown>> | null;
+  r6_contact_frontier_json: Array<Record<string, unknown>> | null;
+  r6_bindings_json: Array<Record<string, unknown>> | null;
+  r6_decision_json: Record<string, unknown> | null;
+  r6_next_revalidation_at: string | null;
+  r6_invalidation_reason: string | null;
+  r6_invalidated_at: string | null;
+  r6_updated_at: string | null;
+  authority_truth_index: number | null;
+  authority_truth_coverage: number | null;
+  authority_evidence_sufficiency: number | null;
+  authority_truth_review_state: string | null;
+  authority_probability_state: string | null;
+  authority_truth_calculated_at: string | null;
+  active_research_count: number;
+  active_research_json: Array<Record<string, unknown>>;
+  latest_invalidation_layer: string | null;
+  latest_invalidation_reason: string | null;
+  latest_invalidation_at: string | null;
 };
 
 export type OpportunityDetail = OpportunityOverview & {
@@ -130,6 +203,7 @@ export type OpportunityDetail = OpportunityOverview & {
   commercial_routes: Array<Record<string, unknown>>;
   commercial_route_evidence: Array<Record<string, unknown>>;
   history: Array<Record<string, unknown>>;
+  authority_history: Array<Record<string, unknown>>;
 };
 
 export type OpportunitySyncSummary = {
