@@ -1,0 +1,12 @@
+import fs from'node:fs';const m=fs.readFileSync('supabase/migrations/0156_marketroute_forensic_build6_contact_truth.sql','utf8');let p=0,t=0;const c=(n,b)=>{t++;if(b){p++;console.log('PASS',n)}else{console.error('FAIL',n);process.exitCode=1}};
+c('atomic transaction',m.trimStart().startsWith('BEGIN;')&&m.trimEnd().endsWith('COMMIT;'));
+c('R6 context signature unchanged',m.includes('returns table(opportunity_id uuid,reality_id text,commercial_routes jsonb,contacts jsonb,r4_authority_fingerprint text)'));
+c('R6 context not dropped',!m.includes('drop function if exists public.get_cie_r6_contact_authority_context'));
+c('old R6 persist signature dropped',m.includes('drop function if exists public.persist_cie_r6_contact_decision(uuid,text,text,text,uuid,jsonb,jsonb,jsonb);'));
+c('new R6 persist signature rerun-safe dropped',m.includes('drop function if exists public.persist_cie_r6_contact_decision(uuid,text,text,text,uuid,jsonb,text,timestamptz,jsonb,jsonb,jsonb);'));
+c('R6 persist created only after drops',m.indexOf('drop function if exists public.persist_cie_r6_contact_decision')<m.indexOf('create function public.persist_cie_r6_contact_decision('));
+c('invalidate return signature stable',m.includes('create or replace function public.invalidate_stale_cie_r6_authority(p_scheduler_run_id uuid)\nreturns table(invalidated integer)'));
+c('apply return signature stable',m.includes('create or replace function public.apply_cie_r6_contact_authority()\nreturns table(applied integer,ready integer,organisational integer)'));
+c('PostgREST reload present',m.includes("notify pgrst, 'reload schema'"));
+c('standalone migration matches canonical',fs.readFileSync('APPLY-IN-SUPABASE-FORENSIC-BUILD6.sql','utf8')===m);
+console.log(`${p}/${t} Build-6 SQL signature checks passed`);if(p!==t)process.exit(1);

@@ -2,10 +2,11 @@ import "server-only";
 import { databaseRequest } from "@/lib/database/postgrest";
 import { evaluateCieR5RouteAuthority } from "./route-authority";
 import { evaluateCieR6ContactAuthority, type CieR6ContactCandidate } from "./contact-authority";
+import { evaluateContactTruth, type ContactTruthEvidence } from "./contact-truth";
 import {
   buildR5AuthoritySourceFingerprint,
   buildR5MaterialAuthorityFingerprint,
-  buildR6AuthoritySourceFingerprintV5,
+  buildR6AuthoritySourceFingerprintV6,
 } from "./authority-lineage";
 
 export type CieR6ApplySummary = Readonly<{ processed: number; ready: number; organisational: number; unresolved: number }>;
@@ -22,24 +23,35 @@ type RelationshipContext = Readonly<{ opportunity_id: string; canonical_relation
 
 type ContactRow = Record<string, unknown>;
 
-function n(value: unknown): number { const x=Number(value); return Number.isFinite(x) ? x : 0; }
 function s(value: unknown): string | null { return typeof value === "string" && value.trim() ? value.trim() : null; }
 
-function candidate(row: ContactRow): CieR6ContactCandidate | null {
-  const contactId=s(row.id), fullName=s(row.full_name), roleTitle=s(row.role_title);
-  if (!contactId || !fullName || !roleTitle) return null;
+function candidate(row: ContactRow, evaluatedAt: string): CieR6ContactCandidate | null {
+  const contactId=s(row.id), fullName=s(row.full_name), roleTitle=s(row.role_title), companyName=s(row.company_name);
+  if (!contactId || !fullName || !roleTitle || !companyName) return null;
+  const rawEvidence=Array.isArray(row.evidence)?row.evidence:[];
+  const evidence:ContactTruthEvidence[]=rawEvidence.map((value)=>{
+    const e=(value??{}) as Record<string,unknown>;
+    return {
+      id:s(e.id)??"",
+      evidenceType:s(e.evidenceType)??"",
+      claim:s(e.claim)??"",
+      sourceUrl:s(e.sourceUrl)??"",
+      sourceTitle:s(e.sourceTitle),
+      excerpt:s(e.excerpt),
+      sourceKind:s(e.sourceKind)??"",
+      sourceDomain:s(e.sourceDomain),
+      excerptMatched:e.excerptMatched===true,
+      retrievedAt:s(e.retrievedAt),
+      sourcePublishedAt:s(e.sourcePublishedAt),
+      truthPolarity:e.truthPolarity==="CONTRADICTS"?"CONTRADICTS":"SUPPORTS",
+    };
+  });
+  const emailAddress=s(row.email_address),linkedinProfileUrl=s(row.linkedin_profile_url);
+  const contactTruth=evaluateContactTruth({subject:{contactId,fullName,roleTitle,emailAddress,linkedinProfileUrl,companyName,companyDomain:s(row.company_domain)},evidence,evaluatedAt});
   return Object.freeze({
-    contactId,
-    fullName,
-    roleTitle,
-    department:s(row.department),
-    emailAddress:s(row.email_address),
-    emailStatus:s(row.email_status),
-    linkedinProfileUrl:s(row.linkedin_profile_url),
-    linkedinStatus:s(row.linkedin_status),
-    reviewStatus:s(row.review_status),
-    verifiedIdentityEvidence:n(row.verified_identity_evidence),
-    verifiedRoleEvidence:n(row.verified_role_evidence),
+    contactId,fullName,roleTitle,
+    department:s(row.department),emailAddress,emailStatus:s(row.email_status),
+    linkedinProfileUrl,linkedinStatus:s(row.linkedin_status),reviewStatus:s(row.review_status),contactTruth,
   });
 }
 
@@ -52,6 +64,7 @@ export async function runCieR6ContactAuthority(schedulerRunId: string): Promise<
     databaseRequest<RelationshipContext[]>("rpc/get_cie_r5_canonical_relationship_context",{method:"POST",body:JSON.stringify({p_scheduler_run_id:schedulerRunId})}),
   ]);
   const relationshipsByOpportunity=new Map(relationshipContexts.map((row)=>[row.opportunity_id,Array.isArray(row.canonical_relationships)?row.canonical_relationships:[]] as const));
+  const evaluatedAt=new Date().toISOString();
   let processed=0, unresolved=0;
   for(const context of contexts){
     try{
@@ -77,9 +90,12 @@ export async function runCieR6ContactAuthority(schedulerRunId: string): Promise<
         }),
       });
 
-      const contacts=(Array.isArray(context.contacts)?context.contacts:[]).map(value=>candidate((value??{}) as ContactRow)).filter((value):value is CieR6ContactCandidate=>value!==null);
+      const contacts=(Array.isArray(context.contacts)?context.contacts:[]).map(value=>candidate((value??{}) as ContactRow,evaluatedAt)).filter((value):value is CieR6ContactCandidate=>value!==null);
       const decision=evaluateCieR6ContactAuthority({routeAuthority,routes:routes as any[],contacts});
-      const sourceFingerprint=buildR6AuthoritySourceFingerprintV5({r5AuthorityFingerprint,contacts:Array.isArray(context.contacts)?context.contacts:[]});
+      const sourceFingerprint=buildR6AuthoritySourceFingerprintV6({r5AuthorityFingerprint,contacts});
+      const contactTruth=contacts.map(contact=>contact.contactTruth);
+      const authoritativeContactIds=new Set(decision.contactFrontier);
+      const nextRevalidationAt=decision.primaryContactId===null?null:contacts.filter(contact=>authoritativeContactIds.has(contact.contactId)).map(contact=>contact.contactTruth.nextRevalidationAt).filter((value):value is string=>Boolean(value)).sort()[0]??null;
       await databaseRequest("rpc/persist_cie_r6_contact_decision",{
         method:"POST",body:JSON.stringify({
           p_opportunity_id:context.opportunity_id,
@@ -87,6 +103,9 @@ export async function runCieR6ContactAuthority(schedulerRunId: string): Promise<
           p_parent_r5_authority_fingerprint:r5AuthorityFingerprint,
           p_source_fingerprint:sourceFingerprint,
           p_primary_contact_id:decision.primaryContactId,
+          p_contact_truth_json:contactTruth,
+          p_contact_truth_fingerprint:sourceFingerprint,
+          p_next_revalidation_at:nextRevalidationAt,
           p_contact_frontier_json:decision.contactFrontier,
           p_bindings_json:decision.bindings,
           p_decision_json:decision,

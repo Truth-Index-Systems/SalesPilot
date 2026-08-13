@@ -194,3 +194,17 @@ export function buildR6AuthoritySourceFingerprintV5(input: Readonly<{
 /** Historical alias retained only to avoid import breakage outside the active Build-5 worker. */
 export const buildR6AuthoritySourceFingerprintV4 = buildR6AuthoritySourceFingerprintV5;
 
+
+/** Build 6: R6 authority fingerprints the truth-qualified contact snapshots, not legacy verification telemetry. */
+export function buildR6AuthoritySourceFingerprintV6(input: Readonly<{
+  r5AuthorityFingerprint: string;
+  contacts: readonly Readonly<{ contactId: string; contactTruth: unknown }>[];
+}>): string {
+  return hash({
+    stateVersion: "MR-T8-FB6-R6-CONTACT-TRUTH-SOURCE-1.0.0",
+    r5AuthorityFingerprint: input.r5AuthorityFingerprint,
+    contacts: [...input.contacts]
+      .sort((a,b)=>a.contactId.localeCompare(b.contactId))
+      .map((contact)=>({contactId:contact.contactId,contactTruth:canonicalUnknown(contact.contactTruth)})),
+  });
+}

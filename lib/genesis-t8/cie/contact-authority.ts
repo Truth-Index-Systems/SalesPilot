@@ -1,4 +1,5 @@
 import type { CieR5RouteAuthorityResult } from "./route-authority";
+import { contactTruthSupportsChannel, type ContactTruthSnapshot } from "./contact-truth";
 
 export const GENESIS_T8_CIE_R6_VERSION = "1.0.0" as const;
 export const GENESIS_T8_CIE_R6_BUILD = "CIE-R6" as const;
@@ -14,8 +15,7 @@ export type CieR6ContactCandidate = Readonly<{
   linkedinProfileUrl: string | null;
   linkedinStatus: string | null;
   reviewStatus: string | null;
-  verifiedIdentityEvidence: number;
-  verifiedRoleEvidence: number;
+  contactTruth: ContactTruthSnapshot;
 }>;
 
 export type CieR6RouteContactBinding = Readonly<{
@@ -50,17 +50,17 @@ const norm = (value: unknown): string => typeof value === "string"
 function eligible(contact: CieR6ContactCandidate): boolean {
   if (!contact.contactId.trim() || !contact.fullName.trim() || !contact.roleTitle.trim()) return false;
   if (["REJECTED", "HOLD", "ARCHIVED"].includes(contact.reviewStatus ?? "")) return false;
-  return contact.verifiedIdentityEvidence > 0 && contact.verifiedRoleEvidence > 0;
+  return contact.contactTruth.authorityReady;
 }
 
 function channelSupported(route: RouteRow, contact: CieR6ContactCandidate): boolean {
   const channelType = typeof route.channelType === "string" ? route.channelType : "UNKNOWN";
   const value = typeof route.channelValue === "string" ? route.channelValue.trim().toLowerCase() : "";
   if (channelType === "DIRECT_EMAIL") {
-    return !!contact.emailAddress && contact.emailAddress.toLowerCase() === value && ["VERIFIED", "LIKELY"].includes(contact.emailStatus ?? "");
+    return !!contact.emailAddress && contact.emailAddress.toLowerCase() === value && contactTruthSupportsChannel(contact.contactTruth, "DIRECT_EMAIL");
   }
   if (channelType === "LINKEDIN") {
-    return !!contact.linkedinProfileUrl && contact.linkedinProfileUrl.trim().toLowerCase() === value && ["VERIFIED", "HIGH_CONFIDENCE"].includes(contact.linkedinStatus ?? "");
+    return !!contact.linkedinProfileUrl && contact.linkedinProfileUrl.trim().toLowerCase() === value && contactTruthSupportsChannel(contact.contactTruth, "LINKEDIN");
   }
   return true;
 }
@@ -79,13 +79,14 @@ function routeBindings(routeAuthority: CieR5RouteAuthorityResult, routes: readon
       continue;
     }
 
-    const named = candidates.filter(contact => norm(contact.fullName) === contactName && channelSupported(route, contact));
+    const routeRole=norm(route.contactRole);
+    const named = candidates.filter(contact => norm(contact.fullName) === contactName && (!routeRole || norm(contact.roleTitle)===routeRole) && channelSupported(route, contact));
     if (!named.length) {
       throw new Error(`GENESIS_T8_CIE_R6_CONTACT_UNRESOLVED:${routeId}`);
     }
     const ids = named.map(contact => contact.contactId).sort((a, b) => a.localeCompare(b));
     for (const contactId of ids) {
-      bindings.push(Object.freeze({ routeId, contactId, mode: "NAMED_CONTACT", reason: "Contact is explicitly named by an authoritative OPEN route and has verified identity/role evidence plus channel compatibility." }));
+      bindings.push(Object.freeze({ routeId, contactId, mode: "NAMED_CONTACT", reason: "Contact is explicitly named by an authoritative OPEN route and has current truth-qualified identity, employment, role and channel ownership." }));
     }
   }
   return Object.freeze(bindings);
@@ -119,7 +120,7 @@ export function evaluateCieR6ContactAuthority(input: {
     canUnlockOpportunity: true,
     reasons: Object.freeze([
       "CONTACT_AUTHORITY_DERIVES_FROM_R5_OPEN_ROUTE_PARTICIPATION",
-      "VERIFIED_IDENTITY_AND_ROLE_ARE_REQUIRED_FOR_NAMED_CONTACT_AUTHORITY",
+      "CURRENT_TRUTH_QUALIFIED_IDENTITY_EMPLOYMENT_ROLE_AND_CHANNEL_ARE_REQUIRED_FOR_NAMED_CONTACT_AUTHORITY",
       "WEIGHTED_CONTACT_CONFIDENCE_DOES_NOT_RANK_CONTACTS",
       namedIds.length > 1 ? "MULTIPLE_NONDOMINATED_CONTACTS_EXIST_CANONICAL_ID_ORDER_IS_OPERATIONAL_ONLY" : "CONTACT_BINDING_IS_UNAMBIGUOUS_OR_ORGANISATIONAL",
       hasOrganisationalRoute ? "A_NAMED_CONTACT_IS_NOT_REQUIRED_WHEN_THE_AUTHORISED_ROUTE_IS_ORGANISATIONAL" : "NAMED_CONTACT_ROUTE_REQUIRES_EXPLICIT_CONTACT_BINDING",
@@ -130,7 +131,9 @@ export function evaluateCieR6ContactAuthority(input: {
 export const GENESIS_T8_CIE_R6_CONTACT_LAWS = Object.freeze([
   "UDOSIB_GRAPH_RELATIONSHIP_NOT_WEIGHTED_CONFIDENCE_OWNS_CONTACT_SELECTION",
   "A_NAMED_CONTACT_MUST_PARTICIPATE_IN_AN_AUTHORITATIVE_OPEN_ROUTE",
-  "IDENTITY_AND_ROLE_EVIDENCE_MUST_BE_VERIFIED",
+  "CONTACT_IDENTITY_CURRENT_EMPLOYMENT_AND_CURRENT_ROLE_MUST_BE_TRUTH_QUALIFIED",
+  "DIRECT_CONTACT_CHANNEL_OWNERSHIP_MUST_BE_TRUTH_QUALIFIED",
+  "LEGACY_CONTACT_EVIDENCE_VERIFIED_BOOLEAN_HAS_NO_AUTHORITY",
   "CHANNEL_COMPATIBILITY_MUST_BE_EXPLICIT_FOR_DIRECT_CONTACT_ROUTES",
   "ORGANISATIONAL_ROUTES_MAY_BE_EXECUTABLE_WITHOUT_A_NAMED_CONTACT",
   "MULTIPLE_VALID_CONTACTS_FORM_A_FRONTIER_AND_ARE_NOT_WEIGHTED_AGAINST_EACH_OTHER",

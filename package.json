@@ -280,7 +280,10 @@
     "forensic:build5-static-check": "node scripts/validate-marketroute-forensic-build5.mjs",
     "forensic:build5-sql-signature-check": "node scripts/validate-marketroute-forensic-build5-sql-signatures.mjs",
     "forensic:build5-runtime-check": "rm -rf .fb5-runtime .forensic-empty-types && mkdir -p .forensic-empty-types && tsc --typeRoots ./.forensic-empty-types --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --skipLibCheck --esModuleInterop --outDir .fb5-runtime --rootDir . lib/genesis-t8/cie/route-authority.ts lib/genesis-t8/ce2-evolution/commercial-graph-calculus.ts && node scripts/run-marketroute-forensic-build5-adversarial.mjs .fb5-runtime/lib/genesis-t8/cie/route-authority.js && rm -rf .fb5-runtime .forensic-empty-types",
-    "forensic:build5-check": "npm run forensic:build5-static-check && npm run forensic:build5-sql-signature-check && npm run forensic:build5-runtime-check"
+    "forensic:build5-check": "npm run forensic:build5-static-check && npm run forensic:build5-sql-signature-check && npm run forensic:build5-runtime-check",
+    "forensic:build6-static-check": "node scripts/validate-marketroute-forensic-build6.mjs",
+    "forensic:build6-runtime-check": "rm -rf .fb6-runtime .forensic-empty-types && mkdir -p .forensic-empty-types && tsc --typeRoots ./.forensic-empty-types --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --skipLibCheck --esModuleInterop --outDir .fb6-runtime --rootDir . lib/genesis-t8/cie/contact-truth.ts && node scripts/run-marketroute-forensic-build6-adversarial.mjs .fb6-runtime/lib/genesis-t8/cie/contact-truth.js && rm -rf .fb6-runtime .forensic-empty-types",
+    "forensic:build6-check": "npm run forensic:build6-static-check && npm run forensic:build6-runtime-check"
   },
   "dependencies": {
     "lucide-react": "0.468.0",
