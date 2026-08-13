@@ -73,8 +73,8 @@ const PROFILES: Record<AiRequestTask, AiWorkloadProfile> = {
     maxOutputTokens: 10_000,
     evidenceLimit: 6,
     depth: 6,
-    promptVersion: "g5-self-review/v3-responsibility-boundary",
-    cacheKey: "salespilot:g5:self-review:v3",
+    promptVersion: "g5-self-review/v4-fb8-categorical-quality",
+    cacheKey: "marketroute:g5:self-review:v4-fb8-categorical-quality",
   },
   STRUCTURED_OUTPUT_REPAIR: {
     reasoningEffort: "low",

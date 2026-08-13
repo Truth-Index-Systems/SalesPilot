@@ -12,6 +12,13 @@ import { evaluateCommercialCoherence, type GenesisT8CoherenceConstraintContext, 
 import { composeTruthIntoCommercialReality, type CieR3KnowledgeInput, type CieR3CompositionResult } from "./truth-ce2-bridge";
 import { evaluateCieR4CommercialDecision, type CieR4CommercialDecision } from "./commercial-decision-authority";
 import { buildR4MaterialAuthorityFingerprint } from "./authority-lineage";
+import {
+  MARKETROUTE_FORENSIC_BUILD8_BOUNDARY_CONSTITUTION_VERSION,
+  assertBuild8CommercialCandidateBoundaryCompleteness,
+  evaluateBuild8BoundaryCompleteness,
+  type Build8BoundaryCompleteness,
+  type Build8RequiredBoundaryKey,
+} from "./commercial-boundary-constitution";
 
 export const MARKETROUTE_FORENSIC_BUILD2_PRODUCER_VERSION = "MR-T8-FB3-1.0.0" as const;
 export const MARKETROUTE_FORENSIC_BUILD2_TRUTH_SEMANTICS = "MR-TI-2-TFR1" as const;
@@ -69,7 +76,8 @@ export type ForensicBuild2CommercialRealityProduction = Readonly<{
   propagation: GenesisT8CommercialRealityPropagation;
   constraintContexts: readonly GenesisT8CoherenceConstraintContext[];
   composition: CieR3CompositionResult;
-  decision: CieR4CommercialDecision;
+  decision: CieR4CommercialDecision & Readonly<{ boundaryConstitutionVersion: typeof MARKETROUTE_FORENSIC_BUILD8_BOUNDARY_CONSTITUTION_VERSION; boundaryCompleteness: Build8BoundaryCompleteness }>;
+  boundaryCompleteness: Build8BoundaryCompleteness;
   deferredSellerConstraintIds: readonly string[];
 }>;
 
@@ -190,6 +198,7 @@ export function produceForensicBuild2CommercialReality(input: ForensicBuild2Prod
 
   const targetCommercialEntityId = `gen:g8:company:${input.targetTruthEntityId}`;
   const targetIdentity = contribution(input.targetTruth, "identity");
+  const targetDomain = contribution(input.targetTruth, "canonical_domain");
   const targetOperation = contribution(input.targetTruth, "current_operation");
   const targetIndustry = contribution(input.targetTruth, "industry");
   const targetGeography = contribution(input.targetTruth, "geography");
@@ -211,6 +220,10 @@ export function produceForensicBuild2CommercialReality(input: ForensicBuild2Prod
   const targetIdentityConstraintId = `mrfb2:${hash([input.targetTruthEntityId, "identity"]).slice(0, 24)}`;
   add({ constraintId: targetIdentityConstraintId, constraintClass: "BOUNDARY", applicability: targetIdentity?.represented ? "APPLICABLE" : "UNRESOLVED", semanticPolarity: targetIdentity?.represented ? "SUPPORTS_REALITY" : "UNKNOWN", truth: truthChannels(targetIdentity) },
     { constraintId: targetIdentityConstraintId, reinforcementGroupKey: "target.identity", dimensions: Object.freeze(["SEMANTIC", "STRUCTURAL"]) });
+
+  const targetDomainConstraintId = `mrfb2:${hash([input.targetTruthEntityId, "canonical_domain"]).slice(0, 24)}`;
+  add({ constraintId: targetDomainConstraintId, constraintClass: "BOUNDARY", applicability: targetDomain?.represented ? "APPLICABLE" : "UNRESOLVED", semanticPolarity: targetDomain?.represented ? "SUPPORTS_REALITY" : "UNKNOWN", truth: truthChannels(targetDomain) },
+    { constraintId: targetDomainConstraintId, reinforcementGroupKey: "target.canonical_domain", dimensions: Object.freeze(["SEMANTIC", "STRUCTURAL"]) });
 
   const targetOperationConstraintId = `mrfb2:${hash([input.targetTruthEntityId, "current_operation"]).slice(0, 24)}`;
   add({ constraintId: targetOperationConstraintId, constraintClass: "BOUNDARY", applicability: targetOperation?.represented ? "APPLICABLE" : "UNRESOLVED", semanticPolarity: targetOperation?.represented ? "SUPPORTS_REALITY" : "UNKNOWN", truth: truthChannels(targetOperation) },
@@ -242,7 +255,22 @@ export function produceForensicBuild2CommercialReality(input: ForensicBuild2Prod
     .map((item) => item.constraintId).sort());
 
   const localConstraints = Object.freeze(mathInputs.map(evaluateLocalConstraint));
-  // Build 5 will wire canonical relationship dependencies. Build 2 uses only direct premises.
+  const localById = new Map(localConstraints.map((state) => [state.constraintId, state] as const));
+  const boundaryConstraintIds: Readonly<Record<Build8RequiredBoundaryKey, string | null>> = Object.freeze({
+    "seller.has_persisted_commercial_offering": sellerOffering?.constraintId ?? null,
+    "seller.selected_commercial_objective": sellerObjective?.constraintId ?? null,
+    "target.identity": targetIdentityConstraintId,
+    "target.canonical_domain": targetDomainConstraintId,
+    "target.current_operation": targetOperationConstraintId,
+  });
+  const boundaryCompleteness = evaluateBuild8BoundaryCompleteness(
+    (Object.entries(boundaryConstraintIds) as [Build8RequiredBoundaryKey, string | null][]).map(([key, constraintId]) => Object.freeze({
+      key,
+      constraintId,
+      state: constraintId ? (localById.get(constraintId) ?? null) : null,
+    })),
+  );
+  // Build 5 wires canonical relationship dependencies downstream in R5. R4 uses only direct commercial premises.
   const propagation = propagateConstraintStates(localConstraints, Object.freeze([]));
   const constraintContexts = Object.freeze([...contexts].sort((a, b) => a.constraintId.localeCompare(b.constraintId)));
   const commercial = evaluateCommercialCoherence(propagation, constraintContexts);
@@ -250,8 +278,9 @@ export function produceForensicBuild2CommercialReality(input: ForensicBuild2Prod
   const sellerOfferKnowledge = sellerKnowledge(input.seller.sellerEntityId, "offering-present");
   const sellerObjectiveKnowledge = sellerKnowledge(input.seller.sellerEntityId, "objective-selected");
   const targetIdentityKnowledge = targetKnowledge(input.targetTruthEntityId, "identity", targetIdentity, input.referenceTime);
+  const targetDomainKnowledge = targetKnowledge(input.targetTruthEntityId, "canonical_domain", targetDomain, input.referenceTime);
   const targetOperationKnowledge = targetKnowledge(input.targetTruthEntityId, "current_operation", targetOperation, input.referenceTime);
-  const knowledge = Object.freeze([sellerOfferKnowledge, sellerObjectiveKnowledge, targetIdentityKnowledge, targetOperationKnowledge]);
+  const knowledge = Object.freeze([sellerOfferKnowledge, sellerObjectiveKnowledge, targetIdentityKnowledge, targetDomainKnowledge, targetOperationKnowledge]);
   const decisionCriticalKnowledgeIds = Object.freeze(knowledge.map((item) => item.knowledgeId));
 
   const composition = composeTruthIntoCommercialReality({
@@ -269,13 +298,21 @@ export function produceForensicBuild2CommercialReality(input: ForensicBuild2Prod
     realityInterval: Object.freeze({ validFrom: null, validTo: null }),
     referenceTime: input.referenceTime,
   });
-  const decision = evaluateCieR4CommercialDecision({ opportunityId: input.opportunityId, composition, propagation, constraintContexts });
+  const baseDecision = evaluateCieR4CommercialDecision({ opportunityId: input.opportunityId, composition, propagation, constraintContexts });
+  const decision = Object.freeze({
+    ...baseDecision,
+    boundaryConstitutionVersion: MARKETROUTE_FORENSIC_BUILD8_BOUNDARY_CONSTITUTION_VERSION,
+    boundaryCompleteness,
+  });
+  assertBuild8CommercialCandidateBoundaryCompleteness(decision.disposition, boundaryCompleteness);
 
   const authorityFingerprint = buildR4MaterialAuthorityFingerprint({
     sellerContextFingerprint: input.seller.sellerContextFingerprint,
     constraintFingerprint: input.seller.constraintFingerprint,
     targetTruthEntityId: input.targetTruthEntityId,
     targetFacts: input.targetFacts,
+    boundaryConstitutionVersion: MARKETROUTE_FORENSIC_BUILD8_BOUNDARY_CONSTITUTION_VERSION,
+    boundaryCompleteness,
     propagation,
     decision,
   });
@@ -290,6 +327,8 @@ export function produceForensicBuild2CommercialReality(input: ForensicBuild2Prod
     targetTruthCalculatedAt: input.targetTruth.calculatedAt,
     targetFacts: input.targetFacts,
     activeConstraintIds: localConstraints.map((item) => item.constraintId),
+    boundaryConstitutionVersion: MARKETROUTE_FORENSIC_BUILD8_BOUNDARY_CONSTITUTION_VERSION,
+    boundaryCompleteness,
     deferredSellerConstraintIds,
   });
 
@@ -309,6 +348,7 @@ export function produceForensicBuild2CommercialReality(input: ForensicBuild2Prod
     constraintContexts,
     composition,
     decision,
+    boundaryCompleteness,
     deferredSellerConstraintIds,
   });
 }

@@ -42,6 +42,8 @@ export type R4MaterialAuthorityFingerprintInput = Readonly<{
   constraintFingerprint: string;
   targetTruthEntityId: string;
   targetFacts: Readonly<{ companyId: string; canonicalDomain: string | null; industry: string | null; country: string | null }>;
+  boundaryConstitutionVersion: string;
+  boundaryCompleteness: unknown;
   propagation: GenesisT8CommercialRealityPropagation;
   decision: CieR4CommercialDecision;
 }>;
@@ -76,6 +78,8 @@ export function buildR4MaterialAuthorityFingerprint(input: R4MaterialAuthorityFi
     sellerContextFingerprint: input.sellerContextFingerprint,
     constraintFingerprint: input.constraintFingerprint,
     targetTruthEntityId: input.targetTruthEntityId,
+    boundaryConstitutionVersion: input.boundaryConstitutionVersion,
+    boundaryCompleteness: canonicalUnknown(input.boundaryCompleteness),
     targetFacts: {
       companyId: input.targetFacts.companyId,
       canonicalDomain: canonicalText(input.targetFacts.canonicalDomain),

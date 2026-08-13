@@ -4,7 +4,7 @@ const Score = z.number().int().min(0).max(100);
 
 export const G5EngagementQualitySchema = z.object({
   schemaVersion: z.literal("g5-engagement-quality/v1"),
-  policyVersion: z.literal("g5-engagement-quality/v1"),
+  policyVersion: z.literal("g5-engagement-quality/fb8-categorical-v2"),
   engagementConfidence: Score,
   dimensions: z.object({
     commercialRelevance: Score,

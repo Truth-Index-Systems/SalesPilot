@@ -1,0 +1,58 @@
+{
+  "schema": "marketroute_forensic_validator_registry/v1",
+  "certificationVersion": "MR-T8-FB8-CERT-1.0.0",
+  "currentAuthorityValidators": [
+    "scripts/validate-marketroute-forensic-build8.mjs",
+    "scripts/validate-marketroute-forensic-build8-sql-signatures.mjs",
+    "scripts/run-marketroute-forensic-build8-adversarial.mjs",
+    "scripts/run-marketroute-forensic-build8-authority-contract.mjs",
+    "scripts/run-marketroute-forensic-build8-g5-quality-adversarial.mjs"
+  ],
+  "currentRegressionValidators": [
+    "scripts/run-forensic-build1-truth-foundation.mjs",
+    "scripts/run-genesis-t8-ce-r2-r2-adversarial.mjs",
+    "scripts/run-marketroute-forensic-build2-adversarial.mjs",
+    "scripts/run-marketroute-forensic-build3-adversarial.mjs",
+    "scripts/run-marketroute-forensic-build5-adversarial.mjs",
+    "scripts/run-marketroute-forensic-build6-adversarial.mjs",
+    "scripts/run-marketroute-forensic-build7-adversarial.mjs",
+    "scripts/run-cie-r3-adversarial.mjs",
+    "scripts/run-cie-r4-adversarial.mjs",
+    "scripts/run-genesis-t8-cie-r6-adversarial.mjs"
+  ],
+  "historicalQuarantinedValidators": [
+    {
+      "path": "scripts/validate-genesis-g8-truth-kernel.mjs",
+      "reason": "Targets removed pre-TFR1 lib/genesis-g8/truth/* kernel."
+    },
+    {
+      "path": "scripts/validate-genesis-g8-read-model.mjs",
+      "reason": "Targets deleted pre-forensic lib/genesis-g8/read-model.ts."
+    },
+    {
+      "path": "scripts/validate-mr-ti2-build1.mjs",
+      "reason": "Targets superseded legacy Truth equation/read model."
+    },
+    {
+      "path": "scripts/validate-mr-ti2-build4.mjs",
+      "reason": "Targets superseded deleted G8 read model."
+    },
+    {
+      "path": "scripts/validate-mr-ti2-build5.mjs",
+      "reason": "Targets superseded deleted G8 read model."
+    },
+    {
+      "path": "scripts/validate-mr-ti2-build6.mjs",
+      "reason": "Targets superseded deleted G8 read model."
+    },
+    {
+      "path": "scripts/validate-mr-ti2-build8.mjs",
+      "reason": "Historical freeze validator predating forensic Builds 1-8; not current certification evidence."
+    },
+    {
+      "path": "scripts/validate-mrti2-build8-3-legacy-eradication.mjs",
+      "reason": "Historical legacy-eradication validator references removed pre-forensic paths."
+    }
+  ],
+  "rule": "Historical validators remain in source for archaeology only. A forensic freeze may cite only currentAuthorityValidators plus explicitly listed currentRegressionValidators."
+}

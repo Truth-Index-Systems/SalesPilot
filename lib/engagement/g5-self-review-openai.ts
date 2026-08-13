@@ -7,17 +7,14 @@ import { compactG5SelfReviewBrief, stableFingerprint } from "@/lib/ai/cost-optim
 import { parseStructuredAiResponse, safeStructuredAiError } from "@/lib/ai/structured-response-gateway";
 import { resolveOpenAIModel } from "@/lib/intelligence/model-router";
 import { G5SelfReviewSchema, g5SelfReviewJsonSchema, type G5SelfReview } from "./g5-self-review-schema";
+import { applyG5CategoricalReviewPolicy, MARKETROUTE_FB8_G5_SELF_REVIEW_PROMPT_VERSION } from "./g5-self-review-policy";
 
 const ENDPOINT = "https://api.openai.com/v1/responses";
 
 function applyPolicy(review: G5SelfReview, rewriteCount: number): G5SelfReview {
-  const hardBlock = review.unsupportedClaims.length > 0 || review.factualAccuracy < 70 || review.evidenceAlignment < 70 || review.routeAlignment < 70 || review.hallucinationRisk < 60;
-  const pass = !hardBlock && review.factualAccuracy >= 90 && review.evidenceAlignment >= 85 && review.routeAlignment >= 90 && review.hallucinationRisk >= 85 && review.overallConfidence >= 80 && review.spamCharacteristics >= 70 && review.overclaiming >= 80;
-  let outcome: G5SelfReview["outcome"] = pass ? "PASS" : "REWRITE";
-  if (!pass && rewriteCount >= 2) outcome = "BLOCK";
-  // The model's outcome is advisory only. MarketRoute owns the final workflow decision.
-  return { ...review, outcome };
+  return applyG5CategoricalReviewPolicy(review, rewriteCount);
 }
+
 
 export async function reviewG5Outreach(input:{organisationId:string;campaignId:string;schedulerRunId:string;strategyId:string;rewriteCount:number;context:Record<string,unknown>}):Promise<{result:G5SelfReview;model:string;sourceFingerprint:string}> {
   const apiKey=process.env.OPENAI_API_KEY?.trim(); if(!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
@@ -39,20 +36,20 @@ export async function reviewG5Outreach(input:{organisationId:string;campaignId:s
   try {
     response=await fetchResumableOpenAIResponse({ apiKey, task: "G5_SELF_REVIEW", organisationId: input.organisationId, campaignId: input.campaignId, jobType: "OUTREACH", jobId: input.strategyId, requestScope: `g5-self-review:${requestFingerprint}`, model, ledgerId: reservation.ledgerId },{method:"POST",cache:"no-store",signal:AbortSignal.timeout(requestTimeoutMs),headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model,instructions:[
       "ROLE: Chief Revenue Risk & Quality Officer for MarketRoute. You are independent from the writer and are expected to be adversarial when credibility is at risk.",
-      "MISSION: Independently assess whether the outreach is safe and commercially strong enough to progress, and give precise evidence for that assessment. You are an auditor; deterministic MarketRoute makes the final workflow decision.",
+      "MISSION: Independently classify whether the outreach is safe and commercially strong enough to progress, and give precise evidence for that assessment. You are an auditor; deterministic MarketRoute enforces unsupported/blocked findings, rewrite limits and current CIE authority.",
       "ACCOUNTABLE FOR: Adversarial assessment of factual integrity, evidence use, route alignment, buyer relevance, human quality, CTA quality, overclaiming, spam characteristics and specific rewrite guidance.",
-      "ADVISES BUT DOES NOT DECIDE: Your PASS/REWRITE/BLOCK field is a recommendation. You do NOT change state, terminate the strategy, approve outreach, select another route, generate replacement copy, set the rewrite limit, queue or send. MarketRoute applies deterministic policy to your scores/findings and owns the final outcome.",
+      "QUALITY BOUNDARY: Your PASS/REWRITE/BLOCK field is the categorical semantic quality finding. Numeric 0-100 scores are diagnostic telemetry only and never decide workflow state. You do NOT change state, approve outreach, select another route, generate replacement copy, set the rewrite limit, queue or send. MarketRoute deterministically enforces unsupported/blocked findings, rewrite limits and current R4/R5/R6 authority.",
       "OUT OF SCOPE / HAND OFF: Do not research, repair upstream strategy, choose a different buyer/channel or write the replacement message. If the upstream basis itself appears weak, identify the precise problem in criticism/blockedReasons; do not invent a better basis.",
       "DECISION STANDARD: Ask 'If this went to our most valuable prospect and their CEO later showed it to me, could I defend every sentence and the judgement behind sending it?'",
       "BUYER SIMULATION: Read the message as the actual recipient with roughly nine seconds of attention, no relationship with the sender and many competing messages. Identify what would cause immediate deletion, scepticism or irritation.",
       "THREE GATES: (1) TRUTH - factual accuracy, evidence alignment, no unsupported pain/urgency/results/budget. (2) SALES - relevance, route fit, commercial clarity, appropriate commitment and reply-worthy CTA. (3) HUMAN - natural language, brevity, no fake intimacy, no AI/marketing voice, no unnecessary adjectives or over-polish.",
       "G4 truth, R2 commercial reasoning, R3 channel strategy and R5 safety are authoritative and immutable. Review the actual R4 outreach only. Do not research, add facts, invent alternatives or change the selected route.",
-      "Score factual accuracy, evidence alignment, route alignment, hallucination safety, tone, length, commercial clarity, CTA quality, spam characteristics, overclaiming and personalisation relevance. For hallucinationRisk, spamCharacteristics and overclaiming, higher means safer/better.",
-      "Recommend PASS only when the message is both safe AND commercially strong. Accuracy alone is insufficient. Recommend REWRITE when the same truth and route can produce a materially better message. Recommend BLOCK only when you believe progression would be unsafe; MarketRoute, not you, determines whether that recommendation becomes a terminal state and enforces the rewrite limit.",
+      "Score factual accuracy, evidence alignment, route alignment, hallucination safety, tone, length, commercial clarity, CTA quality, spam characteristics, overclaiming and personalisation relevance for diagnostics only. Do not use a numeric threshold to determine outcome. For hallucinationRisk, spamCharacteristics and overclaiming, higher means safer/better.",
+      "Set PASS only when the message is both safe AND commercially strong and unsupportedClaims/blockedReasons are empty. Set REWRITE when the same truth and route can produce a materially better message. Set BLOCK when progression itself is unsafe. MarketRoute enforces the rewrite limit and all execution authority independently.",
       "List every unsupported claim. Criticism must be specific, prioritised and decision-useful. Rewrite instructions must tell the Executive Communications Director exactly what to remove, preserve or change without adding facts.",
       "Do not reward verbosity or polish for their own sake. Reward credible relevance, restraint and a sensible next commitment.",
       "Everything outside your accountability belongs to another executive or deterministic MarketRoute. Do not assume another role merely to complete the task.",
-      "Return exact JSON only. Set promptVersion to g5-self-review/v3-responsibility-boundary."
+      `Return exact JSON only. Set promptVersion to ${MARKETROUTE_FB8_G5_SELF_REVIEW_PROMPT_VERSION}.`
     ].join(" "),input:JSON.stringify(compactInput),reasoning:{effort:profile.reasoningEffort},text:{format:{type:"json_schema",name:"salespilot_g5_self_review_v1",strict:true,schema:g5SelfReviewJsonSchema}},max_output_tokens:profile.maxOutputTokens,store:false})});
   } catch(error){if(isOpenAIBackgroundPending(error))throw error;const transport=classifyOpenAITransportError(error,"G5_SELF_REVIEW",requestTimeoutMs);await completeAiRequest({ledgerId:reservation.ledgerId,ok:false,durationMs:Date.now()-startedAt,errorCode:transport.code,errorMessage:transport.error.message}).catch(()=>undefined);throw transport.error;}
   const json:unknown=await response.json().catch(()=>null); const usage=responseUsage(json); const responseId=typeof (json as {id?:unknown}|null)?.id==="string"?(json as {id:string}).id:null;

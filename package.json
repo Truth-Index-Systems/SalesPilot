@@ -287,7 +287,15 @@
     "forensic:build7-static-check": "node scripts/validate-marketroute-forensic-build7.mjs",
     "forensic:build7-sql-signature-check": "node scripts/validate-marketroute-forensic-build7-sql-signatures.mjs",
     "forensic:build7-runtime-check": "rm -rf .fb7-runtime .forensic-empty-types && mkdir -p .forensic-empty-types && tsc --typeRoots ./.forensic-empty-types --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --skipLibCheck --esModuleInterop --outDir .fb7-runtime --rootDir . lib/opportunities/authority-contract.ts && node scripts/run-marketroute-forensic-build7-adversarial.mjs .fb7-runtime/lib/opportunities/authority-contract.js && rm -rf .fb7-runtime .forensic-empty-types",
-    "forensic:build7-check": "npm run forensic:build7-static-check && npm run forensic:build7-sql-signature-check && npm run forensic:build7-runtime-check"
+    "forensic:build7-check": "npm run forensic:build7-static-check && npm run forensic:build7-sql-signature-check && npm run forensic:build7-runtime-check",
+    "forensic:build8-static-check": "node scripts/validate-marketroute-forensic-build8.mjs",
+    "forensic:build8-sql-signature-check": "node scripts/validate-marketroute-forensic-build8-sql-signatures.mjs",
+    "forensic:build8-runtime-check": "rm -rf .fb8-runtime && tsc -p tsconfig.fb2.json --outDir .fb8-runtime --pretty false && node scripts/run-marketroute-forensic-build8-adversarial.mjs .fb8-runtime/lib/genesis-t8/cie/commercial-reality-producer.js && rm -rf .fb8-runtime",
+    "forensic:build8-authority-contract-check": "rm -rf .fb8-authority-runtime .forensic-empty-types && mkdir -p .forensic-empty-types && tsc --typeRoots ./.forensic-empty-types --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --skipLibCheck --esModuleInterop --outDir .fb8-authority-runtime --rootDir . lib/opportunities/authority-contract.ts && node scripts/run-marketroute-forensic-build8-authority-contract.mjs .fb8-authority-runtime/lib/opportunities/authority-contract.js && rm -rf .fb8-authority-runtime .forensic-empty-types",
+    "forensic:build8-check": "npm run forensic:build8-static-check && npm run forensic:build8-sql-signature-check && npm run forensic:build8-runtime-check && npm run forensic:build8-authority-contract-check && npm run forensic:build8-g5-quality-check",
+    "prebuild": "npm run forensic:build8-static-check && npm run forensic:build8-sql-signature-check",
+    "forensic:certification-check": "npm run forensic:build8-check && npm run forensic:build1-runtime-check && npm run forensic:build2-runtime-check && npm run forensic:build3-runtime-check && npm run forensic:build5-runtime-check && npm run forensic:build6-runtime-check && npm run forensic:build7-runtime-check && npm run cie:r3-runtime-check && npm run cie:r4-runtime-check && npm run cie:r6-runtime-check",
+    "forensic:build8-g5-quality-check": "node scripts/compile-and-run-forensic-build8-g5-quality.mjs"
   },
   "dependencies": {
     "lucide-react": "0.468.0",

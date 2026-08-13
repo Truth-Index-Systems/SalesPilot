@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { pathToFileURL } from 'node:url';
+const modPath=process.argv[2]; if(!modPath) throw new Error('compiled G5 policy module path required');
+const m=await import(pathToFileURL(modPath)); let pass=0,total=0;
+const test=(name,fn)=>{total++;try{fn();pass++;console.log('PASS',name)}catch(e){console.error('FAIL',name,e);process.exitCode=1}};
+const review=(outcome='PASS',unsupportedClaims=[],blockedReasons=[],numeric=0)=>({outcome,unsupportedClaims,blockedReasons,factualAccuracy:numeric,evidenceAlignment:numeric,routeAlignment:numeric,overallConfidence:numeric});
+test('categorical PASS is not vetoed by low numeric telemetry',()=>assert.equal(m.applyG5CategoricalReviewPolicy(review('PASS',[],[],0),0).outcome,'PASS'));
+test('categorical PASS is not strengthened by high numeric telemetry because it is already categorical',()=>assert.equal(m.applyG5CategoricalReviewPolicy(review('PASS',[],[],100),0).outcome,'PASS'));
+test('categorical REWRITE remains REWRITE even with perfect numeric telemetry',()=>assert.equal(m.applyG5CategoricalReviewPolicy(review('REWRITE',[],[],100),0).outcome,'REWRITE'));
+test('unsupported claim overrides categorical PASS deterministically',()=>assert.equal(m.applyG5CategoricalReviewPolicy(review('PASS',['claim'],[],100),0).outcome,'REWRITE'));
+test('blocked reason overrides categorical PASS deterministically',()=>assert.equal(m.applyG5CategoricalReviewPolicy(review('PASS',[],['unsafe'],100),0).outcome,'REWRITE'));
+test('rewrite limit converts unresolved non-pass state to BLOCK',()=>assert.equal(m.applyG5CategoricalReviewPolicy(review('REWRITE',[],[],100),2).outcome,'BLOCK'));
+test('model categorical BLOCK is terminal immediately',()=>assert.equal(m.applyG5CategoricalReviewPolicy(review('BLOCK',[],[],0),0).outcome,'BLOCK'));
+test('unsafe PASS at rewrite limit is BLOCK',()=>assert.equal(m.applyG5CategoricalReviewPolicy(review('PASS',['claim'],[],100),2).outcome,'BLOCK'));
+test('numeric jitter alone cannot change categorical workflow outcome',()=>{const low=m.applyG5CategoricalReviewPolicy(review('PASS',[],[],1),0).outcome;const high=m.applyG5CategoricalReviewPolicy(review('PASS',[],[],99),0).outcome;assert.equal(low,high)});
+console.log(`${pass}/${total} Build-8 G5 categorical quality adversarial tests passed`);if(pass!==total)process.exit(1);

@@ -70,6 +70,8 @@ export function buildG5EngagementQuality(context: Context): G5EngagementQuality 
     riskSafety: avg(hallucination, spam, overclaim),
   };
 
+  // Forensic Build 8: weighted engagementConfidence is diagnostic telemetry only.
+  // It must never gate state, approval, queueing or execution.
   const engagementConfidence = weighted([
     [dimensions.commercialRelevance, 18],
     [dimensions.routeAlignment, 14],
@@ -84,14 +86,14 @@ export function buildG5EngagementQuality(context: Context): G5EngagementQuality 
   const strengths: string[] = [];
   const cautions: string[] = [];
   const explainability: G5EngagementQuality["explainability"] = [
-    { code: "ROUTE_VERIFIED", label: "Selected route passed independent route-alignment review", passed: route >= 90, score: route },
-    { code: "EVIDENCE_ALIGNED", label: "Claims align with persisted G4 evidence", passed: evidence >= 85, score: evidence },
-    { code: "FACTUALLY_SAFE", label: "Factual accuracy passed the G5 review threshold", passed: factual >= 90, score: factual },
-    { code: "PERSONALISATION_RELEVANT", label: "Personalisation is commercially relevant", passed: personalisation >= 80, score: personalisation },
-    { code: "CTA_CLEAR", label: "Call to action is low-friction and commercially clear", passed: cta >= 80, score: cta },
-    { code: "CHANNEL_SUITABLE", label: "Chosen channel aligns with the verified commercial route", passed: dimensions.channelSuitability >= 85, score: dimensions.channelSuitability },
+    { code: "ROUTE_VERIFIED", label: "Diagnostic: selected route received strong route-alignment review", passed: route >= 90, score: route },
+    { code: "EVIDENCE_ALIGNED", label: "Diagnostic: claims received strong evidence-alignment review", passed: evidence >= 85, score: evidence },
+    { code: "FACTUALLY_SAFE", label: "Diagnostic: factual-accuracy score is strong", passed: factual >= 90, score: factual },
+    { code: "PERSONALISATION_RELEVANT", label: "Diagnostic: personalisation relevance score is strong", passed: personalisation >= 80, score: personalisation },
+    { code: "CTA_CLEAR", label: "Diagnostic: CTA quality score is strong", passed: cta >= 80, score: cta },
+    { code: "CHANNEL_SUITABLE", label: "Diagnostic: channel-suitability score is strong", passed: dimensions.channelSuitability >= 85, score: dimensions.channelSuitability },
     { code: "NO_UNSUPPORTED_CLAIMS", label: "Independent review found no unsupported claims", passed: countArray(review.unsupportedClaims) === 0, score: null },
-    { code: "SAFETY_STRONG", label: "Hallucination, spam and overclaiming controls are strong", passed: dimensions.riskSafety >= 80, score: dimensions.riskSafety },
+    { code: "SAFETY_STRONG", label: "Diagnostic: safety-related scores are strong", passed: dimensions.riskSafety >= 80, score: dimensions.riskSafety },
   ];
 
   for (const item of explainability) {
@@ -103,7 +105,7 @@ export function buildG5EngagementQuality(context: Context): G5EngagementQuality 
 
   return G5EngagementQualitySchema.parse({
     schemaVersion: "g5-engagement-quality/v1",
-    policyVersion: "g5-engagement-quality/v1",
+    policyVersion: "g5-engagement-quality/fb8-categorical-v2",
     engagementConfidence,
     dimensions,
     strengths: strengths.slice(0, 12),

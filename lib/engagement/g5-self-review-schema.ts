@@ -5,7 +5,7 @@ export const G5SelfReviewOutcome = z.enum(["PASS", "REWRITE", "BLOCK"]);
 
 export const G5SelfReviewSchema = z.object({
   schemaVersion: z.literal("g5-self-review/v1"),
-  promptVersion: z.enum(["g5-self-review/v1", "g5-self-review/v2-chief-revenue-risk", "g5-self-review/v3-responsibility-boundary"]),
+  promptVersion: z.literal("g5-self-review/v4-fb8-categorical-quality"),
   outcome: G5SelfReviewOutcome,
   factualAccuracy: Score,
   evidenceAlignment: Score,
@@ -31,7 +31,7 @@ export const g5SelfReviewJsonSchema = {
   type: "object", additionalProperties: false,
   required: ["schemaVersion","promptVersion","outcome","factualAccuracy","evidenceAlignment","routeAlignment","hallucinationRisk","tone","messageLength","commercialClarity","ctaQuality","spamCharacteristics","overclaiming","personalisationRelevance","overallConfidence","criticism","rewriteInstructions","unsupportedClaims","blockedReasons","strengths"],
   properties: {
-    schemaVersion:{type:"string",enum:["g5-self-review/v1"]}, promptVersion:{type:"string",enum:["g5-self-review/v3-responsibility-boundary"]},
+    schemaVersion:{type:"string",enum:["g5-self-review/v1"]}, promptVersion:{type:"string",enum:["g5-self-review/v4-fb8-categorical-quality"]},
     outcome:{type:"string",enum:["PASS","REWRITE","BLOCK"]},
     factualAccuracy:{type:"integer",minimum:0,maximum:100}, evidenceAlignment:{type:"integer",minimum:0,maximum:100}, routeAlignment:{type:"integer",minimum:0,maximum:100},
     hallucinationRisk:{type:"integer",minimum:0,maximum:100}, tone:{type:"integer",minimum:0,maximum:100}, messageLength:{type:"integer",minimum:0,maximum:100},

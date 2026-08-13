@@ -2,6 +2,7 @@ export const MARKETROUTE_FORENSIC_BUILD7_R4_PRODUCER = "MR-T8-FB3-1.0.0" as cons
 export const MARKETROUTE_FORENSIC_BUILD7_R5_PRODUCER = "MR-T8-FB5-R5-1.0.0" as const;
 export const MARKETROUTE_FORENSIC_BUILD7_R6_PRODUCER = "MR-T8-FB6-R6-1.0.0" as const;
 export const MARKETROUTE_FORENSIC_BUILD7_TRUTH_SEMANTICS = "MR-TI-2-TFR1" as const;
+export const MARKETROUTE_FORENSIC_BUILD8_BOUNDARY_CONSTITUTION = "MR-T8-FB8-BOUNDARY-1.0.0" as const;
 
 export type Build7AuthorityState =
   | "AWAITING_COMMERCIAL_REALITY"
@@ -26,8 +27,11 @@ export type Build7AuthorityInput = {
     authorityFingerprint: string | null;
     targetTruthSemanticsVersion: string | null;
     truthSnapshotResolved: boolean;
+    boundaryConstitutionVersion: string | null;
+    boundaryComplete: boolean;
     appliedAt: string | null;
     updatedAt: string | null;
+    nextValidationAt: string | null;
   };
   r5: {
     authorityStatus: string | null;
@@ -53,12 +57,21 @@ const validFingerprint = (value: string | null) => Boolean(value && SHA256.test(
 
 export function classifyBuild7Authority(input: Build7AuthorityInput) {
   const now = Date.parse(input.now);
+  const boundaryContractCurrent = Boolean(
+    input.r4.boundaryConstitutionVersion === MARKETROUTE_FORENSIC_BUILD8_BOUNDARY_CONSTITUTION &&
+    (input.r4.disposition !== "COMMERCIAL_CANDIDATE" || input.r4.boundaryComplete)
+  );
+
   const r4Current = Boolean(
     validFingerprint(input.r4.authorityFingerprint) &&
     input.r4.targetTruthSemanticsVersion === MARKETROUTE_FORENSIC_BUILD7_TRUTH_SEMANTICS &&
     input.r4.truthSnapshotResolved &&
+    boundaryContractCurrent &&
     input.r4.appliedAt &&
     input.r4.updatedAt &&
+    input.r4.nextValidationAt &&
+    Number.isFinite(now) &&
+    Date.parse(input.r4.nextValidationAt) > now &&
     input.r4.producerVersion === MARKETROUTE_FORENSIC_BUILD7_R4_PRODUCER &&
     input.r4.productionId
   );

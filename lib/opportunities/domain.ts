@@ -151,6 +151,9 @@ export type OpportunityOverview = OpportunityFoundation & {
   r4_authority_fingerprint: string | null;
   r4_seller_context_fingerprint: string | null;
   r4_constraint_fingerprint: string | null;
+  r4_boundary_constitution_version: string | null;
+  r4_boundary_completeness_json: Record<string, unknown> | null;
+  r4_boundary_complete: boolean;
   target_truth_entity_id: string | null;
   target_truth_snapshot_id: string | null;
   target_truth_semantics_version: string | null;

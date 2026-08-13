@@ -1,0 +1,18 @@
+import path from 'node:path';import{pathToFileURL}from'node:url';
+const m=await import(pathToFileURL(path.resolve(process.argv[2])).href);let p=0,t=0;const test=(n,f)=>{t++;try{if(!f())throw new Error(n);p++;console.log('PASS',n)}catch(e){console.error('FAIL',n);process.exitCode=1}};
+const fp='a'.repeat(64),fp2='b'.repeat(64),now='2026-08-13T16:30:00.000Z';
+const base={workflowStatus:'READY',now,r4:{realityId:'r1',disposition:'COMMERCIAL_CANDIDATE',producerVersion:m.MARKETROUTE_FORENSIC_BUILD7_R4_PRODUCER,productionId:'p1',authorityFingerprint:fp,targetTruthSemanticsVersion:m.MARKETROUTE_FORENSIC_BUILD7_TRUTH_SEMANTICS,truthSnapshotResolved:true,boundaryConstitutionVersion:m.MARKETROUTE_FORENSIC_BUILD8_BOUNDARY_CONSTITUTION,boundaryComplete:true,appliedAt:now,updatedAt:now,nextValidationAt:'2026-08-14T16:30:00.000Z'},r5:{authorityStatus:'ACTIVE',producerVersion:m.MARKETROUTE_FORENSIC_BUILD7_R5_PRODUCER,authorityFingerprint:fp2,parentR4AuthorityFingerprint:fp,appliedAt:now},r6:{authorityStatus:'ACTIVE',producerVersion:m.MARKETROUTE_FORENSIC_BUILD7_R6_PRODUCER,contactTruthFingerprint:'c'.repeat(64),parentR4AuthorityFingerprint:fp,parentR5AuthorityFingerprint:fp2,primaryContactId:'c1',nextRevalidationAt:'2026-08-14T16:30:00.000Z',appliedAt:now}};
+const run=(patch={})=>m.classifyBuild7Authority({...base,...patch,r4:{...base.r4,...patch.r4},r5:{...base.r5,...patch.r5},r6:{...base.r6,...patch.r6}});
+test('fully certified lineage is READY',()=>run().authorityState==='READY'&&run().authorityReady);
+test('R4 exact expiry fails closed without invalidation worker',()=>run({r4:{nextValidationAt:'2026-08-13T16:29:59.999Z'}}).authorityState==='COMMERCIAL_AUTHORITY_STALE');
+test('named contact exact expiry fails closed without invalidation worker',()=>run({r6:{nextRevalidationAt:'2026-08-13T16:29:59.999Z'}}).authorityState==='CONTACT_UNRESOLVED');
+test('candidate missing boundary certification is stale',()=>run({r4:{boundaryConstitutionVersion:null}}).authorityState==='COMMERCIAL_AUTHORITY_STALE');
+test('candidate incomplete mandatory boundaries are stale',()=>run({r4:{boundaryComplete:false}}).authorityState==='COMMERCIAL_AUTHORITY_STALE');
+test('research-required may be current while boundary incomplete',()=>{const x=run({workflowStatus:'NEEDS_EVIDENCE',r4:{disposition:'RESEARCH_REQUIRED',boundaryComplete:false},r5:{authorityStatus:null,producerVersion:null,authorityFingerprint:null,parentR4AuthorityFingerprint:null,appliedAt:null},r6:{authorityStatus:null,producerVersion:null,contactTruthFingerprint:null,parentR4AuthorityFingerprint:null,parentR5AuthorityFingerprint:null,primaryContactId:null,nextRevalidationAt:null,appliedAt:null}});return x.authorityState==='RESEARCH_REQUIRED'&&x.authorityCurrent});
+test('R5 parent tamper fails route authority',()=>run({r5:{parentR4AuthorityFingerprint:'d'.repeat(64)}}).authorityState==='ROUTE_UNRESOLVED');
+test('R6 R4 parent tamper fails contact authority',()=>run({r6:{parentR4AuthorityFingerprint:'d'.repeat(64)}}).authorityState==='CONTACT_UNRESOLVED');
+test('R6 R5 parent tamper fails contact authority',()=>run({r6:{parentR5AuthorityFingerprint:'d'.repeat(64)}}).authorityState==='CONTACT_UNRESOLVED');
+test('organisational authority needs no contact expiry',()=>run({r6:{primaryContactId:null,nextRevalidationAt:null}}).authorityState==='READY');
+test('approved stale authority is surfaced as mismatch',()=>run({workflowStatus:'APPROVED',r6:{nextRevalidationAt:'2026-08-13T16:29:59.999Z'}}).workflowAuthorityMismatch);
+test('human rejection remains a legitimate workflow override',()=>run({workflowStatus:'REJECTED'}).workflowAuthorityMismatch===false);
+console.log(`${p}/${t} Build-8 authority-contract adversarial tests passed`);if(p!==t)process.exit(1);
