@@ -75,6 +75,9 @@ export function finaliseDeterministicContactRouteAuthority(result: ContactDiscov
 
   // CIE-R5: route scores remain compatibility telemetry only. Route array order is canonical, never authoritative.
   const routes = [...result.routes].sort((a, b) => a.routeKey.localeCompare(b.routeKey));
+  const relationships = [...result.relationships].sort((a, b) =>
+    `${a.relationType}:${a.fromEntity.kind}:${a.fromEntity.canonicalDomain ?? a.fromEntity.label}:${a.toEntity.kind}:${a.toEntity.canonicalDomain ?? a.toEntity.label}`
+      .localeCompare(`${b.relationType}:${b.fromEntity.kind}:${b.fromEntity.canonicalDomain ?? b.fromEntity.label}:${b.toEntity.kind}:${b.toEntity.canonicalDomain ?? b.toEntity.label}`));
 
-  return { ...result, contacts, companyContactChannels, routes };
+  return { ...result, contacts, companyContactChannels, routes, relationships };
 }

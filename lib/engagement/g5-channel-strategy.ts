@@ -32,7 +32,7 @@ export async function runNextG5ChannelStrategy(schedulerRunId: string): Promise<
   if (!claim) return { processed: false, outcome: "NO_JOB" };
 
   try {
-    // Retain the canonical G5 ownership/context gate. Build 4 deliberately does not
+    // Retain the canonical G5 ownership/context gate. Build 5 deliberately does not
     // re-run R5 against this historical reasoning snapshot; R5 has one persisted
     // authority ledger and engagement must consume that exact decision.
     const rows = await databaseRequest<Context[]>("rpc/get_g5_channel_strategy_context_owned", {
@@ -57,7 +57,7 @@ export async function runNextG5ChannelStrategy(schedulerRunId: string): Promise<
     const authority = authorityRows[0];
     if (!authority) throw new Error("CIE_R5_PERSISTED_AUTHORITY_MISSING");
     const strategy = G5ChannelStrategySchema.parse(authority.strategy_json);
-    if (strategy.promptVersion !== "cie-r5-route-authority/v2") {
+    if (strategy.promptVersion !== "cie-r5-route-authority/v3") {
       throw new Error("CIE_R5_PERSISTED_AUTHORITY_VERSION_INVALID");
     }
 

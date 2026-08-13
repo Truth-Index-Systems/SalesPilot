@@ -14,8 +14,11 @@
  * AI may identify/canonicalise semantic nodes and relationships upstream only.
  */
 
+import { assertRelationshipDefinition } from "../relationship-catalogue";
+import type { GenesisT8GraphDirection, GenesisT8GraphEdgeClass } from "../commercial-graph-9d";
+
 export const GENESIS_T8_CE2_EVOLUTION_R7_VERSION = "1.0.0" as const;
-export const GENESIS_T8_CE2_EVOLUTION_R7_BUILD = "CE2-R7" as const;
+export const GENESIS_T8_CE2_EVOLUTION_R7_BUILD = "CE2-R7-FB5" as const;
 
 export const GENESIS_T8_COMMERCIAL_PATH_EDGE_STATES = Object.freeze([
   "OPEN",
@@ -38,6 +41,12 @@ export type GenesisT8CommercialPathEdge = Readonly<{
   fromNodeId: string;
   toNodeId: string;
   sourceRelationshipId: string;
+  /** Build 5: when present the decision edge is explicitly bound to the canonical Genesis relationship ontology. */
+  canonicalRelationship?: Readonly<{
+    relationType: string;
+    edgeClass: GenesisT8GraphEdgeClass;
+    direction: GenesisT8GraphDirection;
+  }>;
   state: GenesisT8CommercialPathEdgeState;
   stabilityMargin: number | null;
 }>;
@@ -113,6 +122,9 @@ export function assertCommercialDecisionGraphInvariant(graph: GenesisT8Commercia
     canonicalId(edge.fromNodeId, "EDGE_FROM");
     canonicalId(edge.toNodeId, "EDGE_TO");
     canonicalId(edge.sourceRelationshipId, "SOURCE_RELATIONSHIP_ID");
+    if (edge.canonicalRelationship) {
+      assertRelationshipDefinition(edge.canonicalRelationship.relationType, edge.canonicalRelationship.edgeClass, edge.canonicalRelationship.direction);
+    }
     if (!nodeIds.has(edge.fromNodeId) || !nodeIds.has(edge.toNodeId)) throw new Error("GENESIS_T8_CE2_R7_VIOLATION:EDGE_ENDPOINT_MISSING");
     if (edge.fromNodeId === edge.toNodeId) throw new Error("GENESIS_T8_CE2_R7_VIOLATION:SELF_EDGE");
     if (!(GENESIS_T8_COMMERCIAL_PATH_EDGE_STATES as readonly string[]).includes(edge.state)) throw new Error("GENESIS_T8_CE2_R7_VIOLATION:EDGE_STATE");

@@ -115,12 +115,14 @@ export function buildR6AuthoritySourceFingerprint(input: Readonly<{
 export function buildR5AuthoritySourceFingerprint(input: Readonly<{
   r4AuthorityFingerprint: string;
   routes: readonly unknown[];
+  relationships?: readonly unknown[];
 }>): string {
   const byId = (a: unknown, b: unknown): number => String((a as any)?.id ?? "").localeCompare(String((b as any)?.id ?? ""));
   return hash({
-    stateVersion: "MR-T8-FB4-R5-SOURCE-1.0.0",
+    stateVersion: "MR-T8-FB5-R5-SOURCE-1.0.0",
     r4AuthorityFingerprint: input.r4AuthorityFingerprint,
     routes: [...input.routes].sort(byId).map(canonicalUnknown),
+    relationships: [...(input.relationships ?? [])].sort(byId).map(canonicalUnknown),
   });
 }
 
@@ -131,6 +133,9 @@ export function buildR5MaterialAuthorityFingerprint(input: Readonly<{
     routeStates: readonly Readonly<{
       id: string;
       routeType: string;
+      label?: string | null;
+      entryRole?: string | null;
+      department?: string | null;
       contactName: string | null;
       contactRole: string | null;
       targetRole: string | null;
@@ -139,18 +144,23 @@ export function buildR5MaterialAuthorityFingerprint(input: Readonly<{
       executionChannel: string | null;
       edgeState: string;
       evidenceSupport: string;
+      structuralRelationship?: unknown;
     }>[];
+    pathProvenance?: readonly unknown[];
   }>;
 }>): string {
   const selected = new Set(input.routeAuthority.selectedRouteIds);
   return hash({
-    stateVersion: "MR-T8-FB4-R5-AUTHORITY-1.0.0",
+    stateVersion: "MR-T8-FB5-R5-AUTHORITY-1.0.0",
     r4AuthorityFingerprint: input.r4AuthorityFingerprint,
     selectedRoutes: input.routeAuthority.routeStates
       .filter((route) => selected.has(route.id))
       .map((route) => ({
         id: route.id,
         routeType: canonicalText(route.routeType),
+        label: canonicalText(route.label),
+        entryRole: canonicalText(route.entryRole),
+        department: canonicalText(route.department),
         contactName: canonicalText(route.contactName),
         contactRole: canonicalText(route.contactRole),
         targetRole: canonicalText(route.targetRole),
@@ -159,20 +169,28 @@ export function buildR5MaterialAuthorityFingerprint(input: Readonly<{
         executionChannel: route.executionChannel,
         edgeState: route.edgeState,
         evidenceSupport: route.evidenceSupport,
+        structuralRelationship: canonicalUnknown(route.structuralRelationship),
       }))
       .sort((a, b) => a.id.localeCompare(b.id)),
+    selectedPathProvenance: [...(input.routeAuthority.pathProvenance ?? [])]
+      .filter((value) => selected.has(String((value as any)?.routeId ?? "")))
+      .map(canonicalUnknown),
   });
 }
 
-/** Build 4: R6 authority is downstream of explicit R5 authority, not raw route scores. */
-export function buildR6AuthoritySourceFingerprintV4(input: Readonly<{
+/** Build 5: R6 authority is downstream of the exact persisted canonical R5 graph authority. */
+export function buildR6AuthoritySourceFingerprintV5(input: Readonly<{
   r5AuthorityFingerprint: string;
   contacts: readonly unknown[];
 }>): string {
   const byId = (a: unknown, b: unknown): number => String((a as any)?.id ?? "").localeCompare(String((b as any)?.id ?? ""));
   return hash({
-    stateVersion: "MR-T8-FB4-R6-SOURCE-1.0.0",
+    stateVersion: "MR-T8-FB5-R6-SOURCE-1.0.0",
     r5AuthorityFingerprint: input.r5AuthorityFingerprint,
     contacts: [...input.contacts].sort(byId).map(canonicalUnknown),
   });
 }
+
+/** Historical alias retained only to avoid import breakage outside the active Build-5 worker. */
+export const buildR6AuthoritySourceFingerprintV4 = buildR6AuthoritySourceFingerprintV5;
+

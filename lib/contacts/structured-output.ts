@@ -15,6 +15,8 @@ const CHANNEL_TYPES = new Set(["NAMED","DEPARTMENTAL","GENERAL"]);
 const CHANNEL_VERIFICATION = new Set(["PUBLIC_VERIFIED","PATTERN_LIKELY"]);
 const ROUTE_TYPES = new Set(["OPERATIONAL","TRANSFORMATION","PROCUREMENT","TECHNICAL","EXECUTIVE","REGIONAL"]);
 const ROUTE_CHANNEL_TYPES = new Set(["DIRECT_EMAIL","LINKEDIN","DEPARTMENT_EMAIL","GENERAL_EMAIL","SWITCHBOARD","INTRODUCTION","UNKNOWN"]);
+const RELATIONSHIP_ENTITY_KINDS = new Set(["TARGET_COMPANY","EXTERNAL_ORGANISATION","ORGANISATIONAL_UNIT","TECHNOLOGY"]);
+const RELATIONSHIP_TYPES = new Set(["depends_on","part_of","parent_of","subsidiary_of","partners_with","supplies","customer_of","uses_technology_from"]);
 
 function record(value: unknown): JsonRecord | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : null;
@@ -80,6 +82,15 @@ function canonicalEvidence(value: unknown) {
     qualityScore: score(item.qualityScore),
     retrievedAt: dateTime(item.retrievedAt),
   };
+}
+
+function canonicalRelationshipEvidence(value: unknown) {
+  const item = record(value); if (!item) return null;
+  const sourceUrl = httpUrl(item.sourceUrl); if (!sourceUrl) return null;
+  if (typeof item.evidenceType !== "string" || item.evidenceType.trim().toUpperCase() !== "RELATIONSHIP") return null;
+  const sourceKind = enumValue(item.sourceKind, SOURCE_KINDS, ""); if (!sourceKind) return null;
+  const claim = text(item.claim, 500); if (!claim) return null;
+  return { evidenceType: "RELATIONSHIP" as const, claim, sourceUrl, sourceTitle: nullableText(item.sourceTitle, 240), excerpt: nullableText(item.excerpt, 900), sourceKind, sourceDomain: nullableText(item.sourceDomain, 255) ?? domainFromUrl(sourceUrl), verified: item.verified === true, excerptMatched: item.excerptMatched === true, qualityScore: score(item.qualityScore), retrievedAt: dateTime(item.retrievedAt) };
 }
 
 function canonicalContact(value: unknown) {
@@ -182,6 +193,31 @@ function canonicalBuyingPath(value: unknown, index: number) {
   };
 }
 
+function canonicalRelationshipEntity(value: unknown) {
+  const item = record(value); if (!item) return null;
+  const kind = enumValue(item.kind, RELATIONSHIP_ENTITY_KINDS, "");
+  const label = text(item.label, 180);
+  if (!kind || !label) return null;
+  const rawDomain = nullableText(item.canonicalDomain, 255)?.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0] ?? null;
+  const canonicalDomain = rawDomain && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(rawDomain) ? rawDomain : null;
+  if (kind === "EXTERNAL_ORGANISATION" && !canonicalDomain) return null;
+  return { kind, label, canonicalDomain };
+}
+
+function canonicalRelationship(value: unknown) {
+  const item = record(value); if (!item) return null;
+  const relationType = typeof item.relationType === "string" ? item.relationType.trim().toLowerCase() : "";
+  if (!RELATIONSHIP_TYPES.has(relationType)) return null;
+  const fromEntity = canonicalRelationshipEntity(item.fromEntity);
+  const toEntity = canonicalRelationshipEntity(item.toEntity);
+  if (!fromEntity || !toEntity) return null;
+  if (fromEntity.kind !== "TARGET_COMPANY" && toEntity.kind !== "TARGET_COMPANY") return null;
+  if (fromEntity.kind === toEntity.kind && fromEntity.label.toLowerCase() === toEntity.label.toLowerCase() && fromEntity.canonicalDomain === toEntity.canonicalDomain) return null;
+  const evidence = (Array.isArray(item.evidence) ? item.evidence : []).map(canonicalRelationshipEvidence).filter(Boolean).slice(0, 8);
+  if (!evidence.length) return null;
+  return { relationType, fromEntity, toEntity, rationale: text(item.rationale, 700, "Evidence-supported commercial relationship candidate."), evidence };
+}
+
 function canonicalRoute(value: unknown, index: number) {
   const item = record(value); if (!item) return null;
   const entryRole = text(item.entryRole, 180); const targetRole = text(item.targetRole, 180);
@@ -215,12 +251,13 @@ export function canonicaliseContactDiscoveryOutput(value: unknown, expectedCompa
   const companyContactChannels = (Array.isArray(root.companyContactChannels) ? root.companyContactChannels : []).map(canonicalChannel).filter(Boolean).sort((a: any, b: any) => a.emailAddress.localeCompare(b.emailAddress)).slice(0, 30);
   const buyingPaths = (Array.isArray(root.buyingPaths) ? root.buyingPaths : []).map(canonicalBuyingPath).filter(Boolean).slice(0, 12);
   const routes = (Array.isArray(root.routes) ? root.routes : []).map(canonicalRoute).filter(Boolean).sort((a: any, b: any) => a.routeKey.localeCompare(b.routeKey)).slice(0, 16);
+  const relationships = (Array.isArray(root.relationships) ? root.relationships : []).map(canonicalRelationship).filter(Boolean).sort((a: any, b: any) => `${a.relationType}:${a.fromEntity.kind}:${a.fromEntity.label}:${a.toEntity.kind}:${a.toEntity.label}`.localeCompare(`${b.relationType}:${b.fromEntity.kind}:${b.fromEntity.label}:${b.toEntity.kind}:${b.toEntity.label}`)).slice(0, 16);
   return ContactDiscoveryResultSchema.parse({
     schemaVersion: "contact-discovery/v3",
     companyId: expectedCompanyId,
     researchSummary: text(root.researchSummary, 900, "Route intelligence research completed."),
     organisationMap: canonicalOrganisationMap(root.organisationMap),
-    buyingPaths, routes,
+    buyingPaths, routes, relationships,
     contacts,
     companyContactChannels,
     unresolvedRoles: strings(root.unresolvedRoles, 20, 180),

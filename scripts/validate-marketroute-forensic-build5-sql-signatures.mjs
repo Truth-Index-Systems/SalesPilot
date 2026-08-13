@@ -1,0 +1,17 @@
+import fs from "node:fs";
+const old=fs.readFileSync("supabase/migrations/0154_marketroute_forensic_build4_legacy_route_authority_eradication.sql","utf8");
+const neu=fs.readFileSync("supabase/migrations/0155_marketroute_forensic_build5_canonical_relationship_graph.sql","utf8");
+const checks=[]; const pass=(n,c)=>{if(!c)throw new Error(`FORENSIC_BUILD5_SQL_SIGNATURE_FAIL:${n}`);checks.push(n)};
+const returnsTable="returns table(opportunity_id uuid,reality_id text,commercial_routes jsonb,contacts jsonb,r4_authority_fingerprint text)";
+pass("R6_CONTEXT_OUT_ROW_UNCHANGED",old.includes(returnsTable)&&neu.includes(returnsTable));
+pass("R6_CONTEXT_NOT_DROPPED",!neu.includes("drop function if exists public.get_cie_r6_contact_authority_context"));
+pass("R5_ENGAGEMENT_SIGNATURE_STABLE",old.includes("returns table(strategy_json jsonb,authority_fingerprint text,source_fingerprint text)")&&neu.includes("returns table(strategy_json jsonb,authority_fingerprint text,source_fingerprint text)"));
+pass("R6_PERSIST_SIGNATURE_STABLE",neu.includes("public.persist_cie_r6_contact_decision(\n  p_opportunity_id uuid,p_parent_r4_authority_fingerprint text,p_parent_r5_authority_fingerprint text,p_source_fingerprint text,\n  p_primary_contact_id uuid,p_contact_frontier_json jsonb,p_bindings_json jsonb,p_decision_json jsonb"));
+pass("AUTOPILOT_DROP_BEFORE_RECREATE",neu.indexOf("drop function if exists public.run_g5_autopilot_approval_owned(uuid);")>=0&&neu.indexOf("drop function if exists public.run_g5_autopilot_approval_owned(uuid);")<neu.indexOf("create function public.run_g5_autopilot_approval_owned(p_scheduler_run_id uuid)"));
+pass("NEW_R5_WRITER_UNIQUE_NAME",neu.includes("persist_cie_r5_relationship_graph_decision")&&!old.includes("persist_cie_r5_relationship_graph_decision"));
+pass("NEW_RELATION_CONTEXT_UNIQUE_NAME",neu.includes("get_cie_r5_canonical_relationship_context")&&!old.includes("get_cie_r5_canonical_relationship_context"));
+pass("NEW_RELATION_PERSIST_UNIQUE_NAME",neu.includes("persist_genesis_t8_canonical_relationships_owned")&&!old.includes("persist_genesis_t8_canonical_relationships_owned"));
+pass("MIGRATION_ATOMIC",neu.includes("BEGIN;")&&neu.trimEnd().endsWith("COMMIT;"));
+pass("POSTGREST_RELOAD",neu.includes("notify pgrst, 'reload schema'"));
+pass("CANONICAL_AND_STANDALONE_MATCH",fs.readFileSync("APPLY-IN-SUPABASE-FORENSIC-BUILD5.sql","utf8")===neu);
+console.log(`MarketRoute Forensic Build 5 SQL signatures: ${checks.length}/${checks.length} PASS`);

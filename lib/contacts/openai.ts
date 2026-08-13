@@ -23,9 +23,15 @@ const evidenceSchema={
     sourceDomain:nullableString,verified:{type:"boolean"},excerptMatched:{type:"boolean"},qualityScore:score,retrievedAt:nullableString,
   },
 } as const;
+const relationshipEvidenceSchema={
+  ...evidenceSchema,
+  properties:{...evidenceSchema.properties,evidenceType:{type:"string",enum:["RELATIONSHIP"]}},
+} as const;
+const relationshipEntitySchema={type:"object",additionalProperties:false,required:["kind","label","canonicalDomain"],properties:{kind:{type:"string",enum:["TARGET_COMPANY","EXTERNAL_ORGANISATION","ORGANISATIONAL_UNIT","TECHNOLOGY"]},label:{type:"string"},canonicalDomain:nullableString}} as const;
+const relationshipSchema={type:"object",additionalProperties:false,required:["relationType","fromEntity","toEntity","rationale","evidence"],properties:{relationType:{type:"string",enum:["depends_on","part_of","parent_of","subsidiary_of","partners_with","supplies","customer_of","uses_technology_from"]},fromEntity:relationshipEntitySchema,toEntity:relationshipEntitySchema,rationale:{type:"string"},evidence:{type:"array",minItems:1,maxItems:6,items:relationshipEvidenceSchema}}} as const;
 const schema={
   type:"object",additionalProperties:false,
-  required:["schemaVersion","companyId","researchSummary","organisationMap","buyingPaths","routes","contacts","companyContactChannels","unresolvedRoles","uncertainties"],
+  required:["schemaVersion","companyId","researchSummary","organisationMap","buyingPaths","routes","relationships","contacts","companyContactChannels","unresolvedRoles","uncertainties"],
   properties:{
     schemaVersion:{type:"string",enum:["contact-discovery/v3"]},companyId:{type:"string"},researchSummary:{type:"string"},
     organisationMap:{type:"object",additionalProperties:false,required:["summary","departments","businessUnits","buyingCentres","hierarchy","ownershipSignals"],properties:{
@@ -39,6 +45,7 @@ const schema={
       channelType:{type:"string",enum:["DIRECT_EMAIL","LINKEDIN","DEPARTMENT_EMAIL","GENERAL_EMAIL","SWITCHBOARD","INTRODUCTION","UNKNOWN"]},channelValue:nullableString,
       rationale:{type:"string"},nextStep:{type:"string"},fallbackReason:nullableString,evidence:{type:"array",maxItems:8,items:evidenceSchema},
     }}},
+    relationships:{type:"array",maxItems:12,items:relationshipSchema},
     unresolvedRoles:{type:"array",items:{type:"string"}},uncertainties:{type:"array",items:{type:"string"}},
     companyContactChannels:{type:"array",maxItems:10,items:{type:"object",additionalProperties:false,required:["emailAddress","channelType","department","associatedContactName","likelyReader","reasonSelected","verificationStatus","confidence","routingScore","responseLikelihood","campaignRelevance","sourceUrl","sourceTitle","evidenceExcerpt"],properties:{
       emailAddress:{type:"string"},channelType:{type:"string",enum:["NAMED","DEPARTMENTAL","GENERAL"]},department:nullableString,associatedContactName:nullableString,likelyReader:{type:"string"},reasonSelected:{type:"string"},verificationStatus:{type:"string",enum:["PUBLIC_VERIFIED","PATTERN_LIKELY"]},confidence:score,routingScore:score,responseLikelihood:score,campaignRelevance:score,sourceUrl:{type:"string"},sourceTitle:nullableString,evidenceExcerpt:{type:"string"},
@@ -79,6 +86,8 @@ export async function researchRouteIntelligence(input:{organisationId:string;cam
       "BUYING-COMMITTEE PRINCIPLE: Distinguish operational champion, functional owner, economic/budget authority, procurement influence, technical gatekeeper, executive sponsor and introducer when evidence supports those roles. A reachable champion with routing power can be superior to an unreachable executive.",
       "ROUTING-POWER PRINCIPLE: Describe authority, relevance, accessibility and internal routing power in prose and evidence only. Never convert those judgements into numbers or a viability label; deterministic Genesis/CIE owns route state and ordering.",
       "ROUTE-RESILIENCE PRINCIPLE: Research multiple independent route categories where evidence supports them. Do not label any route PRIMARY or FALLBACK; deterministic Genesis/UDOSIB logic owns authoritative route ordering and primary/fallback designation.",
+      "RELATIONSHIP GRAPH PRINCIPLE: Return only evidence-backed canonical commercial relationships touching the target company. Use evidenceType RELATIONSHIP for every relationship citation. Return only relationships when they materially describe a real path: depends_on, part_of, parent_of, subsidiary_of, partners_with, supplies, customer_of or uses_technology_from. Do not assign strengths, confidence, scores or inferred weights. Every relationship needs direct source evidence naming or otherwise unambiguously identifying both endpoints. Use TARGET_COMPANY for the researched account; EXTERNAL_ORGANISATION requires a canonical public domain; ORGANISATIONAL_UNIT and TECHNOLOGY require a precise canonical label.",
+      "RELATIONSHIP DIRECTION PRINCIPLE: Obey the literal ontology direction. customer_of means source is customer of target; supplies means source supplies target; uses_technology_from means source uses technology supplied by target; parent_of and subsidiary_of must reflect the evidenced corporate direction. partners_with is symmetric. If direction is ambiguous, omit the relationship and record uncertainty.",
       "Treat Company Discovery, company evidence and Business DNA as established context. Do not repeat generic fit research.",
       "GENESIS CONSTRAINT CONTRACT: business.genesisConstraintContracts is immutable seller-context state. Use it as a fixed reasoning boundary. Never reclassify or invent seller constraints. Respect BOUNDARY constraints, use SUPPORTING constraints as evidence of coherence, treat LIMITING constraints as restrictions rather than automatic impossibility, and expose UNKNOWN constraints as unresolved research debt.",
       "On the FIRST pass establish reachability early: supported direct emails, exact LinkedIn profiles, departmental/general monitored inboxes, switchboard numbers and introduction paths. Then map the minimum useful hierarchy/buying centres and connect people/channels to buying paths. A single contact is not an account strategy.",
@@ -96,8 +105,8 @@ export async function researchRouteIntelligence(input:{organisationId:string;cam
       "Generate route diversity where evidence supports it: operational, transformation, procurement, technical, executive, regional and introduction paths. Return the concrete route facts, channel value, rationale and source evidence. Do not emit numeric route authority, accessibility, relevance, evidence-quality, resilience, confidence, difficulty, viability or ranking fields; deterministic Genesis/CIE owns those decisions.",
       "A route may be useful without a named person when a verified department/general channel, switchboard or introduction path exists, but never mark unsupported reachability as executable.",
       "Before finalising, challenge the primary contact/route: identify whether someone one level lower would be sufficiently authorised and more relevant, or one level higher is actually required by the likely commitment. Prefer the closest justified level.",
-      "Return at most 8 well-supported people, 10 commercial routes and 10 company channels. Everything outside your accountability belongs to another executive or deterministic MarketRoute. Do not assume another role merely to complete the task. Write calm British English.",
-      "Prompt policy: contact-discovery/v6-forensic-raw-route-facts."
+      "Return at most 8 well-supported people, 10 commercial routes, 12 canonical relationships and 10 company channels. Everything outside your accountability belongs to another executive or deterministic MarketRoute. Do not assume another role merely to complete the task. Write calm British English.",
+      "Prompt policy: contact-discovery/v7-forensic-canonical-relationship-graph."
     ].join(" "),
     input:JSON.stringify(compactInput),tools:[{type:"web_search_preview",search_context_size:input.routeExpansionPass===0?"medium":"low"}],
     reasoning:{effort:profile.reasoningEffort},

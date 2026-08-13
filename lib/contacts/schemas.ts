@@ -95,6 +95,22 @@ export const BuyingPathSchema = z.object({
   confidence: z.number().int().min(0).max(100),
 });
 
+export const CommercialRelationshipEntityKindSchema = z.enum(["TARGET_COMPANY","EXTERNAL_ORGANISATION","ORGANISATIONAL_UNIT","TECHNOLOGY"]);
+export const CommercialRelationshipTypeSchema = z.enum(["depends_on","part_of","parent_of","subsidiary_of","partners_with","supplies","customer_of","uses_technology_from"]);
+export const CommercialRelationshipEntitySchema = z.object({
+  kind: CommercialRelationshipEntityKindSchema,
+  label: z.string().min(1).max(180),
+  canonicalDomain: z.string().max(255).optional().nullable(),
+});
+export const CommercialRelationshipEvidenceSchema = ContactEvidenceSchema.extend({ evidenceType: z.literal("RELATIONSHIP") });
+export const CommercialRelationshipProposalSchema = z.object({
+  relationType: CommercialRelationshipTypeSchema,
+  fromEntity: CommercialRelationshipEntitySchema,
+  toEntity: CommercialRelationshipEntitySchema,
+  rationale: z.string().min(1).max(700),
+  evidence: z.array(CommercialRelationshipEvidenceSchema).min(1).max(8),
+});
+
 export const CommercialRouteSchema = z.object({
   routeKey: z.string().min(1).max(120),
   routeType: RouteTypeSchema,
@@ -116,6 +132,7 @@ export const ContactDiscoveryResultSchema = z.object({
   schemaVersion: z.literal("contact-discovery/v3"), companyId: z.string().uuid(),
   researchSummary: z.string().min(1).max(900), organisationMap: OrganisationMapSchema,
   buyingPaths: z.array(BuyingPathSchema).max(12), routes: z.array(CommercialRouteSchema).max(16),
+  relationships: z.array(CommercialRelationshipProposalSchema).max(16),
   contacts: z.array(DiscoveredContactSchema).max(20),
   companyContactChannels: z.array(CompanyContactChannelSchema).max(30),
   unresolvedRoles: z.array(z.string().min(1).max(180)).max(20), uncertainties: z.array(z.string().min(1).max(500)).max(12),
@@ -134,3 +151,4 @@ export type ContactDiscoveryResult = z.infer<typeof ContactDiscoveryResultSchema
 export type OrganisationMap = z.infer<typeof OrganisationMapSchema>;
 export type BuyingPath = z.infer<typeof BuyingPathSchema>;
 export type CommercialRoute = z.infer<typeof CommercialRouteSchema>;
+export type CommercialRelationshipProposal = z.infer<typeof CommercialRelationshipProposalSchema>;

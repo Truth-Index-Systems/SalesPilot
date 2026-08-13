@@ -23,6 +23,10 @@ export const GENESIS_T8_RELATIONSHIP_CATALOGUE = Object.freeze([
   r({ relationType: "supplies", edgeClass: "ASSOCIATION", direction: "DIRECTED", topology: "CYCLES_ALLOWED", meaning: "Source entity supplies target entity." }),
   r({ relationType: "customer_of", edgeClass: "ASSOCIATION", direction: "DIRECTED", topology: "CYCLES_ALLOWED", meaning: "Source entity is an evidenced customer of target entity." }),
   r({ relationType: "uses_technology_from", edgeClass: "ASSOCIATION", direction: "DIRECTED", topology: "CYCLES_ALLOWED", meaning: "Source entity uses technology supplied by target entity." }),
+  r({ relationType: "employs", edgeClass: "ASSOCIATION", direction: "DIRECTED", topology: "CYCLES_ALLOWED", meaning: "Source organisation or organisational unit currently employs or formally contains the target person for the stated scope." }),
+  r({ relationType: "has_access_point", edgeClass: "COMPOSITION", direction: "DIRECTED", topology: "ACYCLIC", meaning: "Source organisation exposes the target verified public commercial access point as part of its current operating structure." }),
+  r({ relationType: "reachable_via", edgeClass: "ASSOCIATION", direction: "DIRECTED", topology: "CYCLES_ALLOWED", meaning: "Source commercial actor or access point provides an evidence-qualified execution path to the target engagement objective." }),
+  r({ relationType: "introduced_by", edgeClass: "ASSOCIATION", direction: "DIRECTED", topology: "CYCLES_ALLOWED", meaning: "Source organisation is evidence-qualified as reachable through the target introducer or intermediary." }),
   r({ relationType: "supersedes", edgeClass: "TEMPORAL", direction: "DIRECTED", topology: "ACYCLIC", meaning: "Source knowledge object replaces target as the later authoritative representation." }),
 ] as const);
 

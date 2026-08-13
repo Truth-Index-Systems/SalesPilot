@@ -37,10 +37,10 @@ type R5RouteAuthorityRead = {
 };
 
 function overlayR5RouteAuthority<T extends OpportunityOverview>(row: T, authority?: R5RouteAuthorityRead): T {
-  const active = authority?.authority_status === "ACTIVE" && authority.producer_version === "MR-T8-FB4-R5-1.0.0";
+  const active = authority?.authority_status === "ACTIVE" && authority.producer_version === "MR-T8-FB5-R5-1.0.0";
   return {
     ...row,
-    // Build 4 makes legacy route-quality scalars permanently non-authoritative at the read boundary.
+    // Build 5 preserves the Build-4 rule that legacy route-quality scalars permanently non-authoritative at the read boundary.
     commercial_route_id: active ? authority?.commercial_route_id ?? null : null,
     commercial_route_type: active ? authority?.commercial_route_type ?? null : null,
     commercial_route_label: active ? authority?.commercial_route_label ?? null : null,
